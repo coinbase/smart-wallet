@@ -4,3 +4,6 @@
 [submodule "lib/solady"]
 	path = lib/solady
 	url = https://github.com/vectorized/solady
+[submodule "lib/p256-verifier"]
+	path = lib/p256-verifier
+	url = https://github.com/daimo-eth/p256-verifier
