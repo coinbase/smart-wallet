@@ -11,7 +11,7 @@ import {WebAuthn} from "./WebAuthn.sol";
 /// @notice Coinbase ERC4337 account, built on Solady Simple ERC4337 account implementation.
 /// @author Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC4337.sol)
 /// @author Wilson Cusack 
-contract ERC4337 is MultiOwnable, UUPSUpgradeable, Receiver {
+contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver {
     /// @dev prevents reinitialization
     bool internal _initialized;
 

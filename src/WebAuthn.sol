@@ -2,8 +2,8 @@
 // from https://github.com/daimo-eth/p256-verifier/blob/master/src/WebAuthn.sol
 pragma solidity 0.8.21;
 
-import "./utils/Base64URL.sol";
-import "./P256.sol";
+import "p256-verifier/src/utils/Base64URL.sol";
+import "p256-verifier/src/P256.sol";
 
 /**
  * Helper library for external contracts to verify WebAuthn signatures.

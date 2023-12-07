@@ -2,7 +2,7 @@
 pragma solidity ^0.8.4;
 
 import {LibClone} from "solady/src/utils/LibClone.sol";
-import {ERC4337} from "./ERC4337Account.sol";
+import {ERC4337Account} from "./ERC4337Account.sol";
 
 /// @notice Update version of Solady simple ERC4337 account factory implementation.
 /// @author Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC4337Factory.sol)
@@ -23,7 +23,7 @@ contract ERC4337Factory {
         returns (address account)
     {
         account = LibClone.deployDeterministicERC1967(msg.value, implementation, keccak256(abi.encode(owners, salt)));
-        ERC4337(payable(account)).initialize(owners);
+        ERC4337Account(payable(account)).initialize(owners);
     }
 
     /// @dev Returns the initialization code hash of the ERC4337 account (a minimal ERC1967 proxy).

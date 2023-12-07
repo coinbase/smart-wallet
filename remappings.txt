@@ -1,3 +1,5 @@
-ds-test/=lib/forge-std/lib/ds-test/src/
-forge-std/=lib/forge-std/src/
 solady/=lib/solady/
+@openzeppelin/contracts/=lib/p256-verifier/lib/openzeppelin-contracts/contracts/
+erc4626-tests/=lib/p256-verifier/lib/openzeppelin-contracts/lib/erc4626-tests/
+openzeppelin-contracts/=lib/p256-verifier/lib/openzeppelin-contracts/
+p256-verifier/=lib/p256-verifier/
