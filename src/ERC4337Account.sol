@@ -6,7 +6,7 @@ import {UUPSUpgradeable} from "solady/src/utils/UUPSUpgradeable.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 
 import {MultiOwnable} from "./MultiOwnable.sol";
-import {Signature, PasskeyVerifier} from "./PasskeyVerifier.sol";
+import {WebAuthn} from "./WebAuthn.sol";
 
 /// @notice Coinbase ERC4337 account, built on Solady Simple ERC4337 account implementation.
 /// @author Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC4337.sol)
@@ -182,7 +182,7 @@ contract ERC4337 is MultiOwnable, UUPSUpgradeable, Receiver {
         return 0xffffffff; // ERC1271_REJECT_MAGICVALUE
     }
 
-    function verifySignature(bytes memory message, Signature memory signature, uint256 x, uint256 y)
+    function verifySignature(bytes memory message, PasskeySignature memory signature, uint256 x, uint256 y)
         public
         view
         returns (bool)
@@ -223,7 +223,7 @@ contract ERC4337 is MultiOwnable, UUPSUpgradeable, Receiver {
 
         // Passkey signature
         if (signature.length > 66) {
-            Signature memory sig = abi.decode(signature, (Signature));
+            PasskeySignature memory sig = abi.decode(signature, (PasskeySignature));
             (uint256 x, uint256 y) = abi.decode(ownerAtIndex[sig.ownerIndex], (uint256, uint256));
             return verifySignature(message, sig, x, y);
         }

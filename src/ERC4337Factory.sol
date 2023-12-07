@@ -2,7 +2,7 @@
 pragma solidity ^0.8.4;
 
 import {LibClone} from "solady/src/utils/LibClone.sol";
-import {ERC4337} from "./ERC4337.sol";
+import {ERC4337} from "./ERC4337Account.sol";
 
 /// @notice Update version of Solady simple ERC4337 account factory implementation.
 /// @author Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC4337Factory.sol)
