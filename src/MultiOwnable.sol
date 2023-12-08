@@ -19,9 +19,12 @@ contract MultiOwnable {
     mapping(uint8 => bytes) public ownerAtIndex;
     mapping(bytes => bool) internal _isOwner;
 
-    bytes32 private constant EMPTY = keccak256(abi.encode(""));
+    bytes32 private constant EMPTY = keccak256(hex"");
 
     error Unauthorized();
+    error AlreadyOwner(bytes owner);
+    error IndexNotEmpty(uint8 index, bytes owner);
+    error UseAddOwner();
 
     event AddOwner(bytes indexed owner, bytes indexed addedBy, uint8 indexed index);
     event RemoveOwner(bytes indexed owner, bytes indexed removedBy, uint8 indexed index);
@@ -32,25 +35,27 @@ contract MultiOwnable {
     }
 
     /// @dev convenience function that can be used to add the first
-    /// 255 owners.
+    /// 256 owners.
     function addOwner(bytes calldata owner) public virtual onlyOwner {
         _addOwnerAtIndex(owner, ++ownerIndex);
     }
 
     /// @dev adds an owner, identified by a specific index
+    /// Used after 256 addOwner calls
+    /// reverts if ownerIndex != 255
     /// reverts if ownerAtIndex[index] is set
     /// reverts if index > ownerIndex
     function addOwnerAtIndex(bytes calldata owner, uint8 index) public virtual onlyOwner {
-        require(index <= ownerIndex, "invalid index");
-        require(keccak256(ownerAtIndex[index]) == EMPTY, "invalid index");
+        if (ownerIndex != 255) revert UseAddOwner();
+        bytes memory existingOwner = ownerAtIndex[index];
+        if (keccak256(existingOwner) != EMPTY) revert IndexNotEmpty(index, existingOwner);
 
         _addOwnerAtIndex(owner, index);
     }
 
     /// @dev removes an owner, identified by a specific index
-    /// reverts if ownerAtIndex[index] is not `owner`
-    function removeOwnerAtIndex(bytes calldata owner, uint8 index) public virtual onlyOwner {
-        require(keccak256(owner) == keccak256(ownerAtIndex[index]), "invalid owner + index");
+    function removeOwnerAtIndex(uint8 index) public virtual onlyOwner {
+        bytes memory owner = ownerAtIndex[index];
         delete _isOwner[owner];
         delete ownerAtIndex[index];
 
@@ -70,13 +75,15 @@ contract MultiOwnable {
         return _isOwner[account];
     }
 
-    function _initializeOwner(bytes[] calldata owners) internal virtual {
+    function _initializeOwners(bytes[] calldata owners) internal virtual {
         for (uint256 i = 0; i < owners.length; i++) {
             _addOwnerAtIndex(owners[i], uint8(i));
         }
     }
 
     function _addOwnerAtIndex(bytes calldata owner, uint8 index) internal virtual {
+        if (isOwner(owner)) revert AlreadyOwner(owner);
+
         _isOwner[owner] = true;
         ownerAtIndex[index] = owner;
 
