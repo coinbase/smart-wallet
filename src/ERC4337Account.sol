@@ -10,7 +10,7 @@ import {WebAuthn} from "./WebAuthn.sol";
 
 /// @notice Coinbase ERC4337 account, built on Solady Simple ERC4337 account implementation.
 /// @author Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC4337.sol)
-/// @author Wilson Cusack 
+/// @author Wilson Cusack
 contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver {
     /// @dev prevents reinitialization
     bool internal _initialized;
@@ -209,7 +209,7 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver {
 
     /// @dev Validate `userOp.signature` for the `userOpHash`.
     function _validateSignature(bytes memory message, bytes calldata signature) public view virtual returns (bool) {
-        // ECDA + 1 byte 
+        // ECDA + 1 byte
         if (signature.length == 66) {
             // first byte is owner index
             uint8 index = uint8(bytes1(signature[0:1]));

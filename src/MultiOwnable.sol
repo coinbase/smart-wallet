@@ -2,20 +2,20 @@
 pragma solidity ^0.8.4;
 
 /// @notice Auth contract allowing multiple owners
-/// identifies owners as bytes to allow for secp256r1 X,Y coordinates to 
+/// identifies owners as bytes to allow for secp256r1 X,Y coordinates to
 /// identify an owner.
 /// Designed for use in smart account context.
 contract MultiOwnable {
-    /// @dev tracks the next owner to 
+    /// @dev tracks the next owner to
     uint8 public ownerIndex;
-    
+
     /// @dev Allows an owner to be idenfitied by a uint8.
     /// Passkey verifier does not recover the address, but requires
-    /// the X,Y coordinates to be passed for verification. 
-    /// In the context of checking whether something was signed by an owner 
+    /// the X,Y coordinates to be passed for verification.
+    /// In the context of checking whether something was signed by an owner
     /// this means that the signature needs to include an identifier of the owner.
-    /// In an effort to economize calldata, we use a uint8 rather than passing the 
-    /// X,Y coordinates. 
+    /// In an effort to economize calldata, we use a uint8 rather than passing the
+    /// X,Y coordinates.
     mapping(uint8 => bytes) public ownerAtIndex;
     mapping(bytes => bool) internal _isOwner;
 
@@ -31,8 +31,8 @@ contract MultiOwnable {
         _;
     }
 
-    /// @dev convenience function that can be used to add the first 
-    /// 255 owners. 
+    /// @dev convenience function that can be used to add the first
+    /// 255 owners.
     function addOwner(bytes calldata owner) public virtual onlyOwner {
         _addOwnerAtIndex(owner, ++ownerIndex);
     }
@@ -83,10 +83,10 @@ contract MultiOwnable {
         emit AddOwner(owner, abi.encode(msg.sender), index);
     }
 
-    /// @dev There is no logic in this contract 
+    /// @dev There is no logic in this contract
     /// to allow for address(this) to be msg.sender.
     /// This should be enabled in the inheriting contract
-    /// to allow for a passkey owner to call these functions. 
+    /// to allow for a passkey owner to call these functions.
     function _checkOwner() internal view virtual {
         if (!isOwner(msg.sender)) if (msg.sender != address(this)) revert Unauthorized();
     }

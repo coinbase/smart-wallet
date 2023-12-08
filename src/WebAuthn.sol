@@ -7,14 +7,11 @@ import "p256-verifier/src/P256.sol";
 
 /**
  * Helper library for external contracts to verify WebAuthn signatures.
- **/
+ *
+ */
 library WebAuthn {
     /// Checks whether substr occurs in str starting at a given byte offset.
-    function contains(
-        string memory substr,
-        string memory str,
-        uint256 location
-    ) internal pure returns (bool) {
+    function contains(string memory substr, string memory str, uint256 location) internal pure returns (bool) {
         bytes memory substrBytes = bytes(substr);
         bytes memory strBytes = bytes(str);
 
@@ -42,10 +39,7 @@ library WebAuthn {
     /// Verifies the authFlags in authenticatorData. Numbers in inline comment
     /// correspond to the same numbered bullets in
     /// https://w3c.github.io/webauthn/#sctn-verifying-assertion.
-    function checkAuthFlags(
-        bytes1 flags,
-        bool requireUserVerification
-    ) internal pure returns (bool) {
+    function checkAuthFlags(bytes1 flags, bool requireUserVerification) internal pure returns (bool) {
         // 17. Verify that the UP bit of the flags in authData is set.
         if (flags & AUTH_DATA_FLAGS_UP != AUTH_DATA_FLAGS_UP) {
             return false;
@@ -54,10 +48,7 @@ library WebAuthn {
         // 18. If user verification was determined to be required, verify that
         // the UV bit of the flags in authData is set. Otherwise, ignore the
         // value of the UV flag.
-        if (
-            requireUserVerification &&
-            (flags & AUTH_DATA_FLAGS_UV) != AUTH_DATA_FLAGS_UV
-        ) {
+        if (requireUserVerification && (flags & AUTH_DATA_FLAGS_UV) != AUTH_DATA_FLAGS_UV) {
             return false;
         }
 
@@ -135,10 +126,7 @@ library WebAuthn {
         uint256 y
     ) internal view returns (bool) {
         // Check that authenticatorData has good flags
-        if (
-            authenticatorData.length < 32 ||
-            !checkAuthFlags(authenticatorData[32], requireUserVerification)
-        ) {
+        if (authenticatorData.length < 32 || !checkAuthFlags(authenticatorData[32], requireUserVerification)) {
             return false;
         }
 
@@ -150,11 +138,7 @@ library WebAuthn {
 
         // Check that challenge is in the clientDataJSON
         string memory challengeB64url = Base64URL.encode(challenge);
-        string memory challengeProperty = string.concat(
-            '"challenge":"',
-            challengeB64url,
-            '"'
-        );
+        string memory challengeProperty = string.concat('"challenge":"', challengeB64url, '"');
 
         if (!contains(challengeProperty, clientDataJSON, challengeLocation)) {
             return false;
@@ -162,9 +146,7 @@ library WebAuthn {
 
         // Check that the public key signed sha256(authenticatorData || sha256(clientDataJSON))
         bytes32 clientDataJSONHash = sha256(bytes(clientDataJSON));
-        bytes32 messageHash = sha256(
-            abi.encodePacked(authenticatorData, clientDataJSONHash)
-        );
+        bytes32 messageHash = sha256(abi.encodePacked(authenticatorData, clientDataJSONHash));
 
         return P256.verifySignature(messageHash, r, s, x, y);
     }
