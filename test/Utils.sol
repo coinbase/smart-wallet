@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // adpated from https://github.com/daimo-eth/daimo/blob/master/packages/contract/test/Utils.sol
-pragma solidity ^0.8.13;
+pragma solidity ^0.8.0;
 
 import "../src/ERC4337Account.sol";
 import "p256-verifier/src/utils/Base64URL.sol";

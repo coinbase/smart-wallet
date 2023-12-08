@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.4;
+pragma solidity 0.8.21;
 
 import {Receiver} from "solady/src/accounts/Receiver.sol";
 import {UUPSUpgradeable} from "solady/src/utils/UUPSUpgradeable.sol";
@@ -83,7 +83,7 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver {
     function initialize(bytes[] calldata owners) public payable virtual {
         if (_initialized) revert Initialized();
         _initialized = true;
-        _initializeOwner(owners);
+        _initializeOwners(owners);
     }
 
     /// @dev Validates the signature and nonce.
