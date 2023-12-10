@@ -13,14 +13,18 @@ library Utils {
     {
         string memory challengeb64url = Base64URL.encode(abi.encode(challenge));
         string memory clientDataJSON = string(
-            abi.encodePacked('{"type":"webauthn.get","challenge":"', challengeb64url, '","origin":"http://localhost:3001"},"crossOrigin":false')
+            abi.encodePacked(
+                '{"type":"webauthn.get","challenge":"',
+                challengeb64url,
+                '","origin":"http://localhost:3001","crossOrigin":false}'
+            )
         );
 
         bytes memory authenticatorData = new bytes(37);
         authenticatorData[32] = bytes1(0x05); // flags: user present, user verified
 
         return ERC4337Account.PasskeySignature({
-            authenticatorData: authenticatorData,
+            authenticatorData: hex"49960de5880e8c687434170f6476605b8fe4aeb9a28632c7995cf3ba831d97630500000000",
             clientDataJSON: clientDataJSON,
             r: r,
             s: s

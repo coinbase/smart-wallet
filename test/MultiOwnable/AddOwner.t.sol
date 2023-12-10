@@ -21,7 +21,7 @@ contract AddOwnerTest is AddOwnerBaseTest {
     function testRevertsAfter255() public {
         vm.startPrank(owner1Address);
         // two owners added in setup
-        for (uint256 i = 0; i < 255; i++) {
+        for (uint256 i = 0; i < 253; i++) {
             mock.addOwner(abi.encode(i));
         }
         assertEq(mock.ownerIndex(), 255);
@@ -34,6 +34,6 @@ contract AddOwnerTest is AddOwnerBaseTest {
     }
 
     function _index() internal view override returns (uint8) {
-        return mock.ownerIndex() + 1;
+        return mock.ownerIndex();
     }
 }

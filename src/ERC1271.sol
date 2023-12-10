@@ -6,17 +6,10 @@ import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 
 /// @notice ERC1271 mixin with nested EIP-712 approach, supporting multiple owners
 /// @author Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC1271.sol)
-/// @author Wilson Cusack 
+/// @author Wilson Cusack
 abstract contract ERC1271 is EIP712 {
-    function isValidSignature(bytes32 hash, bytes calldata signature)
-        public
-        view
-        virtual
-        returns (bytes4 result)
-    {
-        bool success = _validateSignature(
-            SignatureCheckerLib.toEthSignedMessageHash(_hashTypedData(hash)), signature
-        );
+    function isValidSignature(bytes32 hash, bytes calldata signature) public view virtual returns (bytes4 result) {
+        bool success = _validateSignature(SignatureCheckerLib.toEthSignedMessageHash(_hashTypedData(hash)), signature);
         /// @solidity memory-safe-assembly
         assembly {
             // `success ? bytes4(keccak256("isValidSignature(bytes32,bytes)")) : 0xffffffff`.
@@ -28,9 +21,9 @@ abstract contract ERC1271 is EIP712 {
     /// to be wrapped in an EIP 712 hash that includes the domain hash
     /// EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)
     function replaySafeHash(bytes32 hash) public view returns (bytes32) {
-      return _hashTypedData(hash);
+        return _hashTypedData(hash);
     }
 
-    /// @dev Implement to vefify signature 
+    /// @dev Implement to vefify signature
     function _validateSignature(bytes32 message, bytes calldata signature) internal view virtual returns (bool);
 }

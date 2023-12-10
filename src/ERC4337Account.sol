@@ -102,7 +102,7 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
         payPrefund(missingAccountFunds)
         returns (uint256 validationData)
     {
-        bool success = _validateSignature( userOpHash, userOp.signature);
+        bool success = _validateSignature(userOpHash, userOp.signature);
 
         assembly {
             // Returns 0 if the recovered address matches the owner.
@@ -208,7 +208,13 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
     // }
 
     /// @dev Validate user op and 1271 signatures
-    function _validateSignature(bytes32 message, bytes calldata signaturePacked) internal view virtual override returns (bool) {
+    function _validateSignature(bytes32 message, bytes calldata signaturePacked)
+        internal
+        view
+        virtual
+        override
+        returns (bool)
+    {
         uint8 ownerIndex = uint8(bytes1(signaturePacked[0:1]));
         bytes memory signature = signaturePacked[1:];
 
@@ -234,12 +240,7 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
     /// @dev To ensure that only the owner or the account itself can upgrade the implementation.
     function _authorizeUpgrade(address) internal virtual override(UUPSUpgradeable) onlyOwner {}
 
-    function _domainNameAndVersion()
-        internal
-        pure
-        override
-        returns (string memory, string memory)
-    {
+    function _domainNameAndVersion() internal pure override returns (string memory, string memory) {
         return ("Coinbase Smart Account", "1");
     }
 }

@@ -37,7 +37,7 @@ contract MultiOwnable {
     /// @dev convenience function that can be used to add the first
     /// 256 owners.
     function addOwner(bytes calldata owner) public virtual onlyOwner {
-        _addOwnerAtIndex(owner, ++ownerIndex);
+        _addOwnerAtIndex(owner, ownerIndex++);
     }
 
     /// @dev adds an owner, identified by a specific index
@@ -77,7 +77,7 @@ contract MultiOwnable {
 
     function _initializeOwners(bytes[] calldata owners) internal virtual {
         for (uint256 i = 0; i < owners.length; i++) {
-            _addOwnerAtIndex(owners[i], uint8(i));
+            _addOwnerAtIndex(owners[i], ownerIndex++);
         }
     }
 
