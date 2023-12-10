@@ -20,11 +20,11 @@ library Utils {
             )
         );
 
-        bytes memory authenticatorData = new bytes(37);
-        authenticatorData[32] = bytes1(0x05); // flags: user present, user verified
+        // Authenticator data for Chrome Profile touchID signature
+        bytes memory authenticatorData = hex"49960de5880e8c687434170f6476605b8fe4aeb9a28632c7995cf3ba831d97630500000000";
 
         return ERC4337Account.PasskeySignature({
-            authenticatorData: hex"49960de5880e8c687434170f6476605b8fe4aeb9a28632c7995cf3ba831d97630500000000",
+            authenticatorData: authenticatorData,
             clientDataJSON: clientDataJSON,
             r: r,
             s: s
