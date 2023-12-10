@@ -10,6 +10,7 @@ import "p256-verifier/src/utils/Base64URL.sol";
 
 import {Utils} from "./Utils.sol";
 import {MockEntryPoint} from "./mocks/MockEntryPoint.sol";
+import {MockERC4337Account} from "./mocks/MockERC4337Account.sol";
 import {ERC4337Account} from "../src/ERC4337Account.sol";
 
 contract ERC4337Test is Test, TestPlus {
@@ -105,6 +106,86 @@ contract ERC4337Test is Test, TestPlus {
         assertEq(ret, bytes4(0xffffffff));
     }
 
+    /// taken from Solady and adapted ///
+
+    function testExecute() public {
+        vm.deal(address(account), 1 ether);
+        vm.prank(signer);
+        account.addOwner(abi.encode(address(this)));
+
+        address target = address(new Target());
+        bytes memory data = _randomBytes(111);
+        account.execute(target, 123, abi.encodeWithSignature("setData(bytes)", data));
+        assertEq(Target(target).datahash(), keccak256(data));
+        assertEq(target.balance, 123);
+
+        vm.prank(_randomNonZeroAddress());
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        account.execute(target, 123, abi.encodeWithSignature("setData(bytes)", data));
+
+        vm.expectRevert(abi.encodeWithSignature("TargetError(bytes)", data));
+        account.execute(target, 123, abi.encodeWithSignature("revertWithTargetError(bytes)", data));
+    }
+
+    function testExecuteBatch() public {
+        vm.deal(address(account), 1 ether);
+        vm.prank(signer);
+        account.addOwner(abi.encode(address(this)));
+
+        ERC4337Account.Call[] memory calls = new ERC4337Account.Call[](2);
+        calls[0].target = address(new Target());
+        calls[1].target = address(new Target());
+        calls[0].value = 123;
+        calls[1].value = 456;
+        calls[0].data = abi.encodeWithSignature("setData(bytes)", _randomBytes(111));
+        calls[1].data = abi.encodeWithSignature("setData(bytes)", _randomBytes(222));
+
+        account.executeBatch(calls);
+        assertEq(Target(calls[0].target).datahash(), keccak256(_randomBytes(111)));
+        assertEq(Target(calls[1].target).datahash(), keccak256(_randomBytes(222)));
+        assertEq(calls[0].target.balance, 123);
+        assertEq(calls[1].target.balance, 456);
+
+        calls[1].data = abi.encodeWithSignature("revertWithTargetError(bytes)", _randomBytes(111));
+        vm.expectRevert(abi.encodeWithSignature("TargetError(bytes)", _randomBytes(111)));
+        account.executeBatch(calls);
+    }
+
+    function testExecuteBatch(uint256 r) public {
+        account = new MockERC4337Account();
+        account.initialize(owners);
+        vm.prank(signer);
+        account.addOwner(abi.encode(address(this)));
+        vm.deal(address(account), 1 ether);
+
+        unchecked {
+            uint256 n = r & 3;
+            ERC4337Account.Call[] memory calls = new ERC4337Account.Call[](n);
+
+            for (uint256 i; i != n; ++i) {
+                uint256 v = _random() & 0xff;
+                calls[i].target = address(new Target());
+                calls[i].value = v;
+                calls[i].data = abi.encodeWithSignature("setData(bytes)", _randomBytes(v));
+            }
+
+            bytes[] memory results;
+            if (_random() & 1 == 0) {
+                results = MockERC4337Account(payable(address(account))).executeBatch(_random(), calls);
+            } else {
+                results = account.executeBatch(calls);
+            }
+
+            assertEq(results.length, n);
+            for (uint256 i; i != n; ++i) {
+                uint256 v = calls[i].value;
+                assertEq(Target(calls[i].target).datahash(), keccak256(_randomBytes(v)));
+                assertEq(calls[i].target.balance, v);
+                assertEq(abi.decode(results[i], (bytes)), _randomBytes(v));
+            }
+        }
+    }
+
     struct _TestTemps {
         bytes32 userOpHash;
         address signer;
@@ -115,7 +196,6 @@ contract ERC4337Test is Test, TestPlus {
         uint256 missingAccountFunds;
     }
 
-    // taken from Solady
     function testValidateUserOp() public {
         account = new ERC4337Account();
         _TestTemps memory t;
@@ -146,5 +226,45 @@ contract ERC4337Test is Test, TestPlus {
         // Not entry point reverts.
         vm.expectRevert(Ownable.Unauthorized.selector);
         account.validateUserOp(userOp, t.userOpHash, t.missingAccountFunds);
+    }
+
+    function _randomBytes(uint256 seed) internal pure returns (bytes memory result) {
+        /// @solidity memory-safe-assembly
+        assembly {
+            mstore(0x00, seed)
+            let r := keccak256(0x00, 0x20)
+            if lt(byte(2, r), 0x20) {
+                result := mload(0x40)
+                let n := and(r, 0x7f)
+                mstore(result, n)
+                codecopy(add(result, 0x20), byte(1, r), add(n, 0x40))
+                mstore(0x40, add(add(result, 0x40), n))
+            }
+        }
+    }
+}
+
+contract Target {
+    error TargetError(bytes data);
+
+    bytes32 public datahash;
+
+    bytes public data;
+
+    function setData(bytes memory data_) public payable returns (bytes memory) {
+        data = data_;
+        datahash = keccak256(data_);
+        return data_;
+    }
+
+    function revertWithTargetError(bytes memory data_) public payable {
+        revert TargetError(data_);
+    }
+
+    function changeOwnerSlotValue(bool change) public payable {
+        /// @solidity memory-safe-assembly
+        assembly {
+            if change { sstore(not(0x8b78c6d8), 0x112233) }
+        }
     }
 }
