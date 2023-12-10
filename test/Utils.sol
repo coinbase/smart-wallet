@@ -6,7 +6,7 @@ import "../src/ERC4337Account.sol";
 import "p256-verifier/src/utils/Base64URL.sol";
 
 library Utils {
-    function rawSignatureToSignature(bytes memory challenge, uint256 r, uint256 s, uint8 ownerIndex)
+    function rawSignatureToSignature(bytes memory challenge, uint256 r, uint256 s)
         public
         pure
         returns (ERC4337Account.PasskeySignature memory)
@@ -23,8 +23,7 @@ library Utils {
             authenticatorData: authenticatorData,
             clientDataJSON: clientDataJSON,
             r: r,
-            s: s,
-            ownerIndex: ownerIndex
+            s: s
         });
     }
 }

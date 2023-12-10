@@ -12,7 +12,7 @@ import {ERC1271} from "./ERC1271.sol";
 /// @notice Coinbase ERC4337 account, built on Solady Simple ERC4337 account implementation.
 /// @author Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC4337.sol)
 /// @author Wilson Cusack
-contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
+contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver {
     /// @dev prevents reinitialization
     bool internal _initialized;
 
@@ -37,7 +37,6 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
         string clientDataJSON;
         uint256 r;
         uint256 s;
-        uint8 ownerIndex;
     }
 
     /// @dev Call struct for the `executeBatch` function.
@@ -103,7 +102,7 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
         payPrefund(missingAccountFunds)
         returns (uint256 validationData)
     {
-        bool success = _validateSignature(userOpHash, userOp.signature);
+        bool success = _validateSignature(uint8(bytes1(userOp.signature[0:1])), userOpHash, userOp.signature[1:]);
 
         assembly {
             // Returns 0 if the recovered address matches the owner.
@@ -199,24 +198,30 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
         return 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789;
     }
 
+    function isValidSignature(bytes32 message, bytes calldata signature) public view virtual returns (bytes4 result) {
+        if (_validateSignature(uint8(bytes1(signature[0:1])), message, signature[1:])) {
+            return 0x1626ba7e; // ERC1271_MAGICVALUE
+        }
+        return 0xffffffff; // ERC1271_REJECT_MAGICVALUE
+    }
+
     /// @dev Validate `userOp.signature` for the `userOpHash`.
-    function _validateSignature(bytes32 message, bytes calldata signature) internal view virtual override returns (bool) {
+    function _validateSignature(uint8 ownerIndex, bytes32 message, bytes calldata signature) internal view virtual returns (bool) {
         // ECDA + 1 byte
-        if (signature.length == 66 || signature.length == 34) {
-            // first byte is owner index
-            uint8 index = uint8(bytes1(signature[0:1]));
-            bytes memory ownerBytes = ownerAtIndex[index];
+        if (signature.length == 65) {
+            // // first byte is owner index
+            bytes memory ownerBytes = ownerAtIndex[ownerIndex];
             address owner;
             assembly {
                 owner := mload(add(ownerBytes, 32))
             }
-            return SignatureCheckerLib.isValidSignatureNow(owner, bytes32(message), signature[1:]);
+            return SignatureCheckerLib.isValidSignatureNow(owner, message, signature);
         }
 
         // Passkey signature
-        if (signature.length > 66) {
+        if (signature.length > 65) {
             PasskeySignature memory sig = abi.decode(signature, (PasskeySignature));
-            (uint256 x, uint256 y) = abi.decode(ownerAtIndex[sig.ownerIndex], (uint256, uint256));
+            (uint256 x, uint256 y) = abi.decode(ownerAtIndex[ownerIndex], (uint256, uint256));
             return verifySignature(message, sig, x, y);
         }
 
@@ -226,12 +231,12 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
     /// @dev To ensure that only the owner or the account itself can upgrade the implementation.
     function _authorizeUpgrade(address) internal virtual override(UUPSUpgradeable) onlyOwner {}
 
-    function _domainNameAndVersion()
-        internal
-        pure
-        override
-        returns (string memory, string memory)
-    {
-        return ("Coinbase Smart Account", "1");
-    }
+    // function _domainNameAndVersion()
+    //     internal
+    //     pure
+    //     override
+    //     returns (string memory, string memory)
+    // {
+    //     return ("Coinbase Smart Account", "1");
+    // }
 }

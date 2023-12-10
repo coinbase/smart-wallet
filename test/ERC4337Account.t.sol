@@ -43,14 +43,14 @@ contract ERC4337Test is Test, TestPlus {
             Utils.rawSignatureToSignature({
                 challenge: abi.encodePacked(bytes32(0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5)),
                 r: 0x3f033e5c93d0310f33632295f64d526f7569c4cb30895f50d60de5fe9e0e6a9a,
-                s: 0x2adcff2bd06fc3cdd03e21e5e4c197913e96e75cad0bc6e9c9c14607af4f3a37,
-                ownerIndex: 1
+                s: 0x2adcff2bd06fc3cdd03e21e5e4c197913e96e75cad0bc6e9c9c14607af4f3a37
             })
         );
+        bytes memory sigWithOwnerIndex = abi.encodePacked(uint8(1), sig);
 
         // check a valid signature
         bytes32 hash = 0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5;
-        bytes4 ret = account.isValidSignature(hash, sig);
+        bytes4 ret = account.isValidSignature(hash, sigWithOwnerIndex);
         assertEq(ret, bytes4(0x1626ba7e));
     }
 
@@ -59,15 +59,15 @@ contract ERC4337Test is Test, TestPlus {
             Utils.rawSignatureToSignature({
                 challenge: abi.encodePacked(bytes32(0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5)),
                 r: 0x3f033e5c93d0310f33632295f64d526f7569c4cb30895f50d60de5fe9e0e6a9a,
-                s: 0x2adcff2bd06fc3cdd03e21e5e4c197913e96e75cad0bc6e9c9c14607af4f3a37,
-                ownerIndex: 2
+                s: 0x2adcff2bd06fc3cdd03e21e5e4c197913e96e75cad0bc6e9c9c14607af4f3a37
             })
         );
+        bytes memory sigWithOwnerIndex = abi.encodePacked(uint8(2), sig);
 
         // check a valid signature
         bytes32 hash = 0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5;
         vm.expectRevert();
-        account.isValidSignature(hash, sig);
+        account.isValidSignature(hash, sigWithOwnerIndex);
     }
 
     function testValidateSignatureWithPasskeySignerFailsWithWrongBadSignature() public {
@@ -75,14 +75,14 @@ contract ERC4337Test is Test, TestPlus {
             Utils.rawSignatureToSignature({
                 challenge: abi.encodePacked(bytes32(0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5)),
                 r: 0x3f043e5c93d0310f33632295f64d526f7569c4cb30895f50d60de5fe9e0e6a9a,
-                s: 0x2adcff2bd06fc3cdd03e21e5e4c197913e96e75cad0bc6e9c9c14607af4f3a37,
-                ownerIndex: 1
+                s: 0x2adcff2bd06fc3cdd03e21e5e4c197913e96e75cad0bc6e9c9c14607af4f3a37
             })
         );
+        bytes memory sigWithOwnerIndex = abi.encodePacked(uint8(1), sig);
 
         // check a valid signature
         bytes32 hash = 0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5;
-        bytes4 ret = account.isValidSignature(hash, sig);
+        bytes4 ret = account.isValidSignature(hash, sigWithOwnerIndex);
         assertEq(ret, bytes4(0xffffffff));
     }
 
