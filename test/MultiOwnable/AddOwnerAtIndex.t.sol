@@ -7,7 +7,7 @@ contract AddOwnerAtIndexTest is AddOwnerBaseTest {
     function setUp() public override {
         super.setUp();
         vm.startPrank(owner1Address);
-        for (uint256 i = 0; i < 255; i++) {
+        for (uint256 i = 0; i < 253; i++) {
             mock.addOwner(abi.encode(i));
         }
         mock.removeOwnerAtIndex(_index());

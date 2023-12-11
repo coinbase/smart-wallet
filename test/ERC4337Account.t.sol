@@ -10,6 +10,7 @@ import "p256-verifier/src/utils/Base64URL.sol";
 
 import {Utils} from "./Utils.sol";
 import {MockEntryPoint} from "./mocks/MockEntryPoint.sol";
+import {MockERC4337Account} from "./mocks/MockERC4337Account.sol";
 import {ERC4337Account} from "../src/ERC4337Account.sol";
 
 contract ERC4337Test is Test, TestPlus {
@@ -19,76 +20,79 @@ contract ERC4337Test is Test, TestPlus {
     uint256 signerPrivateKey = 0xa11ce;
     address signer = vm.addr(signerPrivateKey);
     bytes[] owners;
-    uint256[2] publicKey = [
-        0x65a2fa44daad46eab0278703edb6c4dcf5e30b8a9aec09fdc71a56f52aa392e4,
-        0x4a7a9e4604aa36898209997288e902ac544a555e4b5e0a9efef2b59233f3f437
-    ];
+    bytes passkeyOwner =
+        hex"d0266650cb64be790f59ad65381659583bfbf6d8338783af12f4c9f6cd70333f8224d6f6a871980a9f08df9ff70ba3531299e8da7e42a9e8e89b84fb1f53febe";
 
     function setUp() public {
         vm.etch(address(0xc2b78104907F722DABAc4C69f826a522B2754De4), p256VerifierCode);
         account = new ERC4337Account();
 
         owners.push(abi.encode(signer));
-        owners.push(abi.encode(publicKey[0], publicKey[1]));
+        owners.push(passkeyOwner);
         account.initialize(owners);
     }
 
     function testInitialize() public view {
         assert(account.isOwner(signer));
-        assert(account.isOwner(abi.encode(publicKey[0], publicKey[1])));
+        assert(account.isOwner(passkeyOwner));
     }
 
     function testValidateSignatureWithPasskeySigner() public {
+        bytes32 hash = 0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5;
+        bytes32 toSign = SignatureCheckerLib.toEthSignedMessageHash(account.replaySafeHash(hash));
         bytes memory sig = abi.encode(
             Utils.rawSignatureToSignature({
-                challenge: abi.encodePacked(bytes32(0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5)),
-                r: 0x3f033e5c93d0310f33632295f64d526f7569c4cb30895f50d60de5fe9e0e6a9a,
-                s: 0x2adcff2bd06fc3cdd03e21e5e4c197913e96e75cad0bc6e9c9c14607af4f3a37,
-                ownerIndex: 1
+                challenge: toSign,
+                r: 114402223712652727003631532622572663093479626690071915344462720478540043027933,
+                s: 12929371899131655946206150468148136699220952501717878658815701223816686794150
             })
         );
 
+        bytes memory sigWithOwnerIndex = abi.encodePacked(uint8(1), sig);
+
         // check a valid signature
-        bytes32 hash = 0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5;
-        bytes4 ret = account.isValidSignature(hash, sig);
+        bytes4 ret = account.isValidSignature(hash, sigWithOwnerIndex);
         assertEq(ret, bytes4(0x1626ba7e));
     }
 
     function testValidateSignatureWithPasskeySignerFailsWithWrongPubKey() public {
+        bytes32 hash = 0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5;
+        bytes32 toSign = SignatureCheckerLib.toEthSignedMessageHash(account.replaySafeHash(hash));
         bytes memory sig = abi.encode(
             Utils.rawSignatureToSignature({
-                challenge: abi.encodePacked(bytes32(0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5)),
-                r: 0x3f033e5c93d0310f33632295f64d526f7569c4cb30895f50d60de5fe9e0e6a9a,
-                s: 0x2adcff2bd06fc3cdd03e21e5e4c197913e96e75cad0bc6e9c9c14607af4f3a37,
-                ownerIndex: 2
+                challenge: toSign,
+                r: 114402223712652727003631532622572663093479626690071915344462720478540043027933,
+                s: 12929371899131655946206150468148136699220952501717878658815701223816686794150
             })
         );
+        bytes memory sigWithOwnerIndex = abi.encodePacked(uint8(2), sig);
 
         // check a valid signature
-        bytes32 hash = 0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5;
         vm.expectRevert();
-        account.isValidSignature(hash, sig);
+        account.isValidSignature(hash, sigWithOwnerIndex);
     }
 
     function testValidateSignatureWithPasskeySignerFailsWithWrongBadSignature() public {
+        bytes32 hash = 0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5;
+        bytes32 toSign = SignatureCheckerLib.toEthSignedMessageHash(account.replaySafeHash(hash));
         bytes memory sig = abi.encode(
             Utils.rawSignatureToSignature({
-                challenge: abi.encodePacked(bytes32(0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5)),
-                r: 0x3f043e5c93d0310f33632295f64d526f7569c4cb30895f50d60de5fe9e0e6a9a,
-                s: 0x2adcff2bd06fc3cdd03e21e5e4c197913e96e75cad0bc6e9c9c14607af4f3a37,
-                ownerIndex: 1
+                challenge: toSign,
+                r: 114402223712652727003631532622572663093479626690071915344462720478540043027933,
+                s: 1
             })
         );
+        bytes memory sigWithOwnerIndex = abi.encodePacked(uint8(1), sig);
 
         // check a valid signature
-        bytes32 hash = 0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5;
-        bytes4 ret = account.isValidSignature(hash, sig);
+        bytes4 ret = account.isValidSignature(hash, sigWithOwnerIndex);
         assertEq(ret, bytes4(0xffffffff));
     }
 
     function testValidateSignatureWithEOASigner() public {
         bytes32 hash = 0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5;
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, hash);
+        bytes32 toSign = SignatureCheckerLib.toEthSignedMessageHash(account.replaySafeHash(hash));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, toSign);
         bytes memory signature = abi.encodePacked(r, s, v);
         bytes4 ret = account.isValidSignature(hash, abi.encodePacked(uint8(0), signature));
         assertEq(ret, bytes4(0x1626ba7e));
@@ -102,6 +106,86 @@ contract ERC4337Test is Test, TestPlus {
         assertEq(ret, bytes4(0xffffffff));
     }
 
+    /// taken from Solady and adapted ///
+
+    function testExecute() public {
+        vm.deal(address(account), 1 ether);
+        vm.prank(signer);
+        account.addOwner(abi.encode(address(this)));
+
+        address target = address(new Target());
+        bytes memory data = _randomBytes(111);
+        account.execute(target, 123, abi.encodeWithSignature("setData(bytes)", data));
+        assertEq(Target(target).datahash(), keccak256(data));
+        assertEq(target.balance, 123);
+
+        vm.prank(_randomNonZeroAddress());
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        account.execute(target, 123, abi.encodeWithSignature("setData(bytes)", data));
+
+        vm.expectRevert(abi.encodeWithSignature("TargetError(bytes)", data));
+        account.execute(target, 123, abi.encodeWithSignature("revertWithTargetError(bytes)", data));
+    }
+
+    function testExecuteBatch() public {
+        vm.deal(address(account), 1 ether);
+        vm.prank(signer);
+        account.addOwner(abi.encode(address(this)));
+
+        ERC4337Account.Call[] memory calls = new ERC4337Account.Call[](2);
+        calls[0].target = address(new Target());
+        calls[1].target = address(new Target());
+        calls[0].value = 123;
+        calls[1].value = 456;
+        calls[0].data = abi.encodeWithSignature("setData(bytes)", _randomBytes(111));
+        calls[1].data = abi.encodeWithSignature("setData(bytes)", _randomBytes(222));
+
+        account.executeBatch(calls);
+        assertEq(Target(calls[0].target).datahash(), keccak256(_randomBytes(111)));
+        assertEq(Target(calls[1].target).datahash(), keccak256(_randomBytes(222)));
+        assertEq(calls[0].target.balance, 123);
+        assertEq(calls[1].target.balance, 456);
+
+        calls[1].data = abi.encodeWithSignature("revertWithTargetError(bytes)", _randomBytes(111));
+        vm.expectRevert(abi.encodeWithSignature("TargetError(bytes)", _randomBytes(111)));
+        account.executeBatch(calls);
+    }
+
+    function testExecuteBatch(uint256 r) public {
+        account = new MockERC4337Account();
+        account.initialize(owners);
+        vm.prank(signer);
+        account.addOwner(abi.encode(address(this)));
+        vm.deal(address(account), 1 ether);
+
+        unchecked {
+            uint256 n = r & 3;
+            ERC4337Account.Call[] memory calls = new ERC4337Account.Call[](n);
+
+            for (uint256 i; i != n; ++i) {
+                uint256 v = _random() & 0xff;
+                calls[i].target = address(new Target());
+                calls[i].value = v;
+                calls[i].data = abi.encodeWithSignature("setData(bytes)", _randomBytes(v));
+            }
+
+            bytes[] memory results;
+            if (_random() & 1 == 0) {
+                results = MockERC4337Account(payable(address(account))).executeBatch(_random(), calls);
+            } else {
+                results = account.executeBatch(calls);
+            }
+
+            assertEq(results.length, n);
+            for (uint256 i; i != n; ++i) {
+                uint256 v = calls[i].value;
+                assertEq(Target(calls[i].target).datahash(), keccak256(_randomBytes(v)));
+                assertEq(calls[i].target.balance, v);
+                assertEq(abi.decode(results[i], (bytes)), _randomBytes(v));
+            }
+        }
+    }
+
     struct _TestTemps {
         bytes32 userOpHash;
         address signer;
@@ -112,7 +196,6 @@ contract ERC4337Test is Test, TestPlus {
         uint256 missingAccountFunds;
     }
 
-    // taken from Solady
     function testValidateUserOp() public {
         account = new ERC4337Account();
         _TestTemps memory t;
@@ -143,5 +226,45 @@ contract ERC4337Test is Test, TestPlus {
         // Not entry point reverts.
         vm.expectRevert(Ownable.Unauthorized.selector);
         account.validateUserOp(userOp, t.userOpHash, t.missingAccountFunds);
+    }
+
+    function _randomBytes(uint256 seed) internal pure returns (bytes memory result) {
+        /// @solidity memory-safe-assembly
+        assembly {
+            mstore(0x00, seed)
+            let r := keccak256(0x00, 0x20)
+            if lt(byte(2, r), 0x20) {
+                result := mload(0x40)
+                let n := and(r, 0x7f)
+                mstore(result, n)
+                codecopy(add(result, 0x20), byte(1, r), add(n, 0x40))
+                mstore(0x40, add(add(result, 0x40), n))
+            }
+        }
+    }
+}
+
+contract Target {
+    error TargetError(bytes data);
+
+    bytes32 public datahash;
+
+    bytes public data;
+
+    function setData(bytes memory data_) public payable returns (bytes memory) {
+        data = data_;
+        datahash = keccak256(data_);
+        return data_;
+    }
+
+    function revertWithTargetError(bytes memory data_) public payable {
+        revert TargetError(data_);
+    }
+
+    function changeOwnerSlotValue(bool change) public payable {
+        /// @solidity memory-safe-assembly
+        assembly {
+            if change { sstore(not(0x8b78c6d8), 0x112233) }
+        }
     }
 }

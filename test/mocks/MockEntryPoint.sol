@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.0;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.4;
 
-import "../../src/ERC4337Account.sol";
+import {ERC4337Account} from "../../src/ERC4337Account.sol";
 
 contract MockEntryPoint {
     mapping(address => uint256) public balanceOf;
