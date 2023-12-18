@@ -7,7 +7,7 @@ pragma solidity ^0.8.4;
 /// Designed for use in smart account context.
 contract MultiOwnable {
     /// @dev tracks the next owner to
-    uint8 public ownerIndex;
+    uint8 public nextOwnerIndex;
 
     /// @dev Allows an owner to be idenfitied by a uint8.
     /// Passkey verifier does not recover the address, but requires
@@ -35,18 +35,18 @@ contract MultiOwnable {
     }
 
     /// @dev convenience function that can be used to add the first
-    /// 256 owners.
+    /// 255 owners.
     function addOwner(bytes calldata owner) public virtual onlyOwner {
-        _addOwnerAtIndex(owner, ownerIndex++);
+        _addOwnerAtIndex(owner, nextOwnerIndex++);
     }
 
     /// @dev adds an owner, identified by a specific index
-    /// Used after 256 addOwner calls
-    /// reverts if ownerIndex != 255
+    /// Used after 255 addOwner calls
+    /// reverts if nextOwnerIndex != 255
     /// reverts if ownerAtIndex[index] is set
-    /// reverts if index > ownerIndex
+    /// reverts if index > nextOwnerIndex
     function addOwnerAtIndex(bytes calldata owner, uint8 index) public virtual onlyOwner {
-        if (ownerIndex != 255) revert UseAddOwner();
+        if (nextOwnerIndex != 255) revert UseAddOwner();
         bytes memory existingOwner = ownerAtIndex[index];
         if (keccak256(existingOwner) != EMPTY) revert IndexNotEmpty(index, existingOwner);
 
@@ -77,7 +77,7 @@ contract MultiOwnable {
 
     function _initializeOwners(bytes[] calldata owners) internal virtual {
         for (uint256 i = 0; i < owners.length; i++) {
-            _addOwnerAtIndex(owners[i], ownerIndex++);
+            _addOwnerAtIndex(owners[i], nextOwnerIndex++);
         }
     }
 
