@@ -216,7 +216,7 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
         returns (bool)
     {
         uint8 ownerIndex = uint8(bytes1(signaturePacked[0:1]));
-        bytes memory signature = signaturePacked[1:];
+        bytes calldata signature = signaturePacked[1:];
 
         if (signature.length == 65) {
             bytes memory ownerBytes = ownerAtIndex[ownerIndex];
@@ -224,7 +224,7 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
             assembly {
                 owner := mload(add(ownerBytes, 32))
             }
-            return SignatureCheckerLib.isValidSignatureNow(owner, message, signature);
+            return SignatureCheckerLib.isValidSignatureNowCalldata(owner, message, signature);
         }
 
         // Passkey signature
