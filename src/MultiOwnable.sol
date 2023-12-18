@@ -6,7 +6,7 @@ pragma solidity ^0.8.4;
 /// identify an owner.
 /// Designed for use in smart account context.
 contract MultiOwnable {
-    /// @dev tracks the next owner to
+    /// @dev tracks the index of the next owner added, not useful after 255 owners added.
     uint8 public nextOwnerIndex;
 
     /// @dev Allows an owner to be idenfitied by a uint8.
