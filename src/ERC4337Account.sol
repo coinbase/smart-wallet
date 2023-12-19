@@ -48,8 +48,7 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
 
     error InvalidSignatureLength(uint256 length);
     error Initialized();
-    error InvalidEthereumAddressOwner(uint8 ownerIndex, bytes owner);
-    error InvalidP256PublicKeyOwner(uint8 ownerIndex, bytes owner);
+    error InvalidOwnerForSignature(uint8 ownerIndex, bytes owner);
 
     /// @dev Requires that the caller is the EntryPoint, the owner, or the account itself.
     modifier onlyEntryPointOrOwner() virtual {
@@ -219,7 +218,10 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
         bytes memory ownerBytes = ownerAtIndex[ownerIndex];
 
         if (signature.length == 65) {
-            if (ownerBytes.length != 20) revert InvalidEthereumAddressOwner(ownerIndex, ownerBytes);
+            if (ownerBytes.length != 32) revert InvalidOwnerForSignature(ownerIndex, ownerBytes);
+            if (uint256(bytes32(ownerBytes)) > type(uint160).max) {
+                revert InvalidOwnerForSignature(ownerIndex, ownerBytes);
+            }
 
             address owner;
             assembly {
@@ -230,7 +232,7 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
 
         // Passkey signature
         if (signature.length > 65) {
-            if (ownerBytes.length != 64) revert InvalidP256PublicKeyOwner(ownerIndex, ownerBytes);
+            if (ownerBytes.length != 64) revert InvalidOwnerForSignature(ownerIndex, ownerBytes);
 
             PasskeySignature memory sig = abi.decode(signature, (PasskeySignature));
 

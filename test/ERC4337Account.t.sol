@@ -106,12 +106,42 @@ contract ERC4337Test is Test, TestPlus {
         assertEq(ret, bytes4(0xffffffff));
     }
 
+    function testRevertsIfPasskeySigButWrongOwnerLength() public {
+        bytes32 hash = 0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5;
+        bytes32 toSign = SignatureCheckerLib.toEthSignedMessageHash(account.replaySafeHash(hash));
+        bytes memory sig = abi.encode(
+            Utils.rawSignatureToSignature({
+                challenge: toSign,
+                r: 114402223712652727003631532622572663093479626690071915344462720478540043027933,
+                s: 12929371899131655946206150468148136699220952501717878658815701223816686794150
+            })
+        );
+
+        bytes memory sigWithOwnerIndex = abi.encodePacked(uint8(0), sig);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(ERC4337Account.InvalidOwnerForSignature.selector, uint8(0), abi.encode(signer))
+        );
+        account.isValidSignature(hash, sigWithOwnerIndex);
+    }
+
+    function testRevertsIfEthereumSignatureButWrongOwnerLength() public {
+        bytes32 hash = 0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5;
+        bytes32 toSign = SignatureCheckerLib.toEthSignedMessageHash(account.replaySafeHash(hash));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, toSign);
+        bytes memory signature = abi.encodePacked(r, s, v);
+        vm.expectRevert(
+            abi.encodeWithSelector(ERC4337Account.InvalidOwnerForSignature.selector, uint8(1), passkeyOwner)
+        );
+        account.isValidSignature(hash, abi.encodePacked(uint8(1), signature));
+    }
+
     /// taken from Solady and adapted ///
 
     function testExecute() public {
         vm.deal(address(account), 1 ether);
         vm.prank(signer);
-        account.addOwner(abi.encode(address(this)));
+        account.addOwner(address(this));
 
         address target = address(new Target());
         bytes memory data = _randomBytes(111);
@@ -130,7 +160,7 @@ contract ERC4337Test is Test, TestPlus {
     function testExecuteBatch() public {
         vm.deal(address(account), 1 ether);
         vm.prank(signer);
-        account.addOwner(abi.encode(address(this)));
+        account.addOwner(address(this));
 
         ERC4337Account.Call[] memory calls = new ERC4337Account.Call[](2);
         calls[0].target = address(new Target());
@@ -155,7 +185,7 @@ contract ERC4337Test is Test, TestPlus {
         account = new MockERC4337Account();
         account.initialize(owners);
         vm.prank(signer);
-        account.addOwner(abi.encode(address(this)));
+        account.addOwner(address(this));
         vm.deal(address(account), 1 ether);
 
         unchecked {
