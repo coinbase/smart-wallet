@@ -224,6 +224,7 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
             }
 
             address owner;
+            /// @solidity memory-safe-assembly
             assembly {
                 owner := mload(add(ownerBytes, 32))
             }
