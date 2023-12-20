@@ -30,6 +30,13 @@ contract RemoveOwnerAtIndexTest is MultiOwnableTestBase {
         _removeOwner();
     }
 
+    function testRevertsIfNoOwnerAtIndex() public {
+        uint8 index = 10;
+        vm.expectRevert(abi.encodeWithSelector(MultiOwnable.NoOwnerAtIndex.selector, index));
+        vm.prank(owner1Address);
+        mock.removeOwnerAtIndex(index);
+    }
+
     function _removeOwner() internal virtual {
         mock.removeOwnerAtIndex(_index());
     }

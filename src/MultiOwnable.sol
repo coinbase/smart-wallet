@@ -25,6 +25,7 @@ contract MultiOwnable {
     error AlreadyOwner(bytes owner);
     error IndexNotEmpty(uint8 index, bytes owner);
     error UseAddOwner();
+    error NoOwnerAtIndex(uint8 index);
 
     event AddOwner(bytes indexed owner, bytes indexed addedBy, uint8 indexed index);
     event RemoveOwner(bytes indexed owner, bytes indexed removedBy, uint8 indexed index);
@@ -56,6 +57,8 @@ contract MultiOwnable {
     /// @dev removes an owner, identified by a specific index
     function removeOwnerAtIndex(uint8 index) public virtual onlyOwner {
         bytes memory owner = ownerAtIndex[index];
+        if (owner.length == 0) revert NoOwnerAtIndex(index);
+
         delete _isOwner[owner];
         delete ownerAtIndex[index];
 
