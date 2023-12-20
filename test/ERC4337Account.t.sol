@@ -12,6 +12,7 @@ import {Utils} from "./Utils.sol";
 import {MockEntryPoint} from "./mocks/MockEntryPoint.sol";
 import {MockERC4337Account} from "./mocks/MockERC4337Account.sol";
 import {ERC4337Account} from "../src/ERC4337Account.sol";
+import {ERC4337Factory} from "../src/ERC4337Factory.sol";
 
 contract ERC4337Test is Test, TestPlus {
     bytes p256VerifierCode =
@@ -25,8 +26,7 @@ contract ERC4337Test is Test, TestPlus {
 
     function setUp() public {
         vm.etch(address(0xc2b78104907F722DABAc4C69f826a522B2754De4), p256VerifierCode);
-        account = new ERC4337Account();
-
+        account = new MockERC4337Account();
         owners.push(abi.encode(signer));
         owners.push(passkeyOwner);
         account.initialize(owners);
@@ -197,19 +197,14 @@ contract ERC4337Test is Test, TestPlus {
     }
 
     function testValidateUserOp() public {
-        account = new ERC4337Account();
         _TestTemps memory t;
         t.userOpHash = keccak256("123");
-        (t.signer, t.privateKey) = _randomSigner();
+        t.signer = signer;
+        t.privateKey = signerPrivateKey;
         (t.v, t.r, t.s) = vm.sign(t.privateKey, t.userOpHash);
         t.missingAccountFunds = 456;
         vm.deal(address(account), 1 ether);
         assertEq(address(account).balance, 1 ether);
-
-        bytes[] memory k = new bytes[](1);
-        k[0] = abi.encode(t.signer);
-
-        account.initialize(k);
 
         vm.etch(account.entryPoint(), address(new MockEntryPoint()).code);
         MockEntryPoint ep = MockEntryPoint(payable(account.entryPoint()));

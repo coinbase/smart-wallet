@@ -6,6 +6,11 @@ import {ERC4337Account} from "../../src/ERC4337Account.sol";
 /// @dev WARNING! This mock is strictly intended for testing purposes only.
 /// Do NOT copy anything here into production code unless you really know what you are doing.
 contract MockERC4337Account is ERC4337Account {
+    constructor() {
+        // allow for easier testing
+        _initialized = false;
+    }
+
     function _brutalized(address a) private pure returns (address result) {
         /// @solidity memory-safe-assembly
         assembly {

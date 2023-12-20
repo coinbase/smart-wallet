@@ -79,6 +79,12 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
         _;
     }
 
+    constructor() {
+        // implementation should not be initializable
+        // does not affect proxies which use their own storage.
+        _initialized = true;
+    }
+
     /// @dev Initializes the account with the owner. Can only be called once.
     function initialize(bytes[] calldata owners) public payable virtual {
         if (_initialized) revert Initialized();
