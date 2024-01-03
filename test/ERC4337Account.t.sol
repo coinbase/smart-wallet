@@ -91,7 +91,7 @@ contract ERC4337Test is Test, TestPlus {
 
     function testValidateSignatureWithEOASigner() public {
         bytes32 hash = 0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5;
-        bytes32 toSign = SignatureCheckerLib.toEthSignedMessageHash(account.replaySafeHash(hash));
+        bytes32 toSign = account.replaySafeHash(hash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, toSign);
         bytes memory signature = abi.encodePacked(r, s, v);
         bytes4 ret = account.isValidSignature(hash, abi.encodePacked(uint8(0), signature));
