@@ -95,7 +95,7 @@ contract MultiOwnable {
         return _getStorage().nextOwnerIndex;
     }
 
-    function _initializeOwners(bytes[] calldata owners) internal virtual {
+    function _initializeOwners(bytes[] memory owners) internal virtual {
         for (uint256 i = 0; i < owners.length; i++) {
             if (owners[i].length != 32 && owners[i].length != 64) {
                 revert InvalidOwnerBytesLength(owners[i]);
@@ -142,7 +142,7 @@ contract MultiOwnable {
         if (!isOwner(msg.sender)) if (msg.sender != address(this)) revert Unauthorized();
     }
 
-    function _getStorage() private pure returns (MultiOwnableStorage storage $) {
+    function _getStorage() internal pure returns (MultiOwnableStorage storage $) {
         assembly {
             $.slot := MultiOwnableStorageLocation
         }
