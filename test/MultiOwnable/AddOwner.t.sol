@@ -12,10 +12,10 @@ contract AddOwnerTest is AddOwnerBaseTest {
     }
 
     function testIncreasesOwnerIndex() public {
-        uint8 before = mock.ownerIndex();
+        uint8 before = mock.nextOwnerIndex();
         vm.prank(owner1Address);
         mock.addOwner(newOwner);
-        assertEq(before + 1, mock.ownerIndex());
+        assertEq(before + 1, mock.nextOwnerIndex());
     }
 
     function testRevertsAfter255() public {
@@ -24,7 +24,7 @@ contract AddOwnerTest is AddOwnerBaseTest {
         for (uint256 i = 0; i < 253; i++) {
             mock.addOwner(abi.encode(i));
         }
-        assertEq(mock.ownerIndex(), 255);
+        assertEq(mock.nextOwnerIndex(), 255);
         vm.expectRevert(stdError.arithmeticError);
         mock.addOwner(abi.encode("dead"));
     }
@@ -34,6 +34,6 @@ contract AddOwnerTest is AddOwnerBaseTest {
     }
 
     function _index() internal view override returns (uint8) {
-        return mock.ownerIndex();
+        return mock.nextOwnerIndex();
     }
 }
