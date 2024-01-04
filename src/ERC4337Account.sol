@@ -198,15 +198,6 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
         return 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789;
     }
 
-    // function isValidSignature(bytes32 message, bytes calldata signature) public view virtual returns (bytes4 result) {
-    //     uint8 ownerIndex = uint8(bytes1(signature[0:1]));
-    //     bytes memory sig = signature[1:];
-    //     if (_validateSignature(ownerIndex, message, signature[1:])) {
-    //         return 0x1626ba7e; // ERC1271_MAGICVALUE
-    //     }
-    //     return 0xffffffff; // ERC1271_REJECT_MAGICVALUE
-    // }
-
     /// @dev Validate user op and 1271 signatures
     function _validateSignature(bytes32 message, bytes calldata signaturePacked)
         internal
