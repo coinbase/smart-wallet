@@ -19,8 +19,6 @@ contract MultiOwnable {
     mapping(uint8 => bytes) public ownerAtIndex;
     mapping(bytes => bool) internal _isOwner;
 
-    bytes32 private constant EMPTY = keccak256(hex"");
-
     error Unauthorized();
     error AlreadyOwner(bytes owner);
     error IndexNotEmpty(uint8 index, bytes owner);
@@ -49,7 +47,7 @@ contract MultiOwnable {
     function addOwnerAtIndex(bytes calldata owner, uint8 index) public virtual onlyOwner {
         if (ownerIndex != 255) revert UseAddOwner();
         bytes memory existingOwner = ownerAtIndex[index];
-        if (keccak256(existingOwner) != EMPTY) revert IndexNotEmpty(index, existingOwner);
+        if (existingOwner.length != 0) revert IndexNotEmpty(index, existingOwner);
 
         _addOwnerAtIndex(owner, index);
     }
