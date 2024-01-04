@@ -126,7 +126,10 @@ library WebAuthn {
         uint256 y
     ) internal view returns (bool) {
         // Check that authenticatorData has good flags
-        if (authenticatorData.length < 32 || !checkAuthFlags(authenticatorData[32], requireUserVerification)) {
+        if (authenticatorData.length < 37 || !checkAuthFlags(authenticatorData[32], requireUserVerification)) {
+            // well formed authenticatorData is at least 37 bytes long
+            // 32 bytes rpIDHash + 1 byte flags + 4 bytes signCount
+            // https://www.w3.org/TR/webauthn-2/#sctn-authenticator-data
             return false;
         }
 
