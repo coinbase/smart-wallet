@@ -111,6 +111,7 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
     {
         bool success = _validateSignature(userOpHash, userOp.signature);
 
+        /// @solidity memory-safe-assembly
         assembly {
             // Returns 0 if the recovered address matches the owner.
             // Else returns 1, which is equivalent to:
