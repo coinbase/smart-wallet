@@ -48,6 +48,7 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
 
     error InvalidSignatureLength(uint256 length);
     error Initialized();
+    error InvalidOwnerForSignature(uint8 ownerIndex, bytes owner);
 
     /// @dev Requires that the caller is the EntryPoint, the owner, or the account itself.
     modifier onlyEntryPointOrOwner() virtual {
@@ -110,6 +111,7 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
     {
         bool success = _validateSignature(userOpHash, userOp.signature);
 
+        /// @solidity memory-safe-assembly
         assembly {
             // Returns 0 if the recovered address matches the owner.
             // Else returns 1, which is equivalent to:
@@ -214,10 +216,16 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
     {
         uint8 ownerIndex = uint8(bytes1(signaturePacked[0:1]));
         bytes calldata signature = signaturePacked[1:];
+        bytes memory ownerBytes = ownerAtIndex[ownerIndex];
 
         if (signature.length == 65) {
-            bytes memory ownerBytes = ownerAtIndex[ownerIndex];
+            if (ownerBytes.length != 32) revert InvalidOwnerForSignature(ownerIndex, ownerBytes);
+            if (uint256(bytes32(ownerBytes)) > type(uint160).max) {
+                revert InvalidOwnerForSignature(ownerIndex, ownerBytes);
+            }
+
             address owner;
+            /// @solidity memory-safe-assembly
             assembly {
                 owner := mload(add(ownerBytes, 32))
             }
@@ -226,8 +234,11 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
 
         // Passkey signature
         if (signature.length > 65) {
+            if (ownerBytes.length != 64) revert InvalidOwnerForSignature(ownerIndex, ownerBytes);
+
             PasskeySignature memory sig = abi.decode(signature, (PasskeySignature));
-            (uint256 x, uint256 y) = abi.decode(ownerAtIndex[ownerIndex], (uint256, uint256));
+
+            (uint256 x, uint256 y) = abi.decode(ownerBytes, (uint256, uint256));
             return verifySignature(message, sig, x, y);
         }
 

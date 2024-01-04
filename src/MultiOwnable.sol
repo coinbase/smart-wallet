@@ -24,6 +24,8 @@ contract MultiOwnable {
     error IndexNotEmpty(uint8 index, bytes owner);
     error UseAddOwner();
     error NoOwnerAtIndex(uint8 index);
+    error InvalidOwnerBytesLength(bytes owner);
+    error InvalidEthereumAddressOwner(bytes owner);
 
     event AddOwner(bytes indexed owner, bytes indexed addedBy, uint8 indexed index);
     event RemoveOwner(bytes indexed owner, bytes indexed removedBy, uint8 indexed index);
@@ -33,23 +35,26 @@ contract MultiOwnable {
         _;
     }
 
-    /// @dev convenience function that can be used to add the first
-    /// 255 owners.
-    function addOwner(bytes calldata owner) public virtual onlyOwner {
-        _addOwnerAtIndex(owner, nextOwnerIndex++);
+    /// @dev convenience function to add address owner
+    /// can be used if nextOwnerIndex < 255
+    function addOwner(address owner) public virtual onlyOwner {
+        _addOwner(abi.encode(owner));
     }
 
-    /// @dev adds an owner, identified by a specific index
-    /// Used after 255 addOwner calls
-    /// reverts if nextOwnerIndex != 255
-    /// reverts if ownerAtIndex[index] is set
-    /// reverts if index > nextOwnerIndex
-    function addOwnerAtIndex(bytes calldata owner, uint8 index) public virtual onlyOwner {
-        if (nextOwnerIndex != 255) revert UseAddOwner();
-        bytes memory existingOwner = ownerAtIndex[index];
-        if (existingOwner.length != 0) revert IndexNotEmpty(index, existingOwner);
+    /// @dev convenience function to add passkey owner
+    /// can be used if nextOwnerIndex < 255
+    function addOwner(bytes32 x, bytes32 y) public virtual onlyOwner {
+        _addOwner(abi.encode(x, y));
+    }
 
-        _addOwnerAtIndex(owner, index);
+    /// @dev adds an address owner at a specific index
+    function addOwnerAtIndex(address owner, uint8 index) public virtual onlyOwner {
+        _addOwnerAtIndex(abi.encode(owner), index);
+    }
+
+    /// @dev adds a passkey owner at a specific index
+    function addOwnerAtIndex(bytes32 x, bytes32 y, uint8 index) public virtual onlyOwner {
+        _addOwnerAtIndex(abi.encode(x, y), index);
     }
 
     /// @dev removes an owner, identified by a specific index
@@ -78,12 +83,36 @@ contract MultiOwnable {
 
     function _initializeOwners(bytes[] calldata owners) internal virtual {
         for (uint256 i = 0; i < owners.length; i++) {
-            _addOwnerAtIndex(owners[i], nextOwnerIndex++);
+            if (owners[i].length != 32 && owners[i].length != 64) {
+                revert InvalidOwnerBytesLength(owners[i]);
+            }
+            if (owners[i].length == 32 && uint256(bytes32(owners[i])) > type(uint160).max) {
+                revert InvalidEthereumAddressOwner(owners[i]);
+            }
+            _addOwnerAtIndexNoCheck(owners[i], nextOwnerIndex++);
         }
     }
 
-    function _addOwnerAtIndex(bytes calldata owner, uint8 index) internal virtual {
-        if (isOwner(owner)) revert AlreadyOwner(owner);
+    /// @dev convenience function that can be used to add the first
+    /// 255 owners.
+    function _addOwner(bytes memory owner) public virtual onlyOwner {
+        _addOwnerAtIndexNoCheck(owner, nextOwnerIndex++);
+    }
+
+    /// @dev adds an owner, identified by a specific index
+    /// Used after 255 addOwner calls
+    /// reverts if nextOwnerIndex != 255
+    /// reverts if ownerAtIndex[index] is set
+    function _addOwnerAtIndex(bytes memory owner, uint8 index) public virtual onlyOwner {
+        if (nextOwnerIndex != 255) revert UseAddOwner();
+        bytes memory existingOwner = ownerAtIndex[index];
+        if (existingOwner.length != 0) revert IndexNotEmpty(index, existingOwner);
+
+        _addOwnerAtIndexNoCheck(owner, index);
+    }
+
+    function _addOwnerAtIndexNoCheck(bytes memory owner, uint8 index) internal virtual {
+        if (isOwnerMemory(owner)) revert AlreadyOwner(owner);
 
         _isOwner[owner] = true;
         ownerAtIndex[index] = owner;

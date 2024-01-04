@@ -7,7 +7,7 @@ contract AddOwnerTest is AddOwnerBaseTest {
     function testRevertsIfAlreadyOwner() public {
         vm.startPrank(owner1Address);
         _addOwner();
-        vm.expectRevert(abi.encodeWithSelector(MultiOwnable.AlreadyOwner.selector, newOwner));
+        vm.expectRevert(abi.encodeWithSelector(MultiOwnable.AlreadyOwner.selector, abi.encode(newOwner)));
         _addOwner();
     }
 
@@ -22,11 +22,11 @@ contract AddOwnerTest is AddOwnerBaseTest {
         vm.startPrank(owner1Address);
         // two owners added in setup
         for (uint256 i = 0; i < 253; i++) {
-            mock.addOwner(abi.encode(i));
+            mock.addOwner(address(uint160(i)));
         }
         assertEq(mock.nextOwnerIndex(), 255);
         vm.expectRevert(stdError.arithmeticError);
-        mock.addOwner(abi.encode("dead"));
+        mock.addOwner(address(0xdead));
     }
 
     function _addOwner() internal override {

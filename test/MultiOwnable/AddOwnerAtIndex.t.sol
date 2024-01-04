@@ -8,7 +8,7 @@ contract AddOwnerAtIndexTest is AddOwnerBaseTest {
         super.setUp();
         vm.startPrank(owner1Address);
         for (uint256 i = 0; i < 253; i++) {
-            mock.addOwner(abi.encode(i));
+            mock.addOwner(address(uint160(i)));
         }
         mock.removeOwnerAtIndex(_index());
         vm.stopPrank();
@@ -17,7 +17,7 @@ contract AddOwnerAtIndexTest is AddOwnerBaseTest {
     function testRevertsIfAlreadyOwner() public {
         vm.startPrank(owner1Address);
         _addOwner();
-        vm.expectRevert(abi.encodeWithSelector(MultiOwnable.IndexNotEmpty.selector, _index(), newOwner));
+        vm.expectRevert(abi.encodeWithSelector(MultiOwnable.IndexNotEmpty.selector, _index(), abi.encode(newOwner)));
         _addOwner();
     }
 
