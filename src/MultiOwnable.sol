@@ -115,7 +115,7 @@ contract MultiOwnable {
     function _addOwnerAtIndex(bytes memory owner, uint8 index) public virtual onlyOwner {
         if (nextOwnerIndex != 255) revert UseAddOwner();
         bytes memory existingOwner = ownerAtIndex[index];
-        if (existingOwner.length == 0) revert IndexNotEmpty(index, existingOwner);
+        if (existingOwner.length != 0) revert IndexNotEmpty(index, existingOwner);
 
         _addOwnerAtIndexNoCheck(owner, index);
     }
