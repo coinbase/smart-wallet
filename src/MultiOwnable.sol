@@ -13,7 +13,7 @@ struct MultiOwnableStorage {
     /// In an effort to economize calldata, we use a uint8 rather than passing the
     /// X,Y coordinates.
     mapping(uint8 => bytes) ownerAtIndex;
-    mapping(bytes => bool) _isOwner;
+    mapping(bytes => bool) isOwner;
 }
 
 /// @notice Auth contract allowing multiple owners
@@ -65,10 +65,10 @@ contract MultiOwnable {
 
     /// @dev removes an owner, identified by a specific index
     function removeOwnerAtIndex(uint8 index) public virtual onlyOwner {
-        bytes memory owner = _getStorage().ownerAtIndex[index];
+        bytes memory owner = ownerAtIndex(index);
         if (owner.length == 0) revert NoOwnerAtIndex(index);
 
-        delete _getStorage()._isOwner[owner];
+        delete _getStorage().isOwner[owner];
         delete _getStorage().ownerAtIndex[index];
 
         // removedBy may be address(this) when used with smart account
@@ -76,15 +76,23 @@ contract MultiOwnable {
     }
 
     function isOwner(address account) public view virtual returns (bool) {
-        return _getStorage()._isOwner[abi.encode(account)];
+        return _getStorage().isOwner[abi.encode(account)];
     }
 
     function isOwner(bytes calldata account) public view virtual returns (bool) {
-        return _getStorage()._isOwner[account];
+        return _getStorage().isOwner[account];
     }
 
     function isOwnerMemory(bytes memory account) public view virtual returns (bool) {
-        return _getStorage()._isOwner[account];
+        return _getStorage().isOwner[account];
+    }
+
+    function ownerAtIndex(uint8 index) public view virtual returns (bytes memory) {
+        return _getStorage().ownerAtIndex[index];
+    }
+
+    function nextOwnerIndex() public view virtual returns (uint8) {
+        return _getStorage().nextOwnerIndex;
     }
 
     function _initializeOwners(bytes[] calldata owners) internal virtual {
@@ -110,8 +118,8 @@ contract MultiOwnable {
     /// reverts if nextOwnerIndex != 255
     /// reverts if ownerAtIndex[index] is set
     function _addOwnerAtIndex(bytes memory owner, uint8 index) public virtual onlyOwner {
-        if (_getStorage().nextOwnerIndex != 255) revert UseAddOwner();
-        bytes memory existingOwner = _getStorage().ownerAtIndex[index];
+        if (nextOwnerIndex() != 255) revert UseAddOwner();
+        bytes memory existingOwner = ownerAtIndex(index);
         if (existingOwner.length != 0) revert IndexNotEmpty(index, existingOwner);
 
         _addOwnerAtIndexNoCheck(owner, index);
@@ -120,7 +128,7 @@ contract MultiOwnable {
     function _addOwnerAtIndexNoCheck(bytes memory owner, uint8 index) internal virtual {
         if (isOwnerMemory(owner)) revert AlreadyOwner(owner);
 
-        _getStorage()._isOwner[owner] = true;
+        _getStorage().isOwner[owner] = true;
         _getStorage().ownerAtIndex[index] = owner;
 
         emit AddOwner(owner, abi.encode(msg.sender), index);

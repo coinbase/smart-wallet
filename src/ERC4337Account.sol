@@ -216,7 +216,7 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
     {
         uint8 ownerIndex = uint8(bytes1(signaturePacked[0:1]));
         bytes calldata signature = signaturePacked[1:];
-        bytes memory ownerBytes = ownerAtIndex[ownerIndex];
+        bytes memory ownerBytes = ownerAtIndex(ownerIndex);
 
         if (signature.length == 65) {
             if (ownerBytes.length != 32) revert InvalidOwnerForSignature(ownerIndex, ownerBytes);
