@@ -13,9 +13,6 @@ import {ERC1271} from "./ERC1271.sol";
 /// @author Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC4337.sol)
 /// @author Wilson Cusack
 contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
-    /// @dev prevents reinitialization
-    bool internal _initialized;
-
     /// @dev The ERC4337 user operation (userOp) struct.
     struct UserOperation {
         address sender;
@@ -83,13 +80,16 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
     constructor() {
         // implementation should not be initializable
         // does not affect proxies which use their own storage.
-        _initialized = true;
+        bytes[] memory owners = new bytes[](1);
+        owners[0] = abi.encode(address(0));
+        _initializeOwners(owners);
     }
 
     /// @dev Initializes the account with the owner. Can only be called once.
     function initialize(bytes[] calldata owners) public payable virtual {
-        if (_initialized) revert Initialized();
-        _initialized = true;
+        if (nextOwnerIndex() != 0) {
+            revert Initialized();
+        }
         _initializeOwners(owners);
     }
 
@@ -216,7 +216,7 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
     {
         uint8 ownerIndex = uint8(bytes1(signaturePacked[0:1]));
         bytes calldata signature = signaturePacked[1:];
-        bytes memory ownerBytes = ownerAtIndex[ownerIndex];
+        bytes memory ownerBytes = ownerAtIndex(ownerIndex);
 
         if (signature.length == 65) {
             if (ownerBytes.length != 32) revert InvalidOwnerForSignature(ownerIndex, ownerBytes);

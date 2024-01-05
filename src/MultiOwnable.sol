@@ -1,14 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-/// @notice Auth contract allowing multiple owners
-/// identifies owners as bytes to allow for secp256r1 X,Y coordinates to
-/// identify an owner.
-/// Designed for use in smart account context.
-contract MultiOwnable {
+/// @custom:storage-location erc7201:coinbase.storage.MultiOwnable
+struct MultiOwnableStorage {
     /// @dev tracks the index of the next owner added, not useful after 255 owners added.
-    uint8 public nextOwnerIndex;
-
+    uint8 nextOwnerIndex;
     /// @dev Allows an owner to be idenfitied by a uint8.
     /// Passkey verifier does not recover the address, but requires
     /// the X,Y coordinates to be passed for verification.
@@ -16,8 +12,18 @@ contract MultiOwnable {
     /// this means that the signature needs to include an identifier of the owner.
     /// In an effort to economize calldata, we use a uint8 rather than passing the
     /// X,Y coordinates.
-    mapping(uint8 => bytes) public ownerAtIndex;
-    mapping(bytes => bool) internal _isOwner;
+    mapping(uint8 => bytes) ownerAtIndex;
+    mapping(bytes => bool) isOwner;
+}
+
+/// @notice Auth contract allowing multiple owners
+/// identifies owners as bytes to allow for secp256r1 X,Y coordinates to
+/// identify an owner.
+/// Designed for use in smart account context.
+contract MultiOwnable {
+    /// keccak256(abi.encode(uint256(keccak256("coinbase.storage.MultiOwnable")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant MultiOwnableStorageLocation =
+        0x97e2c6aad4ce5d562ebfaa00db6b9e0fb66ea5d8162ed5b243f51a2e03086f00;
 
     error Unauthorized();
     error AlreadyOwner(bytes owner);
@@ -59,29 +65,37 @@ contract MultiOwnable {
 
     /// @dev removes an owner, identified by a specific index
     function removeOwnerAtIndex(uint8 index) public virtual onlyOwner {
-        bytes memory owner = ownerAtIndex[index];
+        bytes memory owner = ownerAtIndex(index);
         if (owner.length == 0) revert NoOwnerAtIndex(index);
 
-        delete _isOwner[owner];
-        delete ownerAtIndex[index];
+        delete _getStorage().isOwner[owner];
+        delete _getStorage().ownerAtIndex[index];
 
         // removedBy may be address(this) when used with smart account
         emit RemoveOwner(owner, abi.encode(msg.sender), index);
     }
 
     function isOwner(address account) public view virtual returns (bool) {
-        return _isOwner[abi.encode(account)];
+        return _getStorage().isOwner[abi.encode(account)];
     }
 
     function isOwner(bytes calldata account) public view virtual returns (bool) {
-        return _isOwner[account];
+        return _getStorage().isOwner[account];
     }
 
     function isOwnerMemory(bytes memory account) public view virtual returns (bool) {
-        return _isOwner[account];
+        return _getStorage().isOwner[account];
     }
 
-    function _initializeOwners(bytes[] calldata owners) internal virtual {
+    function ownerAtIndex(uint8 index) public view virtual returns (bytes memory) {
+        return _getStorage().ownerAtIndex[index];
+    }
+
+    function nextOwnerIndex() public view virtual returns (uint8) {
+        return _getStorage().nextOwnerIndex;
+    }
+
+    function _initializeOwners(bytes[] memory owners) internal virtual {
         for (uint256 i = 0; i < owners.length; i++) {
             if (owners[i].length != 32 && owners[i].length != 64) {
                 revert InvalidOwnerBytesLength(owners[i]);
@@ -89,14 +103,14 @@ contract MultiOwnable {
             if (owners[i].length == 32 && uint256(bytes32(owners[i])) > type(uint160).max) {
                 revert InvalidEthereumAddressOwner(owners[i]);
             }
-            _addOwnerAtIndexNoCheck(owners[i], nextOwnerIndex++);
+            _addOwnerAtIndexNoCheck(owners[i], _getStorage().nextOwnerIndex++);
         }
     }
 
     /// @dev convenience function that can be used to add the first
     /// 255 owners.
     function _addOwner(bytes memory owner) public virtual onlyOwner {
-        _addOwnerAtIndexNoCheck(owner, nextOwnerIndex++);
+        _addOwnerAtIndexNoCheck(owner, _getStorage().nextOwnerIndex++);
     }
 
     /// @dev adds an owner, identified by a specific index
@@ -104,8 +118,8 @@ contract MultiOwnable {
     /// reverts if nextOwnerIndex != 255
     /// reverts if ownerAtIndex[index] is set
     function _addOwnerAtIndex(bytes memory owner, uint8 index) public virtual onlyOwner {
-        if (nextOwnerIndex != 255) revert UseAddOwner();
-        bytes memory existingOwner = ownerAtIndex[index];
+        if (nextOwnerIndex() != 255) revert UseAddOwner();
+        bytes memory existingOwner = ownerAtIndex(index);
         if (existingOwner.length != 0) revert IndexNotEmpty(index, existingOwner);
 
         _addOwnerAtIndexNoCheck(owner, index);
@@ -114,8 +128,8 @@ contract MultiOwnable {
     function _addOwnerAtIndexNoCheck(bytes memory owner, uint8 index) internal virtual {
         if (isOwnerMemory(owner)) revert AlreadyOwner(owner);
 
-        _isOwner[owner] = true;
-        ownerAtIndex[index] = owner;
+        _getStorage().isOwner[owner] = true;
+        _getStorage().ownerAtIndex[index] = owner;
 
         emit AddOwner(owner, abi.encode(msg.sender), index);
     }
@@ -126,5 +140,11 @@ contract MultiOwnable {
     /// to allow for a passkey owner to call these functions.
     function _checkOwner() internal view virtual {
         if (!isOwner(msg.sender)) if (msg.sender != address(this)) revert Unauthorized();
+    }
+
+    function _getStorage() internal pure returns (MultiOwnableStorage storage $) {
+        assembly {
+            $.slot := MultiOwnableStorageLocation
+        }
     }
 }
