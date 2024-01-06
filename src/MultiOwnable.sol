@@ -109,7 +109,7 @@ contract MultiOwnable {
 
     /// @dev convenience function that can be used to add the first
     /// 255 owners.
-    function _addOwner(bytes memory owner) public virtual onlyOwner {
+    function _addOwner(bytes memory owner) internal virtual {
         _addOwnerAtIndexNoCheck(owner, _getMultiOwnableStorage().nextOwnerIndex++);
     }
 
@@ -117,7 +117,7 @@ contract MultiOwnable {
     /// Used after 255 addOwner calls
     /// reverts if nextOwnerIndex != 255
     /// reverts if ownerAtIndex[index] is set
-    function _addOwnerAtIndex(bytes memory owner, uint8 index) public virtual onlyOwner {
+    function _addOwnerAtIndex(bytes memory owner, uint8 index) internal virtual {
         if (nextOwnerIndex() != 255) revert UseAddOwner();
         bytes memory existingOwner = ownerAtIndex(index);
         if (existingOwner.length != 0) revert IndexNotEmpty(index, existingOwner);

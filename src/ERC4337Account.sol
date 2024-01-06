@@ -10,11 +10,6 @@ import {MultiOwnable} from "./MultiOwnable.sol";
 import {WebAuthn} from "./WebAuthn.sol";
 import {ERC1271} from "./ERC1271.sol";
 
-/// @custom:storage-location erc7201:coinbase.storage.ERC4337Account
-struct ERC4337AccountStorage {
-    mapping(bytes4 => bool) functionAllowedNoChainId;
-}
-
 /// @notice Coinbase ERC4337 account, built on Solady Simple ERC4337 account implementation.
 /// @author Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC4337.sol)
 /// @author Wilson Cusack
@@ -39,9 +34,7 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
     error InvalidOwnerForSignature(uint8 ownerIndex, bytes owner);
     error Forbidden();
 
-    /// keccak256(abi.encode(uint256(keccak256("coinbase.storage.ERC4337Account")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant ERC4337AccountStorageLocation =
-        0xaace6ec970559ae875af33f093870100e5a585ce7349b17fda51d1d31c5f1500;
+    uint256 constant canSkipChainIdValidationBitmap = 680569926138736066254181076143683141632;
 
     /// @dev Requires that the caller is the EntryPoint, the owner, or the account itself.
     modifier onlyEntryPointOrOwner() virtual {
@@ -86,16 +79,7 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
         if (nextOwnerIndex() != 0) {
             revert Initialized();
         }
-        // bytes4(keccak256("addOwner(address)"))
-        _getERC4337AccountStorage().functionAllowedNoChainId[0x7065cb48] = true;
-        // bytes4(keccak256("addOwner(bytes32,bytes32)"))
-        _getERC4337AccountStorage().functionAllowedNoChainId[0x2d2156b9] = true;
-        // bytes4(keccak256("addOwnerAtIndex(bytes32,bytes32,uint8)"))
-        _getERC4337AccountStorage().functionAllowedNoChainId[0x25e7257a] = true;
-        // bytes4(keccak256("addOwnerAtIndex(address,uint8)"))
-        _getERC4337AccountStorage().functionAllowedNoChainId[0x4102bf9b] = true;
-        // bytes4(keccak256("removeOwnerAtIndex(uint8)"))
-        _getERC4337AccountStorage().functionAllowedNoChainId[0x81cb24b2] = true;
+
         _initializeOwners(owners);
     }
 
@@ -139,14 +123,10 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
         public
         payable
         virtual
+        onlyEntryPoint
         returns (bytes memory result)
     {
-        // only relevant for UserOperations
-        if (msg.sender != entryPoint()) {
-            revert Unauthorized();
-        }
-
-        if (!_getERC4337AccountStorage().functionAllowedNoChainId[bytes4(data[0:4])]) {
+        if (!functionCanSkipChainIdValidation(bytes4(data[0:4]))) {
             revert Forbidden();
         }
 
@@ -253,6 +233,10 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
         return keccak256(abi.encode(UserOperationLib.hash(userOp), entryPoint()));
     }
 
+    function functionCanSkipChainIdValidation(bytes4 functionSelector) public view returns (bool) {
+        return (canSkipChainIdValidationBitmap & (1 << uint8(bytes1(functionSelector)))) != 0;
+    }
+
     /// @dev Validate user op and 1271 signatures
     function _validateSignature(bytes32 message, bytes calldata signaturePacked)
         internal
@@ -297,11 +281,5 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
 
     function _domainNameAndVersion() internal pure override returns (string memory, string memory) {
         return ("Coinbase Smart Account", "1");
-    }
-
-    function _getERC4337AccountStorage() internal pure returns (ERC4337AccountStorage storage $) {
-        assembly {
-            $.slot := ERC4337AccountStorageLocation
-        }
     }
 }

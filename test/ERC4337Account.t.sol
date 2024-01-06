@@ -5,6 +5,7 @@ import {Test, console2} from "forge-std/Test.sol";
 // import {DaimoVerifier, Signature} from "lib/daimo/packages/contract/src/DaimoVerifier.sol";
 import "solady/test/utils/TestPlus.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
+import {UUPSUpgradeable} from "solady/src/utils/UUPSUpgradeable.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
 import "p256-verifier/src/utils/Base64URL.sol";
 import {IEntryPoint, UserOperation, UserOperationLib} from "account-abstraction/contracts/interfaces/IEntryPoint.sol";
