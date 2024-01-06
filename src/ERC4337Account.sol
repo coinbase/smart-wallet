@@ -94,6 +94,8 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
         _getERC4337AccountStorage().functionAllowedNoChainId[0x25e7257a] = true;
         // bytes4(keccak256("addOwnerAtIndex(address,uint8)"))
         _getERC4337AccountStorage().functionAllowedNoChainId[0x4102bf9b] = true;
+        // bytes4(keccak256("removeOwnerAtIndex(uint8)"))
+        _getERC4337AccountStorage().functionAllowedNoChainId[0x81cb24b2] = true;
         _initializeOwners(owners);
     }
 
