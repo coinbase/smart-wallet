@@ -233,7 +233,7 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
         return keccak256(abi.encode(UserOperationLib.hash(userOp), entryPoint()));
     }
 
-    function functionCanSkipChainIdValidation(bytes4 functionSelector) public view returns (bool) {
+    function functionCanSkipChainIdValidation(bytes4 functionSelector) public pure returns (bool) {
         return (canSkipChainIdValidationBitmap & (1 << uint8(bytes1(functionSelector)))) != 0;
     }
 
