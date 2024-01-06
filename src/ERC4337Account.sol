@@ -114,8 +114,8 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
         returns (uint256 validationData)
     {
         // 0xbf6ba1fc = bytes4(keccak256("executeWithoutChainIdValidation(bytes)"))
-        if (bytes4(userOp.callData[0:4]) == 0xbf6ba1fc) {
-            userOpHash = _getUserOpHashWithNoChainId(userOp);
+        if (userOp.callData.length > 4 && bytes4(userOp.callData[0:4]) == 0xbf6ba1fc) {
+            userOpHash = getUserOpHashWithoutChainId(userOp);
         }
         bool success = _validateSignature(userOpHash, userOp.signature);
 
@@ -139,6 +139,7 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
         if (!_getERC4337AccountStorage().functionIsChainAgnostic[bytes4(data[0:4])]) {
             revert Forbidden();
         }
+
         bool success;
         (success, result) = address(this).call(data);
         if (!success) {
@@ -233,6 +234,15 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
         return 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789;
     }
 
+    function getUserOpHashWithoutChainId(UserOperation calldata userOp)
+        public
+        view
+        virtual
+        returns (bytes32 userOpHash)
+    {
+        return keccak256(abi.encode(UserOperationLib.hash(userOp), entryPoint()));
+    }
+
     /// @dev Validate user op and 1271 signatures
     function _validateSignature(bytes32 message, bytes calldata signaturePacked)
         internal
@@ -277,15 +287,6 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
 
     function _domainNameAndVersion() internal pure override returns (string memory, string memory) {
         return ("Coinbase Smart Account", "1");
-    }
-
-    function _getUserOpHashWithNoChainId(UserOperation calldata userOp)
-        internal
-        view
-        virtual
-        returns (bytes32 userOpHash)
-    {
-        return keccak256(abi.encode(UserOperationLib.hash(userOp), entryPoint()));
     }
 
     function _getERC4337AccountStorage() internal pure returns (ERC4337AccountStorage storage $) {

@@ -7,7 +7,7 @@ import "solady/test/utils/TestPlus.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
 import "p256-verifier/src/utils/Base64URL.sol";
-import {IEntryPoint, UserOperation} from "account-abstraction/contracts/interfaces/IEntryPoint.sol";
+import {IEntryPoint, UserOperation, UserOperationLib} from "account-abstraction/contracts/interfaces/IEntryPoint.sol";
 
 import {Utils} from "./Utils.sol";
 import {MockEntryPoint} from "./mocks/MockEntryPoint.sol";
@@ -148,16 +148,15 @@ contract ERC4337Test is Test, TestPlus {
         account.isValidSignature(hash, abi.encodePacked(uint8(1), signature));
     }
 
-    function testOwnerChange() public {
+    function test_canChangeOwnerWithoutChainId() public {
         address newOwner = address(6);
-        bytes4 selector = bytes4(keccak256("addOwner(address owner)"));
+        bytes4 selector = bytes4(keccak256("addOwner(address)"));
         UserOperation memory userOp = UserOperation({
             sender: address(account),
             nonce: 0,
             initCode: "",
             callData: abi.encodeWithSelector(
-                ERC4337Account.executeWithoutChainIdValidation.selector,
-                ERC4337Account.Call({target: address(account), value: 0, data: abi.encodeWithSelector(selector, newOwner)})
+                ERC4337Account.executeWithoutChainIdValidation.selector, abi.encodeWithSelector(selector, newOwner)
                 ),
             callGasLimit: uint256(1_000_000),
             verificationGasLimit: uint256(1_000_000),
@@ -167,15 +166,14 @@ contract ERC4337Test is Test, TestPlus {
             paymasterAndData: "",
             signature: ""
         });
-        bytes32 toSign = entryPoint.getUserOpHash(userOp);
+        bytes32 toSign = account.getUserOpHashWithoutChainId(userOp);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, toSign);
         userOp.signature = abi.encodePacked(uint8(0), r, s, v);
 
-        vm.deal(address(account), 1 ether);
-        vm.deal(address(this), 1 ether);
         UserOperation[] memory ops = new UserOperation[](1);
         ops[0] = userOp;
-        entryPoint.handleOps(ops, payable(address(this)));
+        entryPoint.handleOps(ops, payable(address(1)));
+        assertTrue(account.isOwner(newOwner));
     }
 
     /// taken from Solady and adapted ///
