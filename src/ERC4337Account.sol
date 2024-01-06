@@ -131,6 +131,10 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
         }
     }
 
+    /// @dev validateUserOp will recompute the userOp hash without the chain id
+    /// if this function is being called. This allow certain operations to be replayed
+    /// for all accounts sharing the same address across chains.
+    /// E.g. This may be useful for syncing owner changes
     function executeWithoutChainIdValidation(bytes calldata data)
         public
         payable
