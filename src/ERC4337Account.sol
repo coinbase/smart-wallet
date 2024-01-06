@@ -12,7 +12,7 @@ import {ERC1271} from "./ERC1271.sol";
 
 /// @custom:storage-location erc7201:coinbase.storage.ERC4337Account
 struct ERC4337AccountStorage {
-    mapping(bytes4 => bool) functionIsChainAgnostic;
+    mapping(bytes4 => bool) functionAllowedNoChainId;
 }
 
 /// @notice Coinbase ERC4337 account, built on Solady Simple ERC4337 account implementation.
@@ -87,13 +87,13 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
             revert Initialized();
         }
         // bytes4(keccak256("addOwner(address)"))
-        _getERC4337AccountStorage().functionIsChainAgnostic[0x7065cb48] = true;
+        _getERC4337AccountStorage().functionAllowedNoChainId[0x7065cb48] = true;
         // bytes4(keccak256("addOwner(bytes32,bytes32)"))
-        _getERC4337AccountStorage().functionIsChainAgnostic[0x2d2156b9] = true;
+        _getERC4337AccountStorage().functionAllowedNoChainId[0x2d2156b9] = true;
         // bytes4(keccak256("addOwnerAtIndex(bytes32,bytes32,uint8)"))
-        _getERC4337AccountStorage().functionIsChainAgnostic[0x25e7257a] = true;
+        _getERC4337AccountStorage().functionAllowedNoChainId[0x25e7257a] = true;
         // bytes4(keccak256("addOwnerAtIndex(address,uint8)"))
-        _getERC4337AccountStorage().functionIsChainAgnostic[0x4102bf9b] = true;
+        _getERC4337AccountStorage().functionAllowedNoChainId[0x4102bf9b] = true;
         _initializeOwners(owners);
     }
 
@@ -133,10 +133,14 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
         public
         payable
         virtual
-        onlyEntryPointOrOwner
         returns (bytes memory result)
     {
-        if (!_getERC4337AccountStorage().functionIsChainAgnostic[bytes4(data[0:4])]) {
+        // only relevant for UserOperations
+        if (msg.sender != entryPoint()) {
+            revert Unauthorized();
+        }
+
+        if (!_getERC4337AccountStorage().functionAllowedNoChainId[bytes4(data[0:4])]) {
             revert Forbidden();
         }
 
