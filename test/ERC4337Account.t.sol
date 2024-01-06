@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.21;
 
 import {Test, console2} from "forge-std/Test.sol";
 // import {DaimoVerifier, Signature} from "lib/daimo/packages/contract/src/DaimoVerifier.sol";
@@ -175,6 +175,44 @@ contract ERC4337Test is Test, TestPlus {
         ops[0] = userOp;
         entryPoint.handleOps(ops, payable(address(1)));
         assertTrue(account.isOwner(newOwner));
+    }
+
+    event UserOperationEvent(
+        bytes32 indexed userOpHash,
+        address indexed sender,
+        address indexed paymaster,
+        uint256 nonce,
+        bool success,
+        uint256 actualGasCost,
+        uint256 actualGasUsed
+    );
+
+    function test_cannotCallExecWithoutChainId() public {
+        UserOperation memory userOp = UserOperation({
+            sender: address(account),
+            nonce: 0,
+            initCode: "",
+            callData: abi.encodeWithSelector(
+                ERC4337Account.executeWithoutChainIdValidation.selector,
+                abi.encodeWithSelector(ERC4337Account.execute.selector, "")
+                ),
+            callGasLimit: uint256(1_000_000),
+            verificationGasLimit: uint256(1_000_000),
+            preVerificationGas: uint256(0),
+            maxFeePerGas: uint256(0),
+            maxPriorityFeePerGas: uint256(0),
+            paymasterAndData: "",
+            signature: ""
+        });
+        bytes32 toSign = account.getUserOpHashWithoutChainId(userOp);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, toSign);
+        userOp.signature = abi.encodePacked(uint8(0), r, s, v);
+
+        UserOperation[] memory ops = new UserOperation[](1);
+        ops[0] = userOp;
+        vm.expectEmit(true, true, true, true);
+        emit UserOperationEvent(entryPoint.getUserOpHash(userOp), address(account), address(0), 0, false, 0, 47001);
+        entryPoint.handleOps(ops, payable(address(1)));
     }
 
     /// taken from Solady and adapted ///
