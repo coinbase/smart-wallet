@@ -68,31 +68,31 @@ contract MultiOwnable {
         bytes memory owner = ownerAtIndex(index);
         if (owner.length == 0) revert NoOwnerAtIndex(index);
 
-        delete _getStorage().isOwner[owner];
-        delete _getStorage().ownerAtIndex[index];
+        delete _getMultiOwnableStorage().isOwner[owner];
+        delete _getMultiOwnableStorage().ownerAtIndex[index];
 
         // removedBy may be address(this) when used with smart account
         emit RemoveOwner(owner, abi.encode(msg.sender), index);
     }
 
     function isOwner(address account) public view virtual returns (bool) {
-        return _getStorage().isOwner[abi.encode(account)];
+        return _getMultiOwnableStorage().isOwner[abi.encode(account)];
     }
 
     function isOwner(bytes calldata account) public view virtual returns (bool) {
-        return _getStorage().isOwner[account];
+        return _getMultiOwnableStorage().isOwner[account];
     }
 
     function isOwnerMemory(bytes memory account) public view virtual returns (bool) {
-        return _getStorage().isOwner[account];
+        return _getMultiOwnableStorage().isOwner[account];
     }
 
     function ownerAtIndex(uint8 index) public view virtual returns (bytes memory) {
-        return _getStorage().ownerAtIndex[index];
+        return _getMultiOwnableStorage().ownerAtIndex[index];
     }
 
     function nextOwnerIndex() public view virtual returns (uint8) {
-        return _getStorage().nextOwnerIndex;
+        return _getMultiOwnableStorage().nextOwnerIndex;
     }
 
     function _initializeOwners(bytes[] memory owners) internal virtual {
@@ -103,14 +103,14 @@ contract MultiOwnable {
             if (owners[i].length == 32 && uint256(bytes32(owners[i])) > type(uint160).max) {
                 revert InvalidEthereumAddressOwner(owners[i]);
             }
-            _addOwnerAtIndexNoCheck(owners[i], _getStorage().nextOwnerIndex++);
+            _addOwnerAtIndexNoCheck(owners[i], _getMultiOwnableStorage().nextOwnerIndex++);
         }
     }
 
     /// @dev convenience function that can be used to add the first
     /// 255 owners.
     function _addOwner(bytes memory owner) public virtual onlyOwner {
-        _addOwnerAtIndexNoCheck(owner, _getStorage().nextOwnerIndex++);
+        _addOwnerAtIndexNoCheck(owner, _getMultiOwnableStorage().nextOwnerIndex++);
     }
 
     /// @dev adds an owner, identified by a specific index
@@ -128,8 +128,8 @@ contract MultiOwnable {
     function _addOwnerAtIndexNoCheck(bytes memory owner, uint8 index) internal virtual {
         if (isOwnerMemory(owner)) revert AlreadyOwner(owner);
 
-        _getStorage().isOwner[owner] = true;
-        _getStorage().ownerAtIndex[index] = owner;
+        _getMultiOwnableStorage().isOwner[owner] = true;
+        _getMultiOwnableStorage().ownerAtIndex[index] = owner;
 
         emit AddOwner(owner, abi.encode(msg.sender), index);
     }
@@ -142,7 +142,7 @@ contract MultiOwnable {
         if (!isOwner(msg.sender)) if (msg.sender != address(this)) revert Unauthorized();
     }
 
-    function _getStorage() internal pure returns (MultiOwnableStorage storage $) {
+    function _getMultiOwnableStorage() internal pure returns (MultiOwnableStorage storage $) {
         assembly {
             $.slot := MultiOwnableStorageLocation
         }
