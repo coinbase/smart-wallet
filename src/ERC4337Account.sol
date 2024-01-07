@@ -34,7 +34,12 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
     error InvalidOwnerForSignature(uint8 ownerIndex, bytes owner);
     error Forbidden();
 
-    uint256 constant canSkipChainIdValidationBitmap = 680569926138736066254181076143683141632;
+    uint256 constant NO_CHAIN_ID_VALIDATION_BITMAP = (1 << uint8(bytes1(keccak256("addOwner(bytes32,bytes32)"))))
+        | (1 << uint8(bytes1(keccak256("addOwner(address)"))))
+        | (1 << uint8(bytes1(keccak256("addOwnerAtIndex(bytes32,bytes32,uint8)"))))
+        | (1 << uint8(bytes1(keccak256("addOwnerAtIndex(address,uint8)"))))
+        | (1 << uint8(bytes1(MultiOwnable.removeOwnerAtIndex.selector)))
+        | (1 << uint8(bytes1(UUPSUpgradeable.upgradeToAndCall.selector)));
 
     /// @dev Requires that the caller is the EntryPoint, the owner, or the account itself.
     modifier onlyEntryPointOrOwner() virtual {
@@ -234,7 +239,7 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
     }
 
     function functionCanSkipChainIdValidation(bytes4 functionSelector) public pure returns (bool) {
-        return (canSkipChainIdValidationBitmap & (1 << uint8(bytes1(functionSelector)))) != 0;
+        return (NO_CHAIN_ID_VALIDATION_BITMAP & (1 << uint8(bytes1(functionSelector)))) != 0;
     }
 
     /// @dev Validate user op and 1271 signatures
