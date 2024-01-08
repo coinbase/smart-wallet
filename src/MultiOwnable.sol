@@ -43,23 +43,23 @@ contract MultiOwnable {
 
     /// @dev convenience function to add address owner
     /// can be used if nextOwnerIndex < 255
-    function addOwner(address owner) public virtual onlyOwner {
+    function addOwnerAddress(address owner) public virtual onlyOwner {
         _addOwner(abi.encode(owner));
     }
 
     /// @dev convenience function to add passkey owner
     /// can be used if nextOwnerIndex < 255
-    function addOwner(bytes32 x, bytes32 y) public virtual onlyOwner {
+    function addOwnerPublicKey(bytes32 x, bytes32 y) public virtual onlyOwner {
         _addOwner(abi.encode(x, y));
     }
 
     /// @dev adds an address owner at a specific index
-    function addOwnerAtIndex(address owner, uint8 index) public virtual onlyOwner {
+    function addOwnerAddressAtIndex(address owner, uint8 index) public virtual onlyOwner {
         _addOwnerAtIndex(abi.encode(owner), index);
     }
 
     /// @dev adds a passkey owner at a specific index
-    function addOwnerAtIndex(bytes32 x, bytes32 y, uint8 index) public virtual onlyOwner {
+    function addOwnerPublicKeyAtIndex(bytes32 x, bytes32 y, uint8 index) public virtual onlyOwner {
         _addOwnerAtIndex(abi.encode(x, y), index);
     }
 
