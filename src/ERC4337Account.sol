@@ -34,8 +34,6 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
     error InvalidOwnerForSignature(uint8 ownerIndex, bytes owner);
     error Forbidden();
 
-    uint256 internal immutable _canSkipChainIdValidationBitMap;
-
     /// @dev Requires that the caller is the EntryPoint, the owner, or the account itself.
     modifier onlyEntryPointOrOwner() virtual {
         if (msg.sender != entryPoint()) _checkOwner();
@@ -67,13 +65,6 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
     }
 
     constructor() {
-        _canSkipChainIdValidationBitMap = (1 << uint8(bytes1(MultiOwnable.addOwnerAddress.selector)))
-            | (1 << uint8(bytes1(MultiOwnable.addOwnerPublicKey.selector)))
-            | (1 << uint8(bytes1(MultiOwnable.addOwnerAddressAtIndex.selector)))
-            | (1 << uint8(bytes1(MultiOwnable.addOwnerPublicKeyAtIndex.selector)))
-            | (1 << uint8(bytes1(MultiOwnable.removeOwnerAtIndex.selector)))
-            | (1 << uint8(bytes1(UUPSUpgradeable.upgradeToAndCall.selector)));
-
         // implementation should not be initializable
         // does not affect proxies which use their own storage.
         bytes[] memory owners = new bytes[](1);
@@ -240,8 +231,21 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
         return keccak256(abi.encode(UserOperationLib.hash(userOp), entryPoint()));
     }
 
-    function canSkipChainIdValidation(bytes4 functionSelector) public view returns (bool) {
-        return (_canSkipChainIdValidationBitMap & (1 << uint8(bytes1(functionSelector)))) != 0;
+    function canSkipChainIdValidation(bytes4 functionSelector) public pure returns (bool) {
+        if (functionSelector == MultiOwnable.addOwnerPublicKey.selector) {
+            return true;
+        } else if (functionSelector == MultiOwnable.addOwnerAddress.selector) {
+            return true;
+        } else if (functionSelector == MultiOwnable.addOwnerAddressAtIndex.selector) {
+            return true;
+        } else if (functionSelector == MultiOwnable.addOwnerPublicKeyAtIndex.selector) {
+            return true;
+        } else if (functionSelector == MultiOwnable.removeOwnerAtIndex.selector) {
+            return true;
+        } else if (functionSelector == UUPSUpgradeable.upgradeToAndCall.selector) {
+            return true;
+        }
+        return false;
     }
 
     /// @dev Validate user op and 1271 signatures
