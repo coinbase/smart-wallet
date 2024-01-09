@@ -7,6 +7,3 @@
 [submodule "lib/p256-verifier"]
 	path = lib/p256-verifier
 	url = https://github.com/daimo-eth/p256-verifier
-[submodule "lib/account-abstraction"]
-	path = lib/account-abstraction
-	url = https://github.com/eth-infinitism/account-abstraction
