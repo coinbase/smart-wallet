@@ -32,7 +32,7 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
     error InvalidSignatureLength(uint256 length);
     error Initialized();
     error InvalidOwnerForSignature(uint8 ownerIndex, bytes owner);
-    error Forbidden();
+    error SelectorNotAllowed(bytes4 selector);
 
     /// @dev Requires that the caller is the EntryPoint, the owner, or the account itself.
     modifier onlyEntryPointOrOwner() virtual {
@@ -124,8 +124,9 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
         onlyEntryPoint
         returns (bytes memory result)
     {
-        if (!canSkipChainIdValidation(bytes4(data[0:4]))) {
-            revert Forbidden();
+        bytes4 selector = bytes4(data[0:4]);
+        if (!canSkipChainIdValidation(selector)) {
+            revert SelectorNotAllowed(selector);
         }
 
         bool success;
