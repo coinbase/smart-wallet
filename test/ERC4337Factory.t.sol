@@ -17,21 +17,21 @@ contract ERC4337FactoryTest is Test {
         owners.push(abi.encode(address(2)));
     }
 
-    function testDeployDeterministicSetsOwnersCorrectly() public {
-        address a = factory.deployDeterministic{value: 1e18}(owners, bytes32(0));
+    function test_createAccountSetsOwnersCorrectly() public {
+        address a = factory.createAccount{value: 1e18}(owners, 0);
         assert(ERC4337Account(payable(a)).isOwner(address(1)));
         assert(ERC4337Account(payable(a)).isOwner(address(2)));
     }
 
-    function testDeployDeterministicDeploysToPredeterminedAddress() public {
-        address p = factory.predictDeterministicAddress(owners, bytes32(0));
-        address a = factory.deployDeterministic{value: 1e18}(owners, bytes32(0));
+    function test_createAccountDeploysToPredeterminedAddress() public {
+        address p = factory.getAddress(owners, 0);
+        address a = factory.createAccount{value: 1e18}(owners, 0);
         assertEq(a, p);
     }
 
     function testDeployDeterministicPassValues() public {
         vm.deal(address(this), 1e18);
-        address a = factory.deployDeterministic{value: 1e18}(owners, bytes32(0));
+        address a = factory.createAccount{value: 1e18}(owners, 0);
         assertEq(a.balance, 1e18);
     }
 }
