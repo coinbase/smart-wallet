@@ -232,17 +232,14 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
     }
 
     function canSkipChainIdValidation(bytes4 functionSelector) public pure returns (bool) {
-        if (functionSelector == MultiOwnable.addOwnerPublicKey.selector) {
-            return true;
-        } else if (functionSelector == MultiOwnable.addOwnerAddress.selector) {
-            return true;
-        } else if (functionSelector == MultiOwnable.addOwnerAddressAtIndex.selector) {
-            return true;
-        } else if (functionSelector == MultiOwnable.addOwnerPublicKeyAtIndex.selector) {
-            return true;
-        } else if (functionSelector == MultiOwnable.removeOwnerAtIndex.selector) {
-            return true;
-        } else if (functionSelector == UUPSUpgradeable.upgradeToAndCall.selector) {
+        if (
+            functionSelector == MultiOwnable.addOwnerPublicKey.selector
+                || functionSelector == MultiOwnable.addOwnerAddress.selector
+                || functionSelector == MultiOwnable.addOwnerAddressAtIndex.selector
+                || functionSelector == MultiOwnable.addOwnerPublicKeyAtIndex.selector
+                || functionSelector == MultiOwnable.removeOwnerAtIndex.selector
+                || functionSelector == UUPSUpgradeable.upgradeToAndCall.selector
+        ) {
             return true;
         }
         return false;

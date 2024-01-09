@@ -3,7 +3,7 @@ pragma solidity ^0.8.21;
 
 import "./ERC4337AccountTestBase.t.sol";
 
-contract TestCanSkipChainIdValidation is AccountTestBase {
+contract TestExecuteWithoutChainIdValidation is AccountTestBase {
     event UserOperationEvent(
         bytes32 indexed userOpHash,
         address indexed sender,
@@ -49,7 +49,7 @@ contract TestCanSkipChainIdValidation is AccountTestBase {
         UserOperation[] memory ops = new UserOperation[](1);
         ops[0] = userOp;
         vm.expectEmit(true, true, true, true);
-        emit UserOperationEvent(entryPoint.getUserOpHash(userOp), address(account), address(0), 0, false, 0, 47301);
+        emit UserOperationEvent(entryPoint.getUserOpHash(userOp), address(account), address(0), 0, false, 0, 47320);
         entryPoint.handleOps(ops, payable(address(1)));
     }
 
