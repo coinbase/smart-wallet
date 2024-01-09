@@ -4,6 +4,7 @@ pragma solidity 0.8.21;
 import {Receiver} from "solady/src/accounts/Receiver.sol";
 import {UUPSUpgradeable} from "solady/src/utils/UUPSUpgradeable.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
+import {UserOperation, UserOperationLib} from "account-abstraction/contracts/interfaces/UserOperation.sol";
 
 import {MultiOwnable} from "./MultiOwnable.sol";
 import {WebAuthn} from "./WebAuthn.sol";
@@ -13,21 +14,6 @@ import {ERC1271} from "./ERC1271.sol";
 /// @author Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC4337.sol)
 /// @author Wilson Cusack
 contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
-    /// @dev The ERC4337 user operation (userOp) struct.
-    struct UserOperation {
-        address sender;
-        uint256 nonce;
-        bytes initCode;
-        bytes callData;
-        uint256 callGasLimit;
-        uint256 verificationGasLimit;
-        uint256 preVerificationGas;
-        uint256 maxFeePerGas;
-        uint256 maxPriorityFeePerGas;
-        bytes paymasterAndData;
-        bytes signature;
-    }
-
     /// @dev Struct passed as signature in the userOp when a passkey has signed with webauthn.
     struct PasskeySignature {
         bytes authenticatorData;
@@ -46,6 +32,7 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
     error InvalidSignatureLength(uint256 length);
     error Initialized();
     error InvalidOwnerForSignature(uint8 ownerIndex, bytes owner);
+    error SelectorNotAllowed(bytes4 selector);
 
     /// @dev Requires that the caller is the EntryPoint, the owner, or the account itself.
     modifier onlyEntryPointOrOwner() virtual {
@@ -90,6 +77,7 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
         if (nextOwnerIndex() != 0) {
             revert Initialized();
         }
+
         _initializeOwners(owners);
     }
 
@@ -109,6 +97,10 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
         payPrefund(missingAccountFunds)
         returns (uint256 validationData)
     {
+        // 0xbf6ba1fc = bytes4(keccak256("executeWithoutChainIdValidation(bytes)"))
+        if (userOp.callData.length > 4 && bytes4(userOp.callData[0:4]) == 0xbf6ba1fc) {
+            userOpHash = getUserOpHashWithoutChainId(userOp);
+        }
         bool success = _validateSignature(userOpHash, userOp.signature);
 
         /// @solidity memory-safe-assembly
@@ -118,6 +110,31 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
             // `(success ? 0 : 1) | (uint256(validUntil) << 160) | (uint256(validAfter) << (160 + 48))`
             // where `validUntil` is 0 (indefinite) and `validAfter` is 0.
             validationData := iszero(success)
+        }
+    }
+
+    /// @dev validateUserOp will recompute the userOp hash without the chain id
+    /// if this function is being called. This allow certain operations to be replayed
+    /// for all accounts sharing the same address across chains.
+    /// E.g. This may be useful for syncing owner changes
+    function executeWithoutChainIdValidation(bytes calldata data)
+        public
+        payable
+        virtual
+        onlyEntryPoint
+        returns (bytes memory result)
+    {
+        bytes4 selector = bytes4(data[0:4]);
+        if (!canSkipChainIdValidation(selector)) {
+            revert SelectorNotAllowed(selector);
+        }
+
+        bool success;
+        (success, result) = address(this).call(data);
+        if (!success) {
+            assembly {
+                revert(add(result, 32), mload(result))
+            }
         }
     }
 
@@ -204,6 +221,29 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
     /// Override this function to return a different EntryPoint.
     function entryPoint() public view virtual returns (address) {
         return 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789;
+    }
+
+    function getUserOpHashWithoutChainId(UserOperation calldata userOp)
+        public
+        view
+        virtual
+        returns (bytes32 userOpHash)
+    {
+        return keccak256(abi.encode(UserOperationLib.hash(userOp), entryPoint()));
+    }
+
+    function canSkipChainIdValidation(bytes4 functionSelector) public pure returns (bool) {
+        if (
+            functionSelector == MultiOwnable.addOwnerPublicKey.selector
+                || functionSelector == MultiOwnable.addOwnerAddress.selector
+                || functionSelector == MultiOwnable.addOwnerAddressAtIndex.selector
+                || functionSelector == MultiOwnable.addOwnerPublicKeyAtIndex.selector
+                || functionSelector == MultiOwnable.removeOwnerAtIndex.selector
+                || functionSelector == UUPSUpgradeable.upgradeToAndCall.selector
+        ) {
+            return true;
+        }
+        return false;
     }
 
     /// @dev Validate user op and 1271 signatures

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import {ERC4337Account} from "../../src/ERC4337Account.sol";
+import {ERC4337Account, UserOperation} from "../../src/ERC4337Account.sol";
 
 contract MockEntryPoint {
     mapping(address => uint256) public balanceOf;
@@ -18,7 +18,7 @@ contract MockEntryPoint {
 
     function validateUserOp(
         address account,
-        ERC4337Account.UserOperation memory userOp,
+        UserOperation memory userOp,
         bytes32 userOpHash,
         uint256 missingAccountFunds
     ) public payable returns (uint256 validationData) {

@@ -3,7 +3,7 @@ pragma solidity ^0.8.23;
 
 import "./AddOwnerBase.t.sol";
 
-contract AddOwnerTest is AddOwnerBaseTest {
+contract AddOwnerAddressTest is AddOwnerBaseTest {
     function testRevertsIfAlreadyOwner() public {
         vm.startPrank(owner1Address);
         _addOwner();
@@ -14,7 +14,7 @@ contract AddOwnerTest is AddOwnerBaseTest {
     function testIncreasesOwnerIndex() public {
         uint8 before = mock.nextOwnerIndex();
         vm.prank(owner1Address);
-        mock.addOwner(newOwner);
+        mock.addOwnerAddress(newOwner);
         assertEq(before + 1, mock.nextOwnerIndex());
     }
 
@@ -22,15 +22,15 @@ contract AddOwnerTest is AddOwnerBaseTest {
         vm.startPrank(owner1Address);
         // two owners added in setup
         for (uint256 i = 0; i < 253; i++) {
-            mock.addOwner(address(uint160(i)));
+            mock.addOwnerAddress(address(uint160(i)));
         }
         assertEq(mock.nextOwnerIndex(), 255);
         vm.expectRevert(stdError.arithmeticError);
-        mock.addOwner(address(0xdead));
+        mock.addOwnerAddress(address(0xdead));
     }
 
     function _addOwner() internal override {
-        mock.addOwner(newOwner);
+        mock.addOwnerAddress(newOwner);
     }
 
     function _index() internal view override returns (uint8) {
