@@ -15,29 +15,37 @@ contract ERC4337Factory {
         implementation = erc4337;
     }
 
-    /// @dev Deploys an ERC4337 account with `salt` and returns its deterministic address.
-    function deployDeterministic(bytes[] calldata owners, bytes32 salt)
+    /// @dev Deploys an ERC4337 account and returns its deterministic address.
+    /// @param owners the initial set of addresses and or public keys that should be able to control the account
+    /// @param nonce the nonce of the account, allowing multiple accounts with the same set of initial owners to exist
+    function createAccount(bytes[] calldata owners, uint256 nonce)
         public
         payable
         virtual
         returns (address account)
     {
-        account = LibClone.deployDeterministicERC1967(msg.value, implementation, keccak256(abi.encode(owners, salt)));
+        account = LibClone.deployDeterministicERC1967(msg.value, implementation, _getSalt(owners, nonce));
         ERC4337Account(payable(account)).initialize(owners);
     }
 
-    /// @dev Returns the initialization code hash of the ERC4337 account (a minimal ERC1967 proxy).
-    /// Used for mining vanity addresses with create2crunch.
-    function initCodeHash() public view virtual returns (bytes32 result) {
-        result = LibClone.initCodeHashERC1967(implementation);
-    }
-
-    function predictDeterministicAddress(bytes[] calldata owners, bytes32 salt)
+    /// @dev Returns the deterministic address of the account created via `createAccount`.
+    function getAddress(bytes[] calldata owners, uint256 nonce)
         external
         view
         returns (address predicted)
     {
         predicted =
-            LibClone.predictDeterministicAddress(initCodeHash(), keccak256(abi.encode(owners, salt)), address(this));
+            LibClone.predictDeterministicAddress(initCodeHash(), _getSalt(owners, nonce), address(this));
+    }
+
+    /// @dev Returns the initialization code hash of the ERC4337 account (a minimal ERC1967 proxy).
+    function initCodeHash() public view virtual returns (bytes32 result) {
+        result = LibClone.initCodeHashERC1967(implementation);
+    }
+
+
+    /// @dev Returns the salt that will be used for deterministic address
+    function _getSalt(bytes[] calldata owners, uint256 nonce) internal pure returns (bytes32 salt) {
+        salt = keccak256(abi.encode(owners, nonce));
     }
 }
