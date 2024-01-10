@@ -11,21 +11,23 @@ abstract contract ERC1271 is EIP712 {
     bytes32 constant MESSAGE_TYPEHASH = keccak256("CoinbaseSmartAccountMessage(bytes32 message)");
 
     function isValidSignature(bytes32 hash, bytes calldata signature) public view virtual returns (bytes4 result) {
-        hash = keccak256(abi.encode(MESSAGE_TYPEHASH, hash));
-        bool success = _validateSignature(_hashTypedData(hash), signature);
-        /// @solidity memory-safe-assembly
-        assembly {
-            // `success ? bytes4(keccak256("isValidSignature(bytes32,bytes)")) : 0xffffffff`.
-            result := shl(224, or(0x1626ba7e, sub(0, iszero(success))))
+        if (_validateSignature(_hashTypedData(_messageHash(hash)), signature)) {
+            // bytes4(keccak256("isValidSignature(bytes32,bytes)"))
+            return 0x1626ba7e;
         }
+
+        return 0xffffffff;
     }
 
     /// @dev Incase a signer is on multiple accounts, we expect all messages
     /// to be wrapped in an EIP 712 hash that includes the domain hash
     /// EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)
     function replaySafeHash(bytes32 hash) public view returns (bytes32) {
-        hash = keccak256(abi.encode(MESSAGE_TYPEHASH, hash));
-        return _hashTypedData(hash);
+        return _hashTypedData(_messageHash(hash));
+    }
+
+    function _messageHash(bytes32 message) internal view virtual returns (bytes32) {
+        return keccak256(abi.encode(MESSAGE_TYPEHASH, message));
     }
 
     /// @dev Implement to vefify signature

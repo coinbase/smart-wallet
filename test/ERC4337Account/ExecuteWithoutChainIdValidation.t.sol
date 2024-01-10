@@ -49,7 +49,7 @@ contract TestExecuteWithoutChainIdValidation is AccountTestBase {
         UserOperation[] memory ops = new UserOperation[](1);
         ops[0] = userOp;
         vm.expectEmit(true, true, true, true);
-        emit UserOperationEvent(entryPoint.getUserOpHash(userOp), address(account), address(0), 0, false, 0, 47736);
+        emit UserOperationEvent(entryPoint.getUserOpHash(userOp), address(account), address(0), 0, false, 0, 47737);
         entryPoint.handleOps(ops, payable(address(1)));
     }
 
