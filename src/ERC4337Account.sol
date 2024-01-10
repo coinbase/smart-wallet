@@ -101,16 +101,16 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
         if (userOp.callData.length > 4 && bytes4(userOp.callData[0:4]) == 0xbf6ba1fc) {
             userOpHash = getUserOpHashWithoutChainId(userOp);
         }
-        bool success = _validateSignature(userOpHash, userOp.signature);
 
-        /// @solidity memory-safe-assembly
-        assembly {
-            // Returns 0 if the recovered address matches the owner.
-            // Else returns 1, which is equivalent to:
-            // `(success ? 0 : 1) | (uint256(validUntil) << 160) | (uint256(validAfter) << (160 + 48))`
-            // where `validUntil` is 0 (indefinite) and `validAfter` is 0.
-            validationData := iszero(success)
+        // Returns 0 if the recovered address matches the owner.
+        // Else returns 1, which is equivalent to:
+        // `(success ? 0 : 1) | (uint256(validUntil) << 160) | (uint256(validAfter) << (160 + 48))`
+        // where `validUntil` is 0 (indefinite) and `validAfter` is 0.
+        if (_validateSignature(userOpHash, userOp.signature)) {
+            return 0;
         }
+
+        return 1;
     }
 
     /// @dev validateUserOp will recompute the userOp hash without the chain id
@@ -129,13 +129,7 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
             revert SelectorNotAllowed(selector);
         }
 
-        bool success;
-        (success, result) = address(this).call(data);
-        if (!success) {
-            assembly {
-                revert(add(result, 32), mload(result))
-            }
-        }
+        return _call(address(this), 0, data);
     }
 
     /// @dev Execute a call from this account.
@@ -146,20 +140,7 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
         onlyEntryPointOrOwner
         returns (bytes memory result)
     {
-        /// @solidity memory-safe-assembly
-        assembly {
-            result := mload(0x40)
-            calldatacopy(result, data.offset, data.length)
-            if iszero(call(gas(), target, value, result, data.length, codesize(), 0x00)) {
-                // Bubble up the revert if the call reverts.
-                returndatacopy(result, 0x00, returndatasize())
-                revert(result, returndatasize())
-            }
-            mstore(result, returndatasize()) // Store the length.
-            let o := add(result, 0x20)
-            returndatacopy(o, 0x00, returndatasize()) // Copy the returndata.
-            mstore(0x40, add(o, returndatasize())) // Allocate the memory.
-        }
+        return _call(target, value, data);
     }
 
     /// @dev Execute a sequence of calls from this account.
@@ -170,31 +151,12 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
         onlyEntryPointOrOwner
         returns (bytes[] memory results)
     {
-        /// @solidity memory-safe-assembly
-        assembly {
-            results := mload(0x40)
-            mstore(results, calls.length)
-            let r := add(0x20, results)
-            let m := add(r, shl(5, calls.length))
-            calldatacopy(r, calls.offset, shl(5, calls.length))
-            for { let end := m } iszero(eq(r, end)) { r := add(r, 0x20) } {
-                let e := add(calls.offset, mload(r))
-                let o := add(e, calldataload(add(e, 0x40)))
-                calldatacopy(m, add(o, 0x20), calldataload(o))
-                // forgefmt: disable-next-item
-                if iszero(call(gas(), calldataload(e), calldataload(add(e, 0x20)),
-                    m, calldataload(o), codesize(), 0x00)) {
-                    // Bubble up the revert if the call reverts.
-                    returndatacopy(m, 0x00, returndatasize())
-                    revert(m, returndatasize())
-                }
-                mstore(r, m) // Append `m` into `results`.
-                mstore(m, returndatasize()) // Store the length,
-                let p := add(m, 0x20)
-                returndatacopy(p, 0x00, returndatasize()) // and copy the returndata.
-                m := add(p, returndatasize()) // Advance `m`.
+        results = new bytes[](calls.length);
+        for (uint256 i = 0; i < calls.length;) {
+            results[i] = (_call(calls[i].target, calls[i].value, calls[i].data));
+            unchecked {
+                ++i;
             }
-            mstore(0x40, m) // Allocate the memory.
         }
     }
 
@@ -244,6 +206,18 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
             return true;
         }
         return false;
+    }
+
+    // adapted from
+    // https://github.com/alchemyplatform/light-account/blob/912340322f7855cbc1d333ddaac2d39c74b4dcc6/src/LightAccount.sol#L347C5-L354C6
+    function _call(address target, uint256 value, bytes memory data) internal returns (bytes memory result) {
+        bool success;
+        (success, result) = target.call{value: value}(data);
+        if (!success) {
+            assembly {
+                revert(add(result, 32), mload(result))
+            }
+        }
     }
 
     /// @dev Validate user op and 1271 signatures
