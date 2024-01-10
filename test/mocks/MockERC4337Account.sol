@@ -18,13 +18,7 @@ contract MockERC4337Account is ERC4337Account {
         }
     }
 
-    function executeBatch(uint256 filler, Call[] calldata calls)
-        public
-        payable
-        virtual
-        onlyEntryPointOrOwner
-        returns (bytes[] memory results)
-    {
+    function executeBatch(uint256 filler, Call[] calldata calls) public payable virtual onlyEntryPointOrOwner {
         /// @solidity memory-safe-assembly
         assembly {
             mstore(0x40, add(mload(0x40), mod(filler, 0x40)))

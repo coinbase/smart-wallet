@@ -213,19 +213,16 @@ contract ERC4337Test is Test, TestPlus {
                 calls[i].data = abi.encodeWithSignature("setData(bytes)", _randomBytes(v));
             }
 
-            bytes[] memory results;
             if (_random() & 1 == 0) {
-                results = MockERC4337Account(payable(address(account))).executeBatch(_random(), calls);
+                MockERC4337Account(payable(address(account))).executeBatch(_random(), calls);
             } else {
-                results = account.executeBatch(calls);
+                account.executeBatch(calls);
             }
 
-            assertEq(results.length, n);
             for (uint256 i; i != n; ++i) {
                 uint256 v = calls[i].value;
                 assertEq(Target(calls[i].target).datahash(), keccak256(_randomBytes(v)));
                 assertEq(calls[i].target.balance, v);
-                assertEq(abi.decode(results[i], (bytes)), _randomBytes(v));
             }
         }
     }
