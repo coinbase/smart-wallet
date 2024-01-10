@@ -117,43 +117,24 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
     /// if this function is being called. This allow certain operations to be replayed
     /// for all accounts sharing the same address across chains.
     /// E.g. This may be useful for syncing owner changes
-    function executeWithoutChainIdValidation(bytes calldata data)
-        public
-        payable
-        virtual
-        onlyEntryPoint
-        returns (bytes memory result)
-    {
+    function executeWithoutChainIdValidation(bytes calldata data) public payable virtual onlyEntryPoint {
         bytes4 selector = bytes4(data[0:4]);
         if (!canSkipChainIdValidation(selector)) {
             revert SelectorNotAllowed(selector);
         }
 
-        return _call(address(this), 0, data);
+        _call(address(this), 0, data);
     }
 
     /// @dev Execute a call from this account.
-    function execute(address target, uint256 value, bytes calldata data)
-        public
-        payable
-        virtual
-        onlyEntryPointOrOwner
-        returns (bytes memory result)
-    {
-        return _call(target, value, data);
+    function execute(address target, uint256 value, bytes calldata data) public payable virtual onlyEntryPointOrOwner {
+        _call(target, value, data);
     }
 
     /// @dev Execute a sequence of calls from this account.
-    function executeBatch(Call[] calldata calls)
-        public
-        payable
-        virtual
-        onlyEntryPointOrOwner
-        returns (bytes[] memory results)
-    {
-        results = new bytes[](calls.length);
+    function executeBatch(Call[] calldata calls) public payable virtual onlyEntryPointOrOwner {
         for (uint256 i = 0; i < calls.length;) {
-            results[i] = (_call(calls[i].target, calls[i].value, calls[i].data));
+            _call(calls[i].target, calls[i].value, calls[i].data);
             unchecked {
                 ++i;
             }
@@ -210,9 +191,8 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
 
     // adapted from
     // https://github.com/alchemyplatform/light-account/blob/912340322f7855cbc1d333ddaac2d39c74b4dcc6/src/LightAccount.sol#L347C5-L354C6
-    function _call(address target, uint256 value, bytes memory data) internal returns (bytes memory result) {
-        bool success;
-        (success, result) = target.call{value: value}(data);
+    function _call(address target, uint256 value, bytes memory data) internal {
+        (bool success, bytes memory result) = target.call{value: value}(data);
         if (!success) {
             assembly {
                 revert(add(result, 32), mload(result))
