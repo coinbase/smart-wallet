@@ -10,7 +10,7 @@ import {MultiOwnable} from "./MultiOwnable.sol";
 import {WebAuthn} from "./WebAuthn.sol";
 import {ERC1271} from "./ERC1271.sol";
 
-/// @notice Coinbase ERC4337 account, built on Solady Simple ERC4337 account implementation.
+/// @notice Coinbase ERC4337 account, built on Solady ERC4337 account implementation
 /// @author Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC4337.sol)
 /// @author Wilson Cusack
 contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
@@ -189,8 +189,7 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
         return false;
     }
 
-    // adapted from
-    // https://github.com/alchemyplatform/light-account/blob/912340322f7855cbc1d333ddaac2d39c74b4dcc6/src/LightAccount.sol#L347C5-L354C6
+    // From https://github.com/alchemyplatform/light-account/blob/912340322f7855cbc1d333ddaac2d39c74b4dcc6/src/LightAccount.sol#L347C5-L354C6
     function _call(address target, uint256 value, bytes memory data) internal {
         (bool success, bytes memory result) = target.call{value: value}(data);
         if (!success) {
