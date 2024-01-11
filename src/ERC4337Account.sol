@@ -5,9 +5,9 @@ import {Receiver} from "solady/src/accounts/Receiver.sol";
 import {UUPSUpgradeable} from "solady/src/utils/UUPSUpgradeable.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 import {UserOperation, UserOperationLib} from "account-abstraction/contracts/interfaces/UserOperation.sol";
+import {WebAuthn} from "p256-verifier/src/WebAuthn.sol";
 
 import {MultiOwnable} from "./MultiOwnable.sol";
-import {WebAuthn} from "./WebAuthn.sol";
 import {ERC1271} from "./ERC1271.sol";
 
 /// @notice Coinbase ERC4337 account, built on Solady ERC4337 account implementation
