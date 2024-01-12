@@ -29,10 +29,15 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
         bytes data;
     }
 
+    /// @dev The nonce key reserve for UserOperations without
+    /// chain id validation.
+    uint256 public constant REPLAYABLE_NONCE_KEY = 8453;
+
     error InvalidSignatureLength(uint256 length);
     error Initialized();
     error InvalidOwnerForSignature(uint8 ownerIndex, bytes owner);
     error SelectorNotAllowed(bytes4 selector);
+    error InvalidNonceKey(uint256 key);
 
     /// @dev Requires that the caller is the EntryPoint, the owner, or the account itself.
     modifier onlyEntryPointOrOwner() virtual {
@@ -97,9 +102,17 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
         payPrefund(missingAccountFunds)
         returns (uint256 validationData)
     {
+        uint256 key = userOp.nonce >> 64;
         // 0xbf6ba1fc = bytes4(keccak256("executeWithoutChainIdValidation(bytes)"))
-        if (userOp.callData.length > 4 && bytes4(userOp.callData[0:4]) == 0xbf6ba1fc) {
+        if (userOp.callData.length >= 4 && bytes4(userOp.callData[0:4]) == 0xbf6ba1fc) {
             userOpHash = getUserOpHashWithoutChainId(userOp);
+            if (key != REPLAYABLE_NONCE_KEY) {
+                revert InvalidNonceKey(key);
+            }
+        } else {
+            if (key == REPLAYABLE_NONCE_KEY) {
+                revert InvalidNonceKey(key);
+            }
         }
 
         // Returns 0 if the recovered address matches the owner.
