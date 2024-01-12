@@ -30,7 +30,8 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
     }
 
     /// @dev The nonce key reserve for UserOperations without
-    /// chain id validation.
+    /// chain id validation. Goal is to help ensure users
+    /// have a single, sequential cross-chain history.
     uint256 public constant REPLAYABLE_NONCE_KEY = 8453;
 
     error InvalidSignatureLength(uint256 length);
