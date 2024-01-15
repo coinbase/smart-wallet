@@ -14,58 +14,52 @@ contract TestExecuteWithoutChainIdValidation is AccountTestBase {
         uint256 actualGasUsed
     );
 
+    function setUp() public override {
+        super.setUp();
+        userOpNonce = account.REPLAYABLE_NONCE_KEY() << 64;
+        userOpCalldata = abi.encodeWithSelector(ERC4337Account.executeWithoutChainIdValidation.selector);
+    }
+
     function test_revertsIfCallerNotEntryPoint() public {
         vm.expectRevert(MultiOwnable.Unauthorized.selector);
         account.executeWithoutChainIdValidation("");
     }
 
+    function test_revertsIfWrongNonceKey() public {
+        userOpNonce = 0;
+        UserOperation memory userOp = _getUserOpWithSignature();
+        vm.expectRevert();
+        _sendUserOperation(userOp);
+    }
+
     function test_canChangeOwnerWithoutChainId() public {
         address newOwner = address(6);
-        UserOperation memory userOp = _getUserOp();
-        userOp.callData = abi.encodeWithSelector(
+        assertFalse(account.isOwner(newOwner));
+
+        userOpCalldata = abi.encodeWithSelector(
             ERC4337Account.executeWithoutChainIdValidation.selector,
             abi.encodeWithSelector(MultiOwnable.addOwnerAddress.selector, newOwner)
         );
-        bytes32 toSign = account.getUserOpHashWithoutChainId(userOp);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, toSign);
-        userOp.signature = abi.encodePacked(uint8(0), r, s, v);
-
-        UserOperation[] memory ops = new UserOperation[](1);
-        ops[0] = userOp;
-        entryPoint.handleOps(ops, payable(address(1)));
+        _sendUserOperation(_getUserOpWithSignature());
         assertTrue(account.isOwner(newOwner));
     }
 
-    function test_cannotCallExecWithoutChainId() public {
-        UserOperation memory userOp = _getUserOp();
-        userOp.callData = abi.encodeWithSelector(
+    function test_cannotCallExec() public {
+        userOpCalldata = abi.encodeWithSelector(
             ERC4337Account.executeWithoutChainIdValidation.selector,
             abi.encodeWithSelector(ERC4337Account.execute.selector, "")
         );
-        bytes32 toSign = account.getUserOpHashWithoutChainId(userOp);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, toSign);
-        userOp.signature = abi.encodePacked(uint8(0), r, s, v);
-
-        UserOperation[] memory ops = new UserOperation[](1);
-        ops[0] = userOp;
+        UserOperation memory userOp = _getUserOpWithSignature();
         vm.expectEmit(true, true, true, true);
-        emit UserOperationEvent(entryPoint.getUserOpHash(userOp), address(account), address(0), 0, false, 0, 47734);
-        entryPoint.handleOps(ops, payable(address(1)));
+        emit UserOperationEvent(
+            entryPoint.getUserOpHash(userOp), userOp.sender, address(0), userOp.nonce, false, 0, 47747
+        );
+        _sendUserOperation(userOp);
     }
 
-    function _getUserOp() public view returns (UserOperation memory userOp) {
-        userOp = UserOperation({
-            sender: address(account),
-            nonce: 0,
-            initCode: "",
-            callData: "",
-            callGasLimit: uint256(1_000_000),
-            verificationGasLimit: uint256(1_000_000),
-            preVerificationGas: uint256(0),
-            maxFeePerGas: uint256(0),
-            maxPriorityFeePerGas: uint256(0),
-            paymasterAndData: "",
-            signature: ""
-        });
+    function _sign(UserOperation memory userOp) internal view override returns (bytes memory signature) {
+        bytes32 toSign = account.getUserOpHashWithoutChainId(userOp);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, toSign);
+        signature = abi.encodePacked(uint8(0), r, s, v);
     }
 }
