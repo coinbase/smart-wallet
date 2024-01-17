@@ -16,7 +16,7 @@ ERC4337FactoryTest:test_createAccountDeploysToPredeterminedAddress() (gas: 26697
 ERC4337FactoryTest:test_createAccountSetsOwnersCorrectly() (gas: 266164)
 ERC4337Test:testExecute() (gas: 424828)
 ERC4337Test:testExecuteBatch() (gas: 728227)
-ERC4337Test:testExecuteBatch(uint256) (runs: 256, μ: 3044404, ~: 2902852)
+ERC4337Test:testExecuteBatch(uint256) (runs: 256, μ: 3029090, ~: 2902685)
 ERC4337Test:testInitialize() (gas: 20730)
 ERC4337Test:testRevertsIfEthereumSignatureButWrongOwnerLength() (gas: 29963)
 ERC4337Test:testRevertsIfPasskeySigButWrongOwnerLength() (gas: 52498)

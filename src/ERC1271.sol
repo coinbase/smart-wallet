@@ -3,7 +3,7 @@ pragma solidity ^0.8.4;
 
 import {EIP712} from "solady/src/utils/EIP712.sol";
 
-/// @notice ERC1271 with guards for same signer being used on multiple accounts
+/// @notice ERC-1271 with guards for same signer being used on multiple accounts
 /// Based on Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC1271.sol)
 /// @author Wilson Cusack
 abstract contract ERC1271 {
@@ -16,19 +16,13 @@ abstract contract ERC1271 {
     /// they are signing in some wallet preview. But in this case, to prevent replay
     /// across accounts, we are always dealing with nested messages, and so the
     /// input should be a EIP-191 or EIP-712 output hash.
-    /// E.g.
+    /// E.g. The input hash would be result of
     ///
-    ///  keccak256(\x19\x01 || this.domainSeparator ||
-    ///      hashStruct(CoinbaseSmartAccountMessage({
-    ///          hash: keccak256("\x19\x01" || someDomainSeparator || hashStruct(someStruct)),
-    ///      }))
-    ///  )
+    ///  keccak256("\x19\x01" || someDomainSeparator || hashStruct(someStruct))
     ///
-    ///  keccak256(\x19\x01 || this.domainSeparator ||
-    ///      hashStruct(CoinbaseSmartAccountMessage({
-    ///          hash: keccak256("\x19Ethereum Signed Message:\n" || len(someMessage) || someMessage),
-    ///      }))
-    ///  )
+    ///  OR
+    ///
+    ///  keccak256("\x19Ethereum Signed Message:\n" || len(someMessage) || someMessage),
     ///
     bytes32 private constant _MESSAGE_TYPEHASH = keccak256("CoinbaseSmartAccountMessage(bytes32 hash)");
 
@@ -45,6 +39,8 @@ abstract contract ERC1271 {
         );
     }
 
+    /// @dev Validates the signature with ERC1271 return,
+    /// so that this account can also be used as a signer.
     function isValidSignature(bytes32 hash, bytes calldata signature) public view virtual returns (bytes4 result) {
         if (_validateSignature(replaySafeHash(hash), signature)) {
             // bytes4(keccak256("isValidSignature(bytes32,bytes)"))
@@ -54,9 +50,15 @@ abstract contract ERC1271 {
         return 0xffffffff;
     }
 
-    /// @dev Incase a signer is on multiple accounts, we expect all messages
-    /// to be wrapped in an EIP 712 hash that includes the domain hash
-    /// EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)
+    /// @dev Returns an EIP-712-compliant hash of `hash`,
+    /// where the domainSeparator includes address(this) and block.chainId
+    /// to protect against the same signature being used for many accounts.
+    /// @return
+    ///  keccak256(\x19\x01 || this.domainSeparator ||
+    ///      hashStruct(CoinbaseSmartAccountMessage({
+    ///          hash: `hash`
+    ///      }))
+    ///  )
     function replaySafeHash(bytes32 hash) public view virtual returns (bytes32) {
         return _eip712Hash(_hashStruct(hash));
     }
