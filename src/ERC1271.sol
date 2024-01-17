@@ -8,7 +8,7 @@ import {EIP712} from "solady/src/utils/EIP712.sol";
 /// @author Wilson Cusack
 abstract contract ERC1271 {
     bytes32 public immutable domainSeparator;
-    bytes32 private constant _MESSAGE_TYPEHASH = keccak256("CoinbaseSmartAccountMessage(bytes message)");
+    bytes32 private constant _MESSAGE_TYPEHASH = keccak256("CoinbaseSmartAccountMessage(bytes32 messageHash)");
 
     constructor() {
         (string memory name, string memory version) = _domainNameAndVersion();
@@ -24,7 +24,7 @@ abstract contract ERC1271 {
     }
 
     function isValidSignature(bytes32 hash, bytes calldata signature) public view virtual returns (bytes4 result) {
-        if (_validateSignature(replaySafeHash(abi.encode(hash)), signature)) {
+        if (_validateSignature(replaySafeHash(hash), signature)) {
             // bytes4(keccak256("isValidSignature(bytes32,bytes)"))
             return 0x1626ba7e;
         }
@@ -35,8 +35,8 @@ abstract contract ERC1271 {
     /// @dev Incase a signer is on multiple accounts, we expect all messages
     /// to be wrapped in an EIP 712 hash that includes the domain hash
     /// EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)
-    function replaySafeHash(bytes memory message) public view returns (bytes32) {
-        return _eip712Hash(_hashStruct(message));
+    function replaySafeHash(bytes32 messageHash) public view returns (bytes32) {
+        return _eip712Hash(_hashStruct(messageHash));
     }
 
     /// @dev See: https://eips.ethereum.org/EIPS/eip-5267
@@ -70,8 +70,8 @@ abstract contract ERC1271 {
 
     /// @dev hashStruct(s : 𝕊) = keccak256(typeHash ‖ encodeData(s))
     /// https://eips.ethereum.org/EIPS/eip-712
-    function _hashStruct(bytes memory message) internal view virtual returns (bytes32) {
-        return keccak256(abi.encode(_MESSAGE_TYPEHASH, keccak256(message)));
+    function _hashStruct(bytes32 messageHash) internal view virtual returns (bytes32) {
+        return keccak256(abi.encode(_MESSAGE_TYPEHASH, messageHash));
     }
 
     /// @dev Please override this function to return the domain name and version.
