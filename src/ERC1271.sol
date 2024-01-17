@@ -11,7 +11,7 @@ abstract contract ERC1271 {
     /// valid input to isValidSignature
     bytes32 public immutable domainSeparator;
 
-    /// @dev We use  `bytes32 messageHash` rather than `bytes message`
+    /// @dev We use `bytes32 messageHash` rather than `bytes message`
     /// In the EIP-712 context, `bytes message` would be useful for showing users a full message
     /// they are signing in some wallet preview. But in this case, to prevent replay
     /// across accounts, we are always dealing with nested messages, and so the
