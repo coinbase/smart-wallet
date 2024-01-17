@@ -26,7 +26,7 @@ abstract contract ERC1271 {
     ///
     ///  keccak256(\x19\x01 || this.domainSeparator ||
     ///      hashStruct(CoinbaseSmartAccountMessage({
-    ///          messageHash: keccak256("\x19Ethereum Signed Message:\n" ‖ len(someMessage) ‖ someMessage),
+    ///          messageHash: keccak256("\x19Ethereum Signed Message:\n" || len(someMessage) || someMessage),
     ///      }))
     ///  )
     ///
@@ -84,13 +84,13 @@ abstract contract ERC1271 {
         extensions = extensions; // `new uint256[](0)`.
     }
 
-    /// @dev encode(domainSeparator : 𝔹²⁵⁶, message : 𝕊) = "\x19\x01" ‖ domainSeparator ‖ hashStruct(message)
+    /// @dev encode(domainSeparator : 𝔹²⁵⁶, message : 𝕊) = "\x19\x01" || domainSeparator || hashStruct(message)
     /// https://eips.ethereum.org/EIPS/eip-712
     function _eip712Hash(bytes32 hashStruct) internal view virtual returns (bytes32 digest) {
         digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, hashStruct));
     }
 
-    /// @dev hashStruct(s : 𝕊) = keccak256(typeHash ‖ encodeData(s))
+    /// @dev hashStruct(s : 𝕊) = keccak256(typeHash || encodeData(s))
     /// https://eips.ethereum.org/EIPS/eip-712
     function _hashStruct(bytes32 messageHash) internal view virtual returns (bytes32) {
         return keccak256(abi.encode(_MESSAGE_TYPEHASH, messageHash));
