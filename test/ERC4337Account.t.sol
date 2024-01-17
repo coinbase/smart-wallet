@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.21;
 
-import {Test, console2, Vm} from "forge-std/Test.sol";
+import {Test, console2} from "forge-std/Test.sol";
 // import {DaimoVerifier, Signature} from "lib/daimo/packages/contract/src/DaimoVerifier.sol";
 import "solady/test/utils/TestPlus.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
@@ -26,8 +26,9 @@ contract ERC4337Test is Test, TestPlus {
     uint256 signerPrivateKey = 0xa11ce;
     address signer = vm.addr(signerPrivateKey);
     bytes[] owners;
-    Vm.Wallet test = vm.createWallet('test');
-    bytes passkeyOwner = abi.encode(test.publicKeyX, test.publicKeyY);
+    uint256 passkeyPrivateKey = uint256(0x03d99692017473e2d631945a812607b23269d85721e0f370b8d3e7d29a874fd2);
+    bytes passkeyOwner =
+        hex"1c05286fe694493eae33312f2d2e0d0abeda8db76238b7a204be1fb87f54ce4228fef61ef4ac300f631657635c28e59bfb2fe71bce1634c81c65642042f6dc4d";
     IEntryPoint entryPoint = IEntryPoint(0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789);
 
     function setUp() public {
@@ -53,16 +54,19 @@ contract ERC4337Test is Test, TestPlus {
     // TODO fix test
     function testValidateSignatureWithPasskeySigner() public {
         bytes32 hash = 0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5;
-        bytes32 challenge = SignatureCheckerLib.toEthSignedMessageHash(account.replaySafeHash(hash));
+        bytes32 challenge = account.replaySafeHash(hash);
         WebAuthnInfo memory webAuthn = Utils.getWebAuthnStruct(challenge);
 
-        (bytes32 r, bytes32 s) = vm.signP256(test.privateKey, webAuthn.messageHash);
-        bytes memory sig = abi.encode(ERC4337Account.PasskeySignature({
-            authenticatorData: webAuthn.authenticatorData,
-            clientDataJSON: webAuthn.clientDataJSON,
-            r: uint256(r), 
-            s: uint256(s)
-        }));
+        (bytes32 r, bytes32 s) = vm.signP256(passkeyPrivateKey, webAuthn.messageHash);
+
+        bytes memory sig = abi.encode(
+            ERC4337Account.PasskeySignature({
+                authenticatorData: webAuthn.authenticatorData,
+                clientDataJSON: webAuthn.clientDataJSON,
+                r: uint256(r),
+                s: uint256(s)
+            })
+        );
 
         bytes memory sigWithOwnerIndex = abi.encodePacked(uint8(1), sig);
 
@@ -71,39 +75,51 @@ contract ERC4337Test is Test, TestPlus {
         assertEq(ret, bytes4(0x1626ba7e));
     }
 
-    // function testValidateSignatureWithPasskeySignerFailsWithWrongPubKey() public {
-    //     bytes32 hash = 0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5;
-    //     bytes32 toSign = SignatureCheckerLib.toEthSignedMessageHash(account.replaySafeHash(hash));
-    //     bytes memory sig = abi.encode(
-    //         Utils.rawSignatureToSignature({
-    //             challenge: toSign,
-    //             r: 114402223712652727003631532622572663093479626690071915344462720478540043027933,
-    //             s: 12929371899131655946206150468148136699220952501717878658815701223816686794150
-    //         })
-    //     );
-    //     bytes memory sigWithOwnerIndex = abi.encodePacked(uint8(2), sig);
+    function testValidateSignatureWithPasskeySignerFailsBadOwnerIndex() public {
+        bytes32 hash = 0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5;
+        bytes32 challenge = account.replaySafeHash(hash);
+        WebAuthnInfo memory webAuthn = Utils.getWebAuthnStruct(challenge);
 
-    //     // check a valid signature
-    //     vm.expectRevert();
-    //     account.isValidSignature(hash, sigWithOwnerIndex);
-    // }
+        (bytes32 r, bytes32 s) = vm.signP256(passkeyPrivateKey, webAuthn.messageHash);
 
-    // function testValidateSignatureWithPasskeySignerFailsWithWrongBadSignature() public {
-    //     bytes32 hash = 0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5;
-    //     bytes32 toSign = SignatureCheckerLib.toEthSignedMessageHash(account.replaySafeHash(hash));
-    //     bytes memory sig = abi.encode(
-    //         Utils.rawSignatureToSignature({
-    //             challenge: toSign,
-    //             r: 114402223712652727003631532622572663093479626690071915344462720478540043027933,
-    //             s: 1
-    //         })
-    //     );
-    //     bytes memory sigWithOwnerIndex = abi.encodePacked(uint8(1), sig);
+        bytes memory sig = abi.encode(
+            ERC4337Account.PasskeySignature({
+                authenticatorData: webAuthn.authenticatorData,
+                clientDataJSON: webAuthn.clientDataJSON,
+                r: uint256(r),
+                s: uint256(s)
+            })
+        );
 
-    //     // check a valid signature
-    //     bytes4 ret = account.isValidSignature(hash, sigWithOwnerIndex);
-    //     assertEq(ret, bytes4(0xffffffff));
-    // }
+        uint8 badOwnerIndex = 2;
+        bytes memory sigWithOwnerIndex = abi.encodePacked(badOwnerIndex, sig);
+
+        vm.expectRevert(abi.encodeWithSelector(ERC4337Account.InvalidOwnerForSignature.selector, uint8(2), ""));
+        bytes4 ret = account.isValidSignature(hash, sigWithOwnerIndex);
+    }
+
+    function testValidateSignatureWithPasskeySignerFailsWithWrongBadSignature() public {
+        bytes32 hash = 0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5;
+        bytes32 challenge = account.replaySafeHash(hash);
+        WebAuthnInfo memory webAuthn = Utils.getWebAuthnStruct(challenge);
+
+        (bytes32 r, bytes32 s) = vm.signP256(passkeyPrivateKey, webAuthn.messageHash);
+
+        bytes memory sig = abi.encode(
+            ERC4337Account.PasskeySignature({
+                authenticatorData: webAuthn.authenticatorData,
+                clientDataJSON: webAuthn.clientDataJSON,
+                r: uint256(r) - 1,
+                s: uint256(s)
+            })
+        );
+
+        bytes memory sigWithOwnerIndex = abi.encodePacked(uint8(1), sig);
+
+        // check a valid signature
+        bytes4 ret = account.isValidSignature(hash, sigWithOwnerIndex);
+        assertEq(ret, bytes4(0xffffffff));
+    }
 
     function testValidateSignatureWithEOASigner() public {
         bytes32 hash = 0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5;
@@ -122,24 +138,30 @@ contract ERC4337Test is Test, TestPlus {
         assertEq(ret, bytes4(0xffffffff));
     }
 
-    // function testRevertsIfPasskeySigButWrongOwnerLength() public {
-    //     bytes32 hash = 0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5;
-    //     bytes32 toSign = SignatureCheckerLib.toEthSignedMessageHash(account.replaySafeHash(hash));
-    //     bytes memory sig = abi.encode(
-    //         Utils.rawSignatureToSignature({
-    //             challenge: toSign,
-    //             r: 114402223712652727003631532622572663093479626690071915344462720478540043027933,
-    //             s: 12929371899131655946206150468148136699220952501717878658815701223816686794150
-    //         })
-    //     );
+    function testRevertsIfPasskeySigButWrongOwnerLength() public {
+        bytes32 hash = 0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5;
+        bytes32 challenge = account.replaySafeHash(hash);
+        WebAuthnInfo memory webAuthn = Utils.getWebAuthnStruct(challenge);
 
-    //     bytes memory sigWithOwnerIndex = abi.encodePacked(uint8(0), sig);
+        (bytes32 r, bytes32 s) = vm.signP256(passkeyPrivateKey, webAuthn.messageHash);
 
-    //     vm.expectRevert(
-    //         abi.encodeWithSelector(ERC4337Account.InvalidOwnerForSignature.selector, uint8(0), abi.encode(signer))
-    //     );
-    //     account.isValidSignature(hash, sigWithOwnerIndex);
-    // }
+        bytes memory sig = abi.encode(
+            ERC4337Account.PasskeySignature({
+                authenticatorData: webAuthn.authenticatorData,
+                clientDataJSON: webAuthn.clientDataJSON,
+                r: uint256(r),
+                s: uint256(s)
+            })
+        );
+
+        uint8 addressOwnerIndex = 0;
+        bytes memory sigWithOwnerIndex = abi.encodePacked(uint8(addressOwnerIndex), sig);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(ERC4337Account.InvalidOwnerForSignature.selector, uint8(0), abi.encode(signer))
+        );
+        account.isValidSignature(hash, sigWithOwnerIndex);
+    }
 
     function testRevertsIfEthereumSignatureButWrongOwnerLength() public {
         bytes32 hash = 0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5;
