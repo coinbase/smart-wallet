@@ -35,13 +35,13 @@ abstract contract ERC1271 {
     /// @dev Incase a signer is on multiple accounts, we expect all messages
     /// to be wrapped in an EIP 712 hash that includes the domain hash
     /// EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)
-    function replaySafeHash(bytes32 messageHash) public view returns (bytes32) {
+    function replaySafeHash(bytes32 messageHash) public view virtual returns (bytes32) {
         return _eip712Hash(_hashStruct(messageHash));
     }
 
     /// @dev See: https://eips.ethereum.org/EIPS/eip-5267
     function eip712Domain()
-        public
+        external
         view
         virtual
         returns (
@@ -54,7 +54,7 @@ abstract contract ERC1271 {
             uint256[] memory extensions
         )
     {
-        fields = hex"0f"; // `0b01111`.
+        fields = hex"0f"; // `0b1111`.
         (name, version) = _domainNameAndVersion();
         chainId = block.chainid;
         verifyingContract = address(this);
@@ -64,7 +64,7 @@ abstract contract ERC1271 {
 
     /// @dev encode(domainSeparator : 𝔹²⁵⁶, message : 𝕊) = "\x19\x01" ‖ domainSeparator ‖ hashStruct(message)
     /// https://eips.ethereum.org/EIPS/eip-712
-    function _eip712Hash(bytes32 hashStruct) internal view returns (bytes32 digest) {
+    function _eip712Hash(bytes32 hashStruct) internal view virtual returns (bytes32 digest) {
         digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, hashStruct));
     }
 
