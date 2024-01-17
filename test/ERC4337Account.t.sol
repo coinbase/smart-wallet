@@ -40,8 +40,8 @@ contract ERC4337Test is Test, TestPlus {
     }
 
     function testInitialize() public view {
-        assert(account.isOwner(signer));
-        assert(account.isOwner(passkeyOwner));
+        assert(account.isOwnerAddress(signer));
+        assert(account.isOwnerBytes(passkeyOwner));
     }
 
     function test_cannotInitImplementation() public {

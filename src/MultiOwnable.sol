@@ -75,15 +75,11 @@ contract MultiOwnable {
         emit RemoveOwner(owner, abi.encode(msg.sender), index);
     }
 
-    function isOwner(address account) public view virtual returns (bool) {
+    function isOwnerAddress(address account) public view virtual returns (bool) {
         return _getMultiOwnableStorage().isOwner[abi.encode(account)];
     }
 
-    function isOwner(bytes calldata account) public view virtual returns (bool) {
-        return _getMultiOwnableStorage().isOwner[account];
-    }
-
-    function isOwnerMemory(bytes memory account) public view virtual returns (bool) {
+    function isOwnerBytes(bytes memory account) public view virtual returns (bool) {
         return _getMultiOwnableStorage().isOwner[account];
     }
 
@@ -126,7 +122,7 @@ contract MultiOwnable {
     }
 
     function _addOwnerAtIndexNoCheck(bytes memory owner, uint8 index) internal virtual {
-        if (isOwnerMemory(owner)) revert AlreadyOwner(owner);
+        if (isOwnerBytes(owner)) revert AlreadyOwner(owner);
 
         _getMultiOwnableStorage().isOwner[owner] = true;
         _getMultiOwnableStorage().ownerAtIndex[index] = owner;
@@ -139,7 +135,7 @@ contract MultiOwnable {
     /// This should be enabled in the inheriting contract
     /// to allow for a passkey owner to call these functions.
     function _checkOwner() internal view virtual {
-        if (!isOwner(msg.sender)) if (msg.sender != address(this)) revert Unauthorized();
+        if (!isOwnerAddress(msg.sender)) if (msg.sender != address(this)) revert Unauthorized();
     }
 
     function _getMultiOwnableStorage() internal pure returns (MultiOwnableStorage storage $) {
