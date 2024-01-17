@@ -7,7 +7,7 @@ contract RemoveOwnerAtIndexTest is MultiOwnableTestBase {
     function testRemovesOwner() public {
         vm.prank(owner1Address);
         _removeOwner();
-        assertFalse(mock.isOwner(owner2Bytes));
+        assertFalse(mock.isOwnerBytes(owner2Bytes));
     }
 
     function testRemovesOwnerAtIndex() public {

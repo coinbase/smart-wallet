@@ -34,14 +34,14 @@ contract TestExecuteWithoutChainIdValidation is AccountTestBase {
 
     function test_canChangeOwnerWithoutChainId() public {
         address newOwner = address(6);
-        assertFalse(account.isOwner(newOwner));
+        assertFalse(account.isOwnerAddress(newOwner));
 
         userOpCalldata = abi.encodeWithSelector(
             ERC4337Account.executeWithoutChainIdValidation.selector,
             abi.encodeWithSelector(MultiOwnable.addOwnerAddress.selector, newOwner)
         );
         _sendUserOperation(_getUserOpWithSignature());
-        assertTrue(account.isOwner(newOwner));
+        assertTrue(account.isOwnerAddress(newOwner));
     }
 
     function test_cannotCallExec() public {
@@ -52,7 +52,7 @@ contract TestExecuteWithoutChainIdValidation is AccountTestBase {
         UserOperation memory userOp = _getUserOpWithSignature();
         vm.expectEmit(true, true, true, true);
         emit UserOperationEvent(
-            entryPoint.getUserOpHash(userOp), userOp.sender, address(0), userOp.nonce, false, 0, 47747
+            entryPoint.getUserOpHash(userOp), userOp.sender, address(0), userOp.nonce, false, 0, 47791
         );
         _sendUserOperation(userOp);
     }

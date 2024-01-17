@@ -9,7 +9,7 @@ abstract contract AddOwnerBaseTest is MultiOwnableTestBase {
     function testSetsIsOwner() public {
         vm.prank(owner1Address);
         _addOwner();
-        assert(mock.isOwner(newOwner));
+        assert(mock.isOwnerAddress(newOwner));
     }
 
     function testSetsOwnerAtIndex() public {
