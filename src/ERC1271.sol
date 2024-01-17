@@ -11,7 +11,7 @@ abstract contract ERC1271 {
     /// valid input to isValidSignature
     bytes32 public immutable domainSeparator;
 
-    /// @dev We use `bytes32 messageHash` rather than `bytes message`
+    /// @dev We use `bytes32 hash` rather than `bytes message`
     /// In the EIP-712 context, `bytes message` would be useful for showing users a full message
     /// they are signing in some wallet preview. But in this case, to prevent replay
     /// across accounts, we are always dealing with nested messages, and so the
@@ -20,17 +20,17 @@ abstract contract ERC1271 {
     ///
     ///  keccak256(\x19\x01 || this.domainSeparator ||
     ///      hashStruct(CoinbaseSmartAccountMessage({
-    ///          messageHash: keccak256("\x19\x01" || someDomainSeparator || hashStruct(someStruct)),
+    ///          hash: keccak256("\x19\x01" || someDomainSeparator || hashStruct(someStruct)),
     ///      }))
     ///  )
     ///
     ///  keccak256(\x19\x01 || this.domainSeparator ||
     ///      hashStruct(CoinbaseSmartAccountMessage({
-    ///          messageHash: keccak256("\x19Ethereum Signed Message:\n" || len(someMessage) || someMessage),
+    ///          hash: keccak256("\x19Ethereum Signed Message:\n" || len(someMessage) || someMessage),
     ///      }))
     ///  )
     ///
-    bytes32 private constant _MESSAGE_TYPEHASH = keccak256("CoinbaseSmartAccountMessage(bytes32 messageHash)");
+    bytes32 private constant _MESSAGE_TYPEHASH = keccak256("CoinbaseSmartAccountMessage(bytes32 hash)");
 
     constructor() {
         (string memory name, string memory version) = _domainNameAndVersion();
@@ -57,8 +57,8 @@ abstract contract ERC1271 {
     /// @dev Incase a signer is on multiple accounts, we expect all messages
     /// to be wrapped in an EIP 712 hash that includes the domain hash
     /// EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)
-    function replaySafeHash(bytes32 messageHash) public view virtual returns (bytes32) {
-        return _eip712Hash(_hashStruct(messageHash));
+    function replaySafeHash(bytes32 hash) public view virtual returns (bytes32) {
+        return _eip712Hash(_hashStruct(hash));
     }
 
     /// @dev See: https://eips.ethereum.org/EIPS/eip-5267
@@ -92,8 +92,8 @@ abstract contract ERC1271 {
 
     /// @dev hashStruct(s : 𝕊) = keccak256(typeHash || encodeData(s))
     /// https://eips.ethereum.org/EIPS/eip-712
-    function _hashStruct(bytes32 messageHash) internal view virtual returns (bytes32) {
-        return keccak256(abi.encode(_MESSAGE_TYPEHASH, messageHash));
+    function _hashStruct(bytes32 hash) internal view virtual returns (bytes32) {
+        return keccak256(abi.encode(_MESSAGE_TYPEHASH, hash));
     }
 
     /// @dev Please override this function to return the domain name and version.
