@@ -7,7 +7,29 @@ import {EIP712} from "solady/src/utils/EIP712.sol";
 /// Based on Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC1271.sol)
 /// @author Wilson Cusack
 abstract contract ERC1271 {
+    /// @dev EIP-712 compliant domainSeparator to be used for constructing
+    /// valid input to isValidSignature
     bytes32 public immutable domainSeparator;
+
+    /// @dev We use  `bytes32 messageHash` rather than `bytes message`
+    /// In the EIP-712 context, `bytes message` would be useful for showing users a full message
+    /// they are signing in some wallet preview. But in this case, to prevent replay
+    /// across accounts, we are always dealing with nested messages, and so the
+    /// input should be a EIP-191 or EIP-712 output hash.
+    /// E.g.
+    ///
+    ///  keccak256(\x19\x01 || this.domainSeparator ||
+    ///      hashStruct(CoinbaseSmartAccountMessage({
+    ///          messageHash: keccak256("\x19\x01" || someDomainSeparator || hashStruct(someStruct)),
+    ///      }))
+    ///  )
+    ///
+    ///  keccak256(\x19\x01 || this.domainSeparator ||
+    ///      hashStruct(CoinbaseSmartAccountMessage({
+    ///          messageHash: keccak256("\x19Ethereum Signed Message:\n" ‖ len(someMessage) ‖ someMessage),
+    ///      }))
+    ///  )
+    ///
     bytes32 private constant _MESSAGE_TYPEHASH = keccak256("CoinbaseSmartAccountMessage(bytes32 messageHash)");
 
     constructor() {
