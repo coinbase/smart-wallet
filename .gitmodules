@@ -10,6 +10,3 @@
 [submodule "lib/account-abstraction"]
 	path = lib/account-abstraction
 	url = https://github.com/eth-infinitism/account-abstraction
-[submodule "lib/FreshCryptoLib"]
-	path = lib/FreshCryptoLib
-	url = https://github.com/rdubois-crypto/FreshCryptoLib
