@@ -1,14 +1,12 @@
 // SPDX-License-Identifier: MIT
-// Based on https://github.com/daimo-eth/p256-verifier/blob/master/src/WebAuthn.sol
 pragma solidity >=0.8.0;
 
 import "p256-verifier/src/utils/Base64URL.sol";
 import "p256-verifier/src/P256.sol";
 
-/**
- * Helper library for external contracts to verify WebAuthn signatures.
- *
- */
+/// @notice Helper library for external contracts to verify WebAuthn signatures.
+/// @author Wilson Cusack
+/// @author Daimo (https://github.com/daimo-eth/p256-verifier/blob/master/src/WebAuthn.sol)
 library WebAuthn {
     struct WebAuthnAuth {
         /// @dev https://www.w3.org/TR/webauthn-2/#dom-authenticatorassertionresponse-authenticatordata
