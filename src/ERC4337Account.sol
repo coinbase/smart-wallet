@@ -195,9 +195,7 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
         }
     }
 
-    error Custom();
     /// @dev Validate user op and 1271 signatures
-
     function _validateSignature(bytes32 message, bytes calldata signature)
         internal
         view
