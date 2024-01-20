@@ -65,6 +65,7 @@ contract ERC4337Test is Test, TestPlus {
                         authenticatorData: webAuthn.authenticatorData,
                         origin: "",
                         crossOrigin: false,
+                        additionalData: "",
                         r: uint256(r),
                         s: uint256(s)
                     })
@@ -95,6 +96,7 @@ contract ERC4337Test is Test, TestPlus {
                         authenticatorData: webAuthn.authenticatorData,
                         origin: "",
                         crossOrigin: false,
+                        additionalData: "",
                         r: uint256(r),
                         s: uint256(s)
                     })
@@ -121,6 +123,7 @@ contract ERC4337Test is Test, TestPlus {
                         authenticatorData: webAuthn.authenticatorData,
                         origin: "",
                         crossOrigin: false,
+                        additionalData: "",
                         r: uint256(r) - 1,
                         s: uint256(s)
                     })
@@ -166,6 +169,7 @@ contract ERC4337Test is Test, TestPlus {
                         authenticatorData: webAuthn.authenticatorData,
                         origin: "",
                         crossOrigin: false,
+                        additionalData: "",
                         r: uint256(r) - 1,
                         s: uint256(s)
                     })

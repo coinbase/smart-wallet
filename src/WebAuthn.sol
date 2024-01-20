@@ -17,6 +17,9 @@ library WebAuthn {
         string origin;
         /// @dev https://www.w3.org/TR/webauthn-2/#dom-collectedclientdata-crossorigin
         bool crossOrigin;
+        /// @dev 13. https://www.w3.org/TR/webauthn/#clientdatajson-serialization
+        /// e.g. '"tokenBinding":{"status":"present","id":"TbId"}'
+        string additionalData;
         /// @dev The r value of secp256r1 signature
         uint256 r;
         /// @dev The r value of secp256r1 signature
@@ -106,6 +109,7 @@ library WebAuthn {
             '",',
             '"crossOrigin":',
             webAuthnAuth.crossOrigin ? "true" : "false",
+            bytes(webAuthnAuth.additionalData).length == 0 ? "" : string.concat(",", webAuthnAuth.additionalData),
             "}"
         );
 
