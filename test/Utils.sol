@@ -18,7 +18,7 @@ library Utils {
             abi.encodePacked(
                 '{"type":"webauthn.get","challenge":"',
                 challengeb64url,
-                '","origin":"http://localhost:3001","crossOrigin":false}'
+                '","origin":"https://sign.coinbase.com","crossOrigin":false}'
             )
         );
 

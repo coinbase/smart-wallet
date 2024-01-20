@@ -13,7 +13,7 @@ import {IEntryPoint, UserOperation, UserOperationLib} from "account-abstraction/
 import "./Utils.sol";
 import {MockEntryPoint} from "./mocks/MockEntryPoint.sol";
 import {MockERC4337Account} from "./mocks/MockERC4337Account.sol";
-import {ERC4337Account} from "../src/ERC4337Account.sol";
+import {ERC4337Account, WebAuthn} from "../src/ERC4337Account.sol";
 import {MultiOwnable} from "../src/MultiOwnable.sol";
 import {ERC4337Factory} from "../src/ERC4337Factory.sol";
 
@@ -57,20 +57,25 @@ contract ERC4337Test is Test, TestPlus {
         WebAuthnInfo memory webAuthn = Utils.getWebAuthnStruct(challenge);
 
         (bytes32 r, bytes32 s) = vm.signP256(passkeyPrivateKey, webAuthn.messageHash);
-
         bytes memory sig = abi.encode(
-            ERC4337Account.PasskeySignature({
-                authenticatorData: webAuthn.authenticatorData,
-                clientDataJSON: webAuthn.clientDataJSON,
-                r: uint256(r),
-                s: uint256(s)
+            ERC4337Account.SignatureWrapper({
+                ownerIndex: 1,
+                signatureData: abi.encode(
+                    WebAuthn.WebAuthnAuth({
+                        authenticatorData: webAuthn.authenticatorData,
+                        origin: "",
+                        crossOrigin: false,
+                        r: uint256(r),
+                        s: uint256(s)
+                    })
+                    )
             })
         );
 
-        bytes memory sigWithOwnerIndex = abi.encodePacked(uint8(1), sig);
+        // bytes memory sigWithOwnerIndex = abi.encodePacked(uint8(1), sig);
 
         // check a valid signature
-        bytes4 ret = account.isValidSignature(hash, sigWithOwnerIndex);
+        bytes4 ret = account.isValidSignature(hash, sig);
         assertEq(ret, bytes4(0x1626ba7e));
     }
 
@@ -81,20 +86,24 @@ contract ERC4337Test is Test, TestPlus {
 
         (bytes32 r, bytes32 s) = vm.signP256(passkeyPrivateKey, webAuthn.messageHash);
 
+        uint8 badOwnerIndex = 2;
         bytes memory sig = abi.encode(
-            ERC4337Account.PasskeySignature({
-                authenticatorData: webAuthn.authenticatorData,
-                clientDataJSON: webAuthn.clientDataJSON,
-                r: uint256(r),
-                s: uint256(s)
+            ERC4337Account.SignatureWrapper({
+                ownerIndex: badOwnerIndex,
+                signatureData: abi.encode(
+                    WebAuthn.WebAuthnAuth({
+                        authenticatorData: webAuthn.authenticatorData,
+                        origin: "",
+                        crossOrigin: false,
+                        r: uint256(r),
+                        s: uint256(s)
+                    })
+                    )
             })
         );
 
-        uint8 badOwnerIndex = 2;
-        bytes memory sigWithOwnerIndex = abi.encodePacked(badOwnerIndex, sig);
-
         vm.expectRevert(abi.encodeWithSelector(ERC4337Account.InvalidOwnerForSignature.selector, uint8(2), ""));
-        bytes4 ret = account.isValidSignature(hash, sigWithOwnerIndex);
+        account.isValidSignature(hash, sig);
     }
 
     function testValidateSignatureWithPasskeySignerFailsWithWrongBadSignature() public {
@@ -105,18 +114,22 @@ contract ERC4337Test is Test, TestPlus {
         (bytes32 r, bytes32 s) = vm.signP256(passkeyPrivateKey, webAuthn.messageHash);
 
         bytes memory sig = abi.encode(
-            ERC4337Account.PasskeySignature({
-                authenticatorData: webAuthn.authenticatorData,
-                clientDataJSON: webAuthn.clientDataJSON,
-                r: uint256(r) - 1,
-                s: uint256(s)
+            ERC4337Account.SignatureWrapper({
+                ownerIndex: 1,
+                signatureData: abi.encode(
+                    WebAuthn.WebAuthnAuth({
+                        authenticatorData: webAuthn.authenticatorData,
+                        origin: "",
+                        crossOrigin: false,
+                        r: uint256(r) - 1,
+                        s: uint256(s)
+                    })
+                    )
             })
         );
 
-        bytes memory sigWithOwnerIndex = abi.encodePacked(uint8(1), sig);
-
         // check a valid signature
-        bytes4 ret = account.isValidSignature(hash, sigWithOwnerIndex);
+        bytes4 ret = account.isValidSignature(hash, sig);
         assertEq(ret, bytes4(0xffffffff));
     }
 
@@ -125,7 +138,7 @@ contract ERC4337Test is Test, TestPlus {
         bytes32 toSign = account.replaySafeHash(hash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, toSign);
         bytes memory signature = abi.encodePacked(r, s, v);
-        bytes4 ret = account.isValidSignature(hash, abi.encodePacked(uint8(0), signature));
+        bytes4 ret = account.isValidSignature(hash, abi.encode(ERC4337Account.SignatureWrapper(0, signature)));
         assertEq(ret, bytes4(0x1626ba7e));
     }
 
@@ -133,7 +146,7 @@ contract ERC4337Test is Test, TestPlus {
         bytes32 hash = 0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5;
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(0xa12ce, hash);
         bytes memory signature = abi.encodePacked(r, s, v);
-        bytes4 ret = account.isValidSignature(hash, abi.encodePacked(uint8(0), signature));
+        bytes4 ret = account.isValidSignature(hash, abi.encode(ERC4337Account.SignatureWrapper(0, signature)));
         assertEq(ret, bytes4(0xffffffff));
     }
 
@@ -144,22 +157,26 @@ contract ERC4337Test is Test, TestPlus {
 
         (bytes32 r, bytes32 s) = vm.signP256(passkeyPrivateKey, webAuthn.messageHash);
 
+        uint8 addressOwnerIndex = 0;
         bytes memory sig = abi.encode(
-            ERC4337Account.PasskeySignature({
-                authenticatorData: webAuthn.authenticatorData,
-                clientDataJSON: webAuthn.clientDataJSON,
-                r: uint256(r),
-                s: uint256(s)
+            ERC4337Account.SignatureWrapper({
+                ownerIndex: addressOwnerIndex,
+                signatureData: abi.encode(
+                    WebAuthn.WebAuthnAuth({
+                        authenticatorData: webAuthn.authenticatorData,
+                        origin: "",
+                        crossOrigin: false,
+                        r: uint256(r) - 1,
+                        s: uint256(s)
+                    })
+                    )
             })
         );
-
-        uint8 addressOwnerIndex = 0;
-        bytes memory sigWithOwnerIndex = abi.encodePacked(uint8(addressOwnerIndex), sig);
 
         vm.expectRevert(
             abi.encodeWithSelector(ERC4337Account.InvalidOwnerForSignature.selector, uint8(0), abi.encode(signer))
         );
-        account.isValidSignature(hash, sigWithOwnerIndex);
+        account.isValidSignature(hash, sig);
     }
 
     function testRevertsIfEthereumSignatureButWrongOwnerLength() public {
@@ -170,7 +187,7 @@ contract ERC4337Test is Test, TestPlus {
         vm.expectRevert(
             abi.encodeWithSelector(ERC4337Account.InvalidOwnerForSignature.selector, uint8(1), passkeyOwner)
         );
-        account.isValidSignature(hash, abi.encodePacked(uint8(1), signature));
+        account.isValidSignature(hash, abi.encode(ERC4337Account.SignatureWrapper(1, signature)));
     }
 
     /// taken from Solady and adapted ///
@@ -275,11 +292,12 @@ contract ERC4337Test is Test, TestPlus {
 
         UserOperation memory userOp;
         // Success returns 0.
-        userOp.signature = abi.encodePacked(uint8(0), t.r, t.s, t.v);
+        userOp.signature = abi.encode(ERC4337Account.SignatureWrapper(0, abi.encodePacked(t.r, t.s, t.v)));
         assertEq(ep.validateUserOp(address(account), userOp, t.userOpHash, t.missingAccountFunds), 0);
         assertEq(address(ep).balance, t.missingAccountFunds);
         // Failure returns 1.
-        userOp.signature = abi.encodePacked(uint8(0), t.r, bytes32(uint256(t.s) ^ 1), t.v);
+        userOp.signature =
+            abi.encode(ERC4337Account.SignatureWrapper(0, abi.encodePacked(t.r, bytes32(uint256(t.s) ^ 1), t.v)));
         assertEq(ep.validateUserOp(address(account), userOp, t.userOpHash, t.missingAccountFunds), 1);
         assertEq(address(ep).balance, t.missingAccountFunds * 2);
         // Not entry point reverts.
