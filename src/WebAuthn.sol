@@ -23,10 +23,10 @@ library WebAuthn {
         uint256 s;
     }
 
-    bytes1 constant AUTH_DATA_FLAGS_UP = 0x01; // Bit 0
+    /// @dev Bit 0, User present bit in authenticatorData
+    bytes1 constant AUTH_DATA_FLAGS_UP = 0x01;
     /// @dev secp256r1 curve order / 2 for malleability check
-    uint256 constant P256_N_DIV_2 =
-        57896044605178124381348723474703786764998477612067880171211129530534256022184;
+    uint256 constant P256_N_DIV_2 = 57896044605178124381348723474703786764998477612067880171211129530534256022184;
 
     /**
      * Verifies a Webauthn P256 signature (Authentication Assertion) as described
@@ -87,7 +87,7 @@ library WebAuthn {
             // guard against signature malleability
             return false;
         }
-        
+
         // 11. and 12. will be verified by the signature check
         // 11. Verify that the value of C.type is the string webauthn.get.
         // 12. Verify that the value of C.challenge equals the base64url encoding of options.challenge.
@@ -95,7 +95,6 @@ library WebAuthn {
         // A well formed clientDataJSON will always begin with
         // {"type":"webauthn.get","challenge":"
         // and so we can save calldata and use this by default
-        // meaning we only need the origin and crossOrigin fields
         // https://www.w3.org/TR/webauthn/#clientdatajson-serialization
         string memory clientDataJSON = string.concat(
             '{"type":"webauthn.get","challenge":"',
