@@ -79,7 +79,7 @@ library WebAuthn {
      *   response.attestationObject is NOT present in the response, i.e. the
      *   RP does not intend to verify an attestation.
      */
-    function verifySignature(bytes memory challenge, WebAuthnAuth memory webAuthnAuth, uint256 x, uint256 y)
+    function verify(bytes memory challenge, WebAuthnAuth memory webAuthnAuth, uint256 x, uint256 y)
         internal
         view
         returns (bool)

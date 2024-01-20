@@ -228,7 +228,7 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
 
             WebAuthn.WebAuthnAuth memory auth = abi.decode(sigWrapper.signatureData, (WebAuthn.WebAuthnAuth));
 
-            return WebAuthn.verifySignature({challenge: abi.encode(message), webAuthnAuth: auth, x: x, y: y});
+            return WebAuthn.verify({challenge: abi.encode(message), webAuthnAuth: auth, x: x, y: y});
         }
 
         revert InvalidSignatureLength(signature.length);
