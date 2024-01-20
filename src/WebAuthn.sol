@@ -13,7 +13,9 @@ library WebAuthn {
     struct WebAuthnAuth {
         /// @dev https://www.w3.org/TR/webauthn-2/#dom-authenticatorassertionresponse-authenticatordata
         bytes authenticatorData;
+        /// @dev https://www.w3.org/TR/webauthn-2/#dom-collectedclientdata-origin
         string origin;
+        /// @dev https://www.w3.org/TR/webauthn-2/#dom-collectedclientdata-crossorigin
         bool crossOrigin;
         /// @dev The r value of secp256r1 signature
         uint256 r;
