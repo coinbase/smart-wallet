@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 // These tests do not run by default, running requires setting via_ir = true in foundry.toml and slows compile time
+// run with forge test -vv --match-path test/WebAuthnBenchmarks.t.sol --rpc-url https://mainnet.base.org
 
 // import {Test, console2} from "forge-std/Test.sol";
 // import {WebAuthn as DaimoWebAuthn} from "p256-verifier/src/WebAuthn.sol";
@@ -12,10 +13,15 @@ pragma solidity ^0.8.0;
 // import {WebAuthn} from "../src/WebAuthn.sol";
 // import {Utils, WebAuthnInfo} from "./Utils.sol";
 
+// interface IGasPriceOracle {
+//     function getL1Fee(bytes memory _data) external view returns (uint256);
+// }
+
 // contract WebAuthnTest is Test {
 //     FCLWrapper fclWrapper = new FCLWrapper();
 //     DaimoWrapper daimoWrapper = new DaimoWrapper();
 //     CBWrapper cbWrapper = new CBWrapper();
+//     IGasPriceOracle oracle = IGasPriceOracle(0x420000000000000000000000000000000000000F);
 //     bytes32 digest = sha256("hello world");
 //     uint256 privateKey = 0xa11ce;
 //     string clientDataJSON;
@@ -71,7 +77,7 @@ pragma solidity ^0.8.0;
 //             Q
 //         );
 
-//         console2.log('FCL calldata', data.length);
+//         _logCalldata('FCL', data);
 //     }
 
 //     function test_Daimo() public view {
@@ -105,7 +111,7 @@ pragma solidity ^0.8.0;
 //             y
 //         );
 
-//         console2.log('Daimo calldata', data.length);
+//         _logCalldata('Daimo', data);
 //     }
 
 //     function test_CB() public view {
@@ -141,7 +147,7 @@ pragma solidity ^0.8.0;
 //             y
 //         );
 
-//         console2.log('CB calldata with default origin', data.length);
+//         _logCalldata('CB calldata with default origin', data);
 //     }
 
 //     function test_CBCalldataSize2() public view {
@@ -159,7 +165,14 @@ pragma solidity ^0.8.0;
 //             y
 //         );
 
-//         console2.log('CB calldata with custom origin', data.length);
+//         _logCalldata('CB calldata with custom origin', data);
+//     }
+
+//     function _logCalldata(string memory testName, bytes memory data) internal view {
+//         console2.log(testName);
+//         console2.log('Calldata size', data.length);
+//         console2.log('L1 fee wei', oracle.getL1Fee(data));
+//         console2.log('L1 fee cents', oracle.getL1Fee(data) * 2500 / 1e16);
 //     }
 // }
 
