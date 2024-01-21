@@ -125,6 +125,6 @@ library WebAuthn {
 
         // 20. Using credentialPublicKey, verify that sig is a valid signature over the binary concatenation of authData and hash.
         bytes32 messageHash = sha256(abi.encodePacked(webAuthnAuth.authenticatorData, clientDataJSONHash));
-        return P256.verifySignature(messageHash, webAuthnAuth.r, webAuthnAuth.s, x, y);
+        return P256.verifySignatureAllowMalleability(messageHash, webAuthnAuth.r, webAuthnAuth.s, x, y);
     }
 }
