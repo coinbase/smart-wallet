@@ -121,7 +121,7 @@ pragma solidity ^0.8.0;
 //           authenticatorData: authenticatorData,
 //           origin: "",
 //           crossOrigin: false,
-//           additionalData: "",
+//           remainder: "",
 //           r: r,
 //           s: s
 //         }),
@@ -139,7 +139,7 @@ pragma solidity ^0.8.0;
 //                 authenticatorData: authenticatorData,
 //                 origin: "",
 //                 crossOrigin: false,
-//                 additionalData: "",
+//                 remainder: "",
 //                 r: r,
 //                 s: s
 //             }),
@@ -157,7 +157,7 @@ pragma solidity ^0.8.0;
 //                 authenticatorData: authenticatorData,
 //                 origin: "https://sign.coinbase.com",
 //                 crossOrigin: false,
-//                 additionalData: "",
+//                 remainder: "",
 //                 r: r,
 //                 s: s
 //             }),

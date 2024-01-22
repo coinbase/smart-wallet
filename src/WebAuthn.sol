@@ -17,7 +17,7 @@ library WebAuthn {
         bool crossOrigin;
         /// @dev 13. https://www.w3.org/TR/webauthn/#clientdatajson-serialization
         /// e.g. '"tokenBinding":{"status":"present","id":"TbId"}'
-        string additionalData;
+        string remainder;
         /// @dev The r value of secp256r1 signature
         uint256 r;
         /// @dev The r value of secp256r1 signature
@@ -36,10 +36,7 @@ library WebAuthn {
      * to our context. Please carefully read through this list before usage.
      * Specifically, we do verify the following:
      * - Verify that authenticatorData (which comes from the authenticator,
-     *   such as iCloud Keychain) indicates a well-formed assertion. If
-     *   requireUserVerification is set, checks that the authenticator enforced
-     *   user verification. User verification should be required if,
-     *   and only if, options.userVerification is set to required in the request
+     *   such as iCloud Keychain) indicates a well-formed assertion with the user present bit set.
      * - Verifies that the client JSON is of type "webauthn.get", i.e. the client
      *   was responding to a request to assert authentication.
      * - Verifies that the client JSON contains the requested challenge.
@@ -102,12 +99,11 @@ library WebAuthn {
             challengeB64url,
             '",',
             '"origin":"',
-            // To save calldata gas we allow a default origin
-            bytes(webAuthnAuth.origin).length > 0 ? webAuthnAuth.origin : "https://sign.coinbase.com",
+            webAuthnAuth.origin,
             '",',
             '"crossOrigin":',
             webAuthnAuth.crossOrigin ? "true" : "false",
-            bytes(webAuthnAuth.additionalData).length == 0 ? "" : string.concat(",", webAuthnAuth.additionalData),
+            bytes(webAuthnAuth.remainder).length == 0 ? "" : string.concat(",", webAuthnAuth.remainder),
             "}"
         );
 

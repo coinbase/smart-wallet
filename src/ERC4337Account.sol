@@ -196,14 +196,14 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
     }
 
     /// @dev Validate user op and 1271 signatures
-    function _validateSignature(bytes32 message, bytes calldata signature)
+    function _validateSignature(bytes32 message, bytes calldata wrappedSignatureBytes)
         internal
         view
         virtual
         override
         returns (bool)
     {
-        SignatureWrapper memory sigWrapper = abi.decode(signature, (SignatureWrapper));
+        SignatureWrapper memory sigWrapper = abi.decode(wrappedSignatureBytes, (SignatureWrapper));
         bytes memory ownerBytes = ownerAtIndex(sigWrapper.ownerIndex);
 
         if (sigWrapper.signatureData.length == 65) {
@@ -228,10 +228,12 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
 
             WebAuthn.WebAuthnAuth memory auth = abi.decode(sigWrapper.signatureData, (WebAuthn.WebAuthnAuth));
 
+            auth.origin = bytes(auth.origin).length > 0 ? auth.origin : "https://sign.coinbase.com";
+
             return WebAuthn.verify({challenge: abi.encode(message), webAuthnAuth: auth, x: x, y: y});
         }
 
-        revert InvalidSignatureLength(signature.length);
+        revert InvalidSignatureLength(sigWrapper.signatureData.length);
     }
 
     /// @dev To ensure that only the owner or the account itself can upgrade the implementation.
