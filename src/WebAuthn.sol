@@ -90,11 +90,13 @@ library WebAuthn {
         // 11. Verify that the value of C.type is the string webauthn.get.
         // 12. Verify that the value of C.challenge equals the base64url encoding of options.challenge.
         string memory challengeB64url = Base64URL.encode(challenge);
-        // A well formed clientDataJSON will always begin with
-        // {"type":"webauthn.get","challenge":"
-        // and so we can save calldata and use this by default
-        // https://www.w3.org/TR/webauthn/#clientdatajson-serialization
+        string memory remainder =
+            bytes(webAuthnAuth.remainder).length == 0 ? "" : string.concat(",", webAuthnAuth.remainder);
         string memory clientDataJSON = string.concat(
+            // A well formed clientDataJSON will always begin with
+            // {"type":"webauthn.get","challenge":"
+            // and so we can save calldata and use this by default
+            // https://www.w3.org/TR/webauthn/#clientdatajson-serialization
             '{"type":"webauthn.get","challenge":"',
             challengeB64url,
             '",',
@@ -103,7 +105,7 @@ library WebAuthn {
             '",',
             '"crossOrigin":',
             webAuthnAuth.crossOrigin ? "true" : "false",
-            bytes(webAuthnAuth.remainder).length == 0 ? "" : string.concat(",", webAuthnAuth.remainder),
+            remainder,
             "}"
         );
 
