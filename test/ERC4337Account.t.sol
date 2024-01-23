@@ -73,8 +73,6 @@ contract ERC4337Test is Test, TestPlus {
             })
         );
 
-        // bytes memory sigWithOwnerIndex = abi.encodePacked(uint8(1), sig);
-
         // check a valid signature
         bytes4 ret = account.isValidSignature(hash, sig);
         assertEq(ret, bytes4(0x1626ba7e));
