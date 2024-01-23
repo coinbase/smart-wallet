@@ -4,3 +4,4 @@ erc4626-tests/=lib/p256-verifier/lib/openzeppelin-contracts/lib/erc4626-tests/
 openzeppelin-contracts/=lib/p256-verifier/lib/openzeppelin-contracts/
 p256-verifier/=lib/p256-verifier/
 account-abstraction/=lib/account-abstraction/
+FreshCryptoLib/=lib/FreshCryptoLib/solidity/src/

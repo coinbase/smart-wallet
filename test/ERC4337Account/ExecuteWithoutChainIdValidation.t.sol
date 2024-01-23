@@ -52,7 +52,7 @@ contract TestExecuteWithoutChainIdValidation is AccountTestBase {
         UserOperation memory userOp = _getUserOpWithSignature();
         vm.expectEmit(true, true, true, true);
         emit UserOperationEvent(
-            entryPoint.getUserOpHash(userOp), userOp.sender, address(0), userOp.nonce, false, 0, 47792
+            entryPoint.getUserOpHash(userOp), userOp.sender, address(0), userOp.nonce, false, 0, 48245
         );
         _sendUserOperation(userOp);
     }
@@ -60,6 +60,6 @@ contract TestExecuteWithoutChainIdValidation is AccountTestBase {
     function _sign(UserOperation memory userOp) internal view override returns (bytes memory signature) {
         bytes32 toSign = account.getUserOpHashWithoutChainId(userOp);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, toSign);
-        signature = abi.encodePacked(uint8(0), r, s, v);
+        signature = abi.encode(ERC4337Account.SignatureWrapper(0, abi.encodePacked(r, s, v)));
     }
 }

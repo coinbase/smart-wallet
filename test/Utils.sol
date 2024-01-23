@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// adpated from https://github.com/daimo-eth/daimo/blob/master/packages/contract/test/Utils.sol
 pragma solidity ^0.8.0;
 
 import "../src/ERC4337Account.sol";
@@ -18,7 +17,7 @@ library Utils {
             abi.encodePacked(
                 '{"type":"webauthn.get","challenge":"',
                 challengeb64url,
-                '","origin":"http://localhost:3001","crossOrigin":false}'
+                '","origin":"https://sign.coinbase.com","crossOrigin":false}'
             )
         );
 

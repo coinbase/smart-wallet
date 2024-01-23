@@ -5,7 +5,7 @@ import {Receiver} from "solady/src/accounts/Receiver.sol";
 import {UUPSUpgradeable} from "solady/src/utils/UUPSUpgradeable.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 import {UserOperation, UserOperationLib} from "account-abstraction/contracts/interfaces/UserOperation.sol";
-import {WebAuthn} from "p256-verifier/src/WebAuthn.sol";
+import {WebAuthn} from "./WebAuthn.sol";
 
 import {MultiOwnable} from "./MultiOwnable.sol";
 import {ERC1271} from "./ERC1271.sol";
@@ -14,12 +14,13 @@ import {ERC1271} from "./ERC1271.sol";
 /// @author Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC4337.sol)
 /// @author Wilson Cusack
 contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
-    /// @dev Struct passed as signature in the userOp when a passkey has signed with webauthn.
-    struct PasskeySignature {
-        bytes authenticatorData;
-        string clientDataJSON;
-        uint256 r;
-        uint256 s;
+    /// @dev Signature struct which should be encoded as bytes for any signature
+    /// passed to this contract, via ERC-4337 or ERC-1271.
+    struct SignatureWrapper {
+        /// @dev Index indentifying owner, see MultiOwnable
+        uint8 ownerIndex;
+        /// @dev ECDSA signature or WebAuthnAuth struct
+        bytes signatureData;
     }
 
     /// @dev Call struct for the `executeBatch` function.
@@ -155,25 +156,6 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
         }
     }
 
-    function verifySignature(bytes32 message, PasskeySignature memory signature, uint256 x, uint256 y)
-        public
-        view
-        returns (bool)
-    {
-        return WebAuthn.verifySignature({
-            challenge: abi.encode(message),
-            authenticatorData: signature.authenticatorData,
-            requireUserVerification: false,
-            clientDataJSON: signature.clientDataJSON,
-            challengeLocation: 23,
-            responseTypeLocation: 1,
-            r: signature.r,
-            s: signature.s,
-            x: x,
-            y: y
-        });
-    }
-
     /// @dev Returns the canonical ERC4337 EntryPoint contract.
     /// Override this function to return a different EntryPoint.
     function entryPoint() public view virtual returns (address) {
@@ -214,21 +196,20 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
     }
 
     /// @dev Validate user op and 1271 signatures
-    function _validateSignature(bytes32 message, bytes calldata signaturePacked)
+    function _validateSignature(bytes32 message, bytes calldata wrappedSignatureBytes)
         internal
         view
         virtual
         override
         returns (bool)
     {
-        uint8 ownerIndex = uint8(bytes1(signaturePacked[0:1]));
-        bytes calldata signature = signaturePacked[1:];
-        bytes memory ownerBytes = ownerAtIndex(ownerIndex);
+        SignatureWrapper memory sigWrapper = abi.decode(wrappedSignatureBytes, (SignatureWrapper));
+        bytes memory ownerBytes = ownerAtIndex(sigWrapper.ownerIndex);
 
-        if (signature.length == 65) {
-            if (ownerBytes.length != 32) revert InvalidOwnerForSignature(ownerIndex, ownerBytes);
+        if (sigWrapper.signatureData.length == 65) {
+            if (ownerBytes.length != 32) revert InvalidOwnerForSignature(sigWrapper.ownerIndex, ownerBytes);
             if (uint256(bytes32(ownerBytes)) > type(uint160).max) {
-                revert InvalidOwnerForSignature(ownerIndex, ownerBytes);
+                revert InvalidOwnerForSignature(sigWrapper.ownerIndex, ownerBytes);
             }
 
             address owner;
@@ -236,20 +217,29 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
             assembly {
                 owner := mload(add(ownerBytes, 32))
             }
-            return SignatureCheckerLib.isValidSignatureNowCalldata(owner, message, signature);
+            return SignatureCheckerLib.isValidSignatureNow(owner, message, sigWrapper.signatureData);
         }
 
         // Passkey signature
-        if (signature.length > 65) {
-            if (ownerBytes.length != 64) revert InvalidOwnerForSignature(ownerIndex, ownerBytes);
-
-            PasskeySignature memory sig = abi.decode(signature, (PasskeySignature));
+        if (sigWrapper.signatureData.length > 65) {
+            if (ownerBytes.length != 64) revert InvalidOwnerForSignature(sigWrapper.ownerIndex, ownerBytes);
 
             (uint256 x, uint256 y) = abi.decode(ownerBytes, (uint256, uint256));
-            return verifySignature(message, sig, x, y);
+
+            WebAuthn.WebAuthnAuth memory auth = abi.decode(sigWrapper.signatureData, (WebAuthn.WebAuthnAuth));
+
+            auth.origin = bytes(auth.origin).length > 0 ? auth.origin : "https://sign.coinbase.com";
+
+            return WebAuthn.verify({
+                challenge: abi.encode(message),
+                requireUserVerification: false,
+                webAuthnAuth: auth,
+                x: x,
+                y: y
+            });
         }
 
-        revert InvalidSignatureLength(signature.length);
+        revert InvalidSignatureLength(sigWrapper.signatureData.length);
     }
 
     /// @dev To ensure that only the owner or the account itself can upgrade the implementation.
