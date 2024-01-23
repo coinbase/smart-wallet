@@ -230,7 +230,13 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
 
             auth.origin = bytes(auth.origin).length > 0 ? auth.origin : "https://sign.coinbase.com";
 
-            return WebAuthn.verify({challenge: abi.encode(message), webAuthnAuth: auth, x: x, y: y});
+            return WebAuthn.verify({
+                challenge: abi.encode(message),
+                requireUserVerification: false,
+                webAuthnAuth: auth,
+                x: x,
+                y: y
+            });
         }
 
         revert InvalidSignatureLength(sigWrapper.signatureData.length);

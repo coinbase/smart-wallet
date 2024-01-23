@@ -26,6 +26,8 @@ library WebAuthn {
 
     /// @dev Bit 0, User present bit in authenticatorData
     bytes1 constant AUTH_DATA_FLAGS_UP = 0x01;
+    /// @dev Bit 2, User verified bit in authenticatorData
+    bytes1 constant AUTH_DATA_FLAGS_UV = 0x04;
     /// @dev secp256r1 curve order / 2 for malleability check
     uint256 constant P256_N_DIV_2 = 57896044605178124381348723474703786764998477612067880171211129530534256022184;
 
@@ -37,6 +39,9 @@ library WebAuthn {
      * Specifically, we do verify the following:
      * - Verify that authenticatorData (which comes from the authenticator,
      *   such as iCloud Keychain) indicates a well-formed assertion with the user present bit set.
+     *   If requireUserVerification is set, checks that the authenticator enforced
+     *   user verification. User verification should be required if,
+     *   and only if, options.userVerification is set to required in the request
      * - Verifies that the client JSON is of type "webauthn.get", i.e. the client
      *   was responding to a request to assert authentication.
      * - Verifies that the client JSON contains the requested challenge.
@@ -76,11 +81,13 @@ library WebAuthn {
      *   response.attestationObject is NOT present in the response, i.e. the
      *   RP does not intend to verify an attestation.
      */
-    function verify(bytes memory challenge, WebAuthnAuth memory webAuthnAuth, uint256 x, uint256 y)
-        internal
-        view
-        returns (bool)
-    {
+    function verify(
+        bytes memory challenge,
+        bool requireUserVerification,
+        WebAuthnAuth memory webAuthnAuth,
+        uint256 x,
+        uint256 y
+    ) internal view returns (bool) {
         if (webAuthnAuth.s > P256_N_DIV_2) {
             // guard against signature malleability
             return false;
@@ -116,7 +123,13 @@ library WebAuthn {
             return false;
         }
 
-        // skip 17. and 18.
+        // 17. If user verification is required for this assertion, verify that the User Verified bit of the flags in authData is set.
+        if (requireUserVerification && (webAuthnAuth.authenticatorData[32] & AUTH_DATA_FLAGS_UV) != AUTH_DATA_FLAGS_UV)
+        {
+            return false;
+        }
+
+        // skip 18.
 
         // 19. Let hash be the result of computing a hash over the cData using SHA-256.
         bytes32 clientDataJSONHash = sha256(bytes(clientDataJSON));
