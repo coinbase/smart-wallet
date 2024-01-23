@@ -4,6 +4,7 @@ pragma solidity ^0.8.13;
 import {Script, console2} from "forge-std/Script.sol";
 
 import {ERC4337Factory, ERC4337Account} from "../src/ERC4337Factory.sol";
+import {WebAuthn} from "../src/WebAuthn.sol";
 import {IEntryPoint, UserOperation} from "account-abstraction/contracts/interfaces/IEntryPoint.sol";
 import "../test/Utils.sol";
 import "p256-verifier/src/P256.sol";
@@ -43,14 +44,23 @@ contract TransactScript is Script {
         WebAuthnInfo memory webAuthn = Utils.getWebAuthnStruct(challenge);
         bytes32 check = webAuthn.messageHash;
         (bytes32 r, bytes32 s) = vm.signP256(passkeyPrivateKey, check);
-        ERC4337Account.PasskeySignature memory sig = ERC4337Account.PasskeySignature({
-            authenticatorData: webAuthn.authenticatorData,
-            clientDataJSON: webAuthn.clientDataJSON,
-            r: uint256(r),
-            s: uint256(s)
-        });
+        bytes memory sig = abi.encode(
+            ERC4337Account.SignatureWrapper({
+                ownerIndex: 1,
+                signatureData: abi.encode(
+                    WebAuthn.WebAuthnAuth({
+                        authenticatorData: webAuthn.authenticatorData,
+                        origin: "",
+                        crossOrigin: false,
+                        remainder: "",
+                        r: uint256(r),
+                        s: uint256(s)
+                    })
+                    )
+            })
+        );
 
-        bytes memory sigWithOwnerIndex = abi.encodePacked(uint8(1), abi.encode(sig));
+        bytes memory sigWithOwnerIndex = sig;
         userOp.signature = sigWithOwnerIndex;
         UserOperation[] memory ops = new UserOperation[](1);
         ops[0] = userOp;
