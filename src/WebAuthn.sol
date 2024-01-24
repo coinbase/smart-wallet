@@ -3,7 +3,7 @@ pragma solidity >=0.8.0;
 
 // TODO check apache license
 import {Base64Url} from "FreshCryptoLib/utils/Base64Url.sol";
-import {FCL_ecdsa} from "FreshCryptoLib/FCL_ecdsa.sol";
+import "p256-verifier/src/P256.sol";
 
 /// @notice Helper library for external contracts to verify WebAuthn signatures.
 /// @author Wilson Cusack
@@ -146,6 +146,6 @@ library WebAuthn {
         bool valid = ret.length > 0;
         if (valid) return abi.decode(ret, (uint256)) == 1;
 
-        return FCL_ecdsa.ecdsa_verify(messageHash, webAuthnAuth.r, webAuthnAuth.s, x, y);
+        return P256.verifySignatureAllowMalleability(messageHash, webAuthnAuth.r, webAuthnAuth.s, x, y);
     }
 }
