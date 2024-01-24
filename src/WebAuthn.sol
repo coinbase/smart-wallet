@@ -3,6 +3,7 @@ pragma solidity >=0.8.0;
 
 import "p256-verifier/src/utils/Base64URL.sol";
 import "p256-verifier/src/P256.sol";
+import "forge-std/Test.sol";
 
 /// @notice Helper library for external contracts to verify WebAuthn signatures.
 /// @author Wilson Cusack
@@ -30,6 +31,7 @@ library WebAuthn {
     bytes1 constant AUTH_DATA_FLAGS_UV = 0x04;
     /// @dev secp256r1 curve order / 2 for malleability check
     uint256 constant P256_N_DIV_2 = 57896044605178124381348723474703786764998477612067880171211129530534256022184;
+    address constant VERIFIER = address(0x100);
 
     /**
      * Verifies a Webauthn P256 signature (Authentication Assertion) as described
@@ -136,6 +138,10 @@ library WebAuthn {
 
         // 20. Using credentialPublicKey, verify that sig is a valid signature over the binary concatenation of authData and hash.
         bytes32 messageHash = sha256(abi.encodePacked(webAuthnAuth.authenticatorData, clientDataJSONHash));
+        bytes memory args = abi.encode(messageHash, webAuthnAuth.r, webAuthnAuth.s, x, y);
+        (bool success, bytes memory ret) = VERIFIER.staticcall(args);
+        bool valid = ret.length > 0;
+        if (valid) return abi.decode(ret, (uint256)) == 1;
         return P256.verifySignatureAllowMalleability(messageHash, webAuthnAuth.r, webAuthnAuth.s, x, y);
     }
 }
