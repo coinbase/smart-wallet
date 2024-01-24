@@ -3,7 +3,6 @@ pragma solidity >=0.8.0;
 
 import "p256-verifier/src/utils/Base64URL.sol";
 import "p256-verifier/src/P256.sol";
-import "forge-std/Test.sol";
 
 /// @notice Helper library for external contracts to verify WebAuthn signatures.
 /// @author Wilson Cusack
