@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.0;
 
-import "p256-verifier/src/utils/Base64URL.sol";
-import "p256-verifier/src/P256.sol";
+// TODO check apache license
+import {Base64Url} from "FreshCryptoLib/utils/Base64Url.sol";
+import {FCL_ecdsa} from "FreshCryptoLib/FCL_ecdsa.sol";
 
 /// @notice Helper library for external contracts to verify WebAuthn signatures.
 /// @author Wilson Cusack
@@ -97,7 +98,7 @@ library WebAuthn {
         // 11. and 12. will be verified by the signature check
         // 11. Verify that the value of C.type is the string webauthn.get.
         // 12. Verify that the value of C.challenge equals the base64url encoding of options.challenge.
-        string memory challengeB64url = Base64URL.encode(challenge);
+        string memory challengeB64url = Base64Url.encode(challenge);
         string memory remainder =
             bytes(webAuthnAuth.remainder).length == 0 ? "" : string.concat(",", webAuthnAuth.remainder);
         string memory clientDataJSON = string.concat(
@@ -138,9 +139,13 @@ library WebAuthn {
         // 20. Using credentialPublicKey, verify that sig is a valid signature over the binary concatenation of authData and hash.
         bytes32 messageHash = sha256(abi.encodePacked(webAuthnAuth.authenticatorData, clientDataJSONHash));
         bytes memory args = abi.encode(messageHash, webAuthnAuth.r, webAuthnAuth.s, x, y);
-        (bool success, bytes memory ret) = VERIFIER.staticcall(args);
+        // try the RIP-7212 precompile address
+        (, bytes memory ret) = VERIFIER.staticcall(args);
+        // staticcall will not revert if address has no code
+        // check return length
         bool valid = ret.length > 0;
         if (valid) return abi.decode(ret, (uint256)) == 1;
-        return P256.verifySignatureAllowMalleability(messageHash, webAuthnAuth.r, webAuthnAuth.s, x, y);
+
+        return FCL_ecdsa.ecdsa_verify(messageHash, webAuthnAuth.r, webAuthnAuth.s, x, y);
     }
 }
