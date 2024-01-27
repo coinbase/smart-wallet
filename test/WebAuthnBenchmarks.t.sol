@@ -119,7 +119,7 @@ pragma solidity ^0.8.0;
 //         challenge: abi.encode(digest),
 //         webAuthnAuth: WebAuthn.WebAuthnAuth({
 //           authenticatorData: authenticatorData,
-//           origin: "",
+//           origin: "https://sign.coinbase.com",
 //           crossOrigin: false,
 //           remainder: "",
 //           r: r,
@@ -133,6 +133,7 @@ pragma solidity ^0.8.0;
 //     }
 
 //     function test_CBCalldataSize() public view {
+//         // reflects calldata size if using the default origin in ERC4337Account 
 //         bytes memory data = abi.encode(
 //             abi.encode(digest),
 //             WebAuthn.WebAuthnAuth({
@@ -185,6 +186,7 @@ pragma solidity ^0.8.0;
 //   ) external view returns (bool) {
 //     return WebAuthn.verify({
 //       challenge: challenge,
+//       requireUserVerification: false,
 //       webAuthnAuth: webAuthnAuth,
 //       x: x,
 //       y: y
