@@ -34,6 +34,6 @@ contract DeploylessReplaySafeHash {
 
         (bool success, ) = create2Factory.call(factoryCalldata);
         require(success, "DeploylessReplaySafeHash: deployment");
-        return IERC1271Wallet(_account).replaySafeHash(bytes32(originalHash));
+        return IERC1271Wallet(_account).replaySafeHash(originalHash);
     }
 }
