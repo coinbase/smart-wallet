@@ -6,8 +6,14 @@ interface IERC1271Wallet {
 }
 
 contract DeploylessReplaySafeHash {
-    constructor(address _account, bytes memory _hash) {
-        bytes32 replaySafeHash = deploylessReplaySafeHash(_account, _hash);
+    struct HashWrapper {
+        address accountFactory;
+        bytes32 hash;
+        bytes factoryCalldata;
+    }
+
+    constructor(address _account, HashWrapper memory _wrappedHash) {
+        bytes32 replaySafeHash = deploylessReplaySafeHash(_account, _wrappedHash);
         assembly {
             mstore(0x80, replaySafeHash)
             return(0x80, 0x20)
@@ -15,25 +21,17 @@ contract DeploylessReplaySafeHash {
     }
 
     function deploylessReplaySafeHash(
-        address _account,
-        bytes memory _hash
+        address account,
+        HashWrapper memory wrappedHash
     ) public returns (bytes32) {
-        bytes memory contractCode = address(_account).code;
+        bytes memory contractCode = address(account).code;
 
         if (contractCode.length > 0) {
-            return IERC1271Wallet(_account).replaySafeHash(bytes32(_hash));
+            return IERC1271Wallet(account).replaySafeHash(wrappedHash.hash);
         }
 
-        address create2Factory;
-        bytes32 originalHash;
-        bytes memory factoryCalldata;
-        (create2Factory, originalHash, factoryCalldata) = abi.decode(
-            _hash,
-            (address, bytes32, bytes)
-        );
-
-        (bool success, ) = create2Factory.call(factoryCalldata);
+        (bool success, ) = wrappedHash.accountFactory.call(wrappedHash.factoryCalldata);
         require(success, "DeploylessReplaySafeHash: deployment");
-        return IERC1271Wallet(_account).replaySafeHash(originalHash);
+        return IERC1271Wallet(account).replaySafeHash(wrappedHash.hash);
     }
 }
