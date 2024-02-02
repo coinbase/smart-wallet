@@ -7,10 +7,6 @@ import {EIP712} from "solady/src/utils/EIP712.sol";
 /// Based on Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC1271.sol)
 /// @author Wilson Cusack
 abstract contract ERC1271 {
-    /// @dev EIP-712 compliant domainSeparator to be used for constructing
-    /// valid input to isValidSignature
-    bytes32 public immutable domainSeparator;
-
     /// @dev We use `bytes32 hash` rather than `bytes message`
     /// In the EIP-712 context, `bytes message` would be useful for showing users a full message
     /// they are signing in some wallet preview. But in this case, to prevent replay
@@ -25,19 +21,6 @@ abstract contract ERC1271 {
     ///  keccak256("\x19Ethereum Signed Message:\n" || len(someMessage) || someMessage),
     ///
     bytes32 private constant _MESSAGE_TYPEHASH = keccak256("CoinbaseSmartAccountMessage(bytes32 hash)");
-
-    constructor() {
-        (string memory name, string memory version) = _domainNameAndVersion();
-        domainSeparator = keccak256(
-            abi.encode(
-                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
-                keccak256(bytes(name)),
-                keccak256(bytes(version)),
-                block.chainid,
-                address(this)
-            )
-        );
-    }
 
     /// @dev Validates the signature with ERC1271 return,
     /// so that this account can also be used as a signer.
@@ -86,10 +69,25 @@ abstract contract ERC1271 {
         extensions = extensions; // `new uint256[](0)`.
     }
 
+    /// @dev EIP-712 compliant domainSeparator to be used for constructing
+    /// valid input to isValidSignature
+    function domainSeparator() public view returns (bytes32) {
+        (string memory name, string memory version) = _domainNameAndVersion();
+        return keccak256(
+            abi.encode(
+                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+                keccak256(bytes(name)),
+                keccak256(bytes(version)),
+                block.chainid,
+                address(this)
+            )
+        );
+    }
+
     /// @dev encode(domainSeparator : 𝔹²⁵⁶, message : 𝕊) = "\x19\x01" || domainSeparator || hashStruct(message)
     /// https://eips.ethereum.org/EIPS/eip-712
     function _eip712Hash(bytes32 hashStruct) internal view virtual returns (bytes32 digest) {
-        digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, hashStruct));
+        digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator(), hashStruct));
     }
 
     /// @dev hashStruct(s : 𝕊) = keccak256(typeHash || encodeData(s))
