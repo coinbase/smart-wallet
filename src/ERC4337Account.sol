@@ -243,7 +243,7 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
     }
 
     /// @dev To ensure that only the owner or the account itself can upgrade the implementation.
-    function _authorizeUpgrade(address) internal virtual override(UUPSUpgradeable) onlyOwner {}
+    function _authorizeUpgrade(address) internal view virtual override(UUPSUpgradeable) onlyOwner {}
 
     function _domainNameAndVersion() internal pure override returns (string memory, string memory) {
         return ("Coinbase Smart Account", "1");
