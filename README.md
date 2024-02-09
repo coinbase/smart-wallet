@@ -9,7 +9,7 @@ ERC-4337 smart account, featuring
 
 The code started from Solady's [ERC4337](https://github.com/Vectorized/solady/blob/main/src/accounts/ERC4337.sol) implementation and was also influenced by [DaimoAccount](https://github.com/daimo-eth/daimo/blob/master/packages/contract/src/DaimoAccount.sol) and [LightAccount](https://github.com/alchemyplatform/light-account).
 
-For secp256r1 signature validation, we attempt to use the RIP-7212 precompile (0x100) and fallback to FreshCryptoLib's [ecdsa_verify](https://github.com/rdubois-crypto/FreshCryptoLib/blob/master/solidity/src/FCL_ecdsa.sol#L40).
+For secp256r1 signature validation, we attempt to use the [RIP-7212](https://github.com/ethereum/RIPs/blob/master/RIPS/rip-7212.md) precompile (0x100) and fallback to FreshCryptoLib's [ecdsa_verify](https://github.com/rdubois-crypto/FreshCryptoLib/blob/master/solidity/src/FCL_ecdsa.sol#L40).
 
 The WebAuthn implementation builds on [Daimo's](https://github.com/daimo-eth/p256-verifier/blob/master/src/WebAuthn.sol) and is optimized for calldata size. 
 
