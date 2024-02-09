@@ -7,8 +7,7 @@ import "solady/test/utils/TestPlus.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 import {UUPSUpgradeable} from "solady/src/utils/UUPSUpgradeable.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
-import "p256-verifier/src/utils/Base64URL.sol";
-import {IEntryPoint, UserOperation, UserOperationLib} from "account-abstraction/contracts/interfaces/IEntryPoint.sol";
+import {IEntryPoint, UserOperation, UserOperationLib} from "account-abstraction/interfaces/IEntryPoint.sol";
 
 import "./Utils.sol";
 import {MockEntryPoint} from "./mocks/MockEntryPoint.sol";

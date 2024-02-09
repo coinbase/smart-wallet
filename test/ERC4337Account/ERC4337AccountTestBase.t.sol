@@ -2,7 +2,7 @@
 pragma solidity ^0.8.21;
 
 import {Test, console2, stdError} from "forge-std/Test.sol";
-import {IEntryPoint} from "account-abstraction/contracts/interfaces/IEntryPoint.sol";
+import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
 
 import "../../src/ERC4337Account.sol";
 import {MockERC4337Account} from "../mocks/MockERC4337Account.sol";
@@ -23,7 +23,6 @@ contract AccountTestBase is Test {
     bytes userOpCalldata;
 
     function setUp() public virtual {
-        vm.etch(0xc2b78104907F722DABAc4C69f826a522B2754De4, Static.P256_BYTES);
         vm.etch(0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789, Static.ENTRY_POINT_BYTES);
         account = new MockERC4337Account();
         owners.push(abi.encode(signer));

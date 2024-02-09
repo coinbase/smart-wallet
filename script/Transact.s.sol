@@ -5,9 +5,8 @@ import {Script, console2} from "forge-std/Script.sol";
 
 import {ERC4337Factory, ERC4337Account} from "../src/ERC4337Factory.sol";
 import {WebAuthn} from "../src/WebAuthn.sol";
-import {IEntryPoint, UserOperation} from "account-abstraction/contracts/interfaces/IEntryPoint.sol";
+import {IEntryPoint, UserOperation} from "account-abstraction/interfaces/IEntryPoint.sol";
 import "../test/Utils.sol";
-import "p256-verifier/src/P256.sol";
 
 contract TransactScript is Script {
     ERC4337Factory f = ERC4337Factory(0x748e5dD94d5F619371d763adfcBB0eDB863905fD);

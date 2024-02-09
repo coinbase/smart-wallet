@@ -4,16 +4,6 @@ pragma solidity ^0.8.21;
 import "./ERC4337AccountTestBase.t.sol";
 
 contract TestExecuteWithoutChainIdValidation is AccountTestBase {
-    event UserOperationEvent(
-        bytes32 indexed userOpHash,
-        address indexed sender,
-        address indexed paymaster,
-        uint256 nonce,
-        bool success,
-        uint256 actualGasCost,
-        uint256 actualGasUsed
-    );
-
     function setUp() public override {
         super.setUp();
         userOpNonce = account.REPLAYABLE_NONCE_KEY() << 64;
@@ -51,7 +41,7 @@ contract TestExecuteWithoutChainIdValidation is AccountTestBase {
         );
         UserOperation memory userOp = _getUserOpWithSignature();
         vm.expectEmit(true, true, true, true);
-        emit UserOperationEvent(
+        emit IEntryPoint.UserOperationEvent(
             entryPoint.getUserOpHash(userOp), userOp.sender, address(0), userOp.nonce, false, 0, 48245
         );
         _sendUserOperation(userOp);
