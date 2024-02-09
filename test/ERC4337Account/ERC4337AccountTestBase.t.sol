@@ -2,7 +2,7 @@
 pragma solidity ^0.8.21;
 
 import {Test, console2, stdError} from "forge-std/Test.sol";
-import {IEntryPoint} from "account-abstraction/contracts/interfaces/IEntryPoint.sol";
+import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
 
 import "../../src/ERC4337Account.sol";
 import {MockERC4337Account} from "../mocks/MockERC4337Account.sol";

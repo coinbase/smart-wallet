@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "../src/ERC4337Account.sol";
-import "p256-verifier/src/utils/Base64URL.sol";
+import {Base64Url} from "FreshCryptoLib/utils/Base64Url.sol";
 
 struct WebAuthnInfo {
     bytes authenticatorData;
@@ -12,7 +12,7 @@ struct WebAuthnInfo {
 
 library Utils {
     function getWebAuthnStruct(bytes32 challenge) public pure returns (WebAuthnInfo memory) {
-        string memory challengeb64url = Base64URL.encode(abi.encode(challenge));
+        string memory challengeb64url = Base64Url.encode(abi.encode(challenge));
         string memory clientDataJSON = string(
             abi.encodePacked(
                 '{"type":"webauthn.get","challenge":"',

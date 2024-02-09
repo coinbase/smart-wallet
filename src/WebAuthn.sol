@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.0;
+pragma solidity ^0.8.0;
 
 // TODO check apache license
 import {Base64Url} from "FreshCryptoLib/utils/Base64Url.sol";
