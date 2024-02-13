@@ -7,10 +7,10 @@ import {ERC4337Account} from "./ERC4337Account.sol";
 /// Inspired by Ambire's DeploylessUniversalSigValidator (https://github.com/AmbireTech/signature-validator/blob/main/contracts/DeploylessUniversalSigValidator.sol)
 /// @author Lukas Rosario
 contract Universal1271InputGenerator {
-    // This allows us to get a replay-safe hash on any deployed or undeployed account
-    // in a single eth_call. We do this by calling replaySafeHash on a deployed account,
-    // or by simularing the deployment of an undeployed account and then calling replaySafeHash on it.
     constructor(ERC4337Account _account, bytes memory _encodedData) {
+        // This allows us to get a replay-safe hash on any deployed or undeployed account
+        // in a single eth_call. We do this by calling replaySafeHash on a deployed account,
+        // or by simulating the deployment of an undeployed account and then calling replaySafeHash on it.
         bytes32 replaySafeHash = universal1271Input(_account, _encodedData);
         assembly {
             mstore(0x80, replaySafeHash)
@@ -23,7 +23,10 @@ contract Universal1271InputGenerator {
     /// For an undeployed account, encodedData should be wrapped to include the factory address,
     /// the original hash, and the factory calldata.
     /// @param account the account to get a replay-safe hash for.
-    /// @param encodedData the encoded data to use to get a replay-safe hash.
+    /// @param encodedData the encoded data to use to get a replay-safe hash. For an already
+    /// deployed account, this should just be the hash we want a replay-safe version of. For an
+    /// undeployed account, this should be wrapped to include the factory address, the original
+    /// hash, and the factory calldata, ie abi.encode(accountFactory, originalHash, factoryCalldata).
     function universal1271Input(
         ERC4337Account account,
         bytes memory encodedData
@@ -50,7 +53,7 @@ contract Universal1271InputGenerator {
         // Deploy the account.
         (bool success, ) = accountFactory.call(factoryCalldata);
         require(success, "Universal1271InputGenerator: deployment");
-        
+
         // Call and return replaySafeHash on the now-deployed account.
         return account.replaySafeHash(originalHash);
     }
