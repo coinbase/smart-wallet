@@ -50,8 +50,7 @@ contract TransactScript is Script {
                     WebAuthn.WebAuthnAuth({
                         authenticatorData: webAuthn.authenticatorData,
                         origin: "",
-                        crossOrigin: false,
-                        remainder: "",
+                        crossOriginAndRemainder: '"crossOrigin":false',
                         r: uint256(r),
                         s: uint256(s)
                     })

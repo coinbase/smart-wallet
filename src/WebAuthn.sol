@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 // TODO check apache license
 import {Base64Url} from "FreshCryptoLib/utils/Base64Url.sol";
 import {FCL_ecdsa} from "FreshCryptoLib/FCL_ecdsa.sol";
+import {Test, console2} from "forge-std/Test.sol";
 
 /// @notice Helper library for external contracts to verify WebAuthn signatures.
 /// @author Wilson Cusack
@@ -15,10 +16,15 @@ library WebAuthn {
         /// @dev https://www.w3.org/TR/webauthn-2/#dom-collectedclientdata-origin
         string origin;
         /// @dev https://www.w3.org/TR/webauthn-2/#dom-collectedclientdata-crossorigin
-        bool crossOrigin;
         /// @dev 13. https://www.w3.org/TR/webauthn/#clientdatajson-serialization
-        /// e.g. '"tokenBinding":{"status":"present","id":"TbId"}'
-        string remainder;
+        /// crossOrigin should always be present, re https://www.w3.org/TR/webauthn/#clientdatajson-serialization
+        /// but in practice is sometimes not. For this reason we include with remainder. String may be empty.
+        /// e.g.
+        ///     ''
+        ///     '"crossOrigin":false'
+        ///     '"tokenBinding":{"status":"present","id":"TbId"}'
+        ///     '"crossOrigin":false,"tokenBinding":{"status":"present","id":"TbId"}'
+        string crossOriginAndRemainder;
         /// @dev The r value of secp256r1 signature
         uint256 r;
         /// @dev The r value of secp256r1 signature
@@ -99,8 +105,9 @@ library WebAuthn {
         // 11. Verify that the value of C.type is the string webauthn.get.
         // 12. Verify that the value of C.challenge equals the base64url encoding of options.challenge.
         string memory challengeB64url = Base64Url.encode(challenge);
-        string memory remainder =
-            bytes(webAuthnAuth.remainder).length == 0 ? "" : string.concat(",", webAuthnAuth.remainder);
+        string memory remainder = bytes(webAuthnAuth.crossOriginAndRemainder).length == 0
+            ? ""
+            : string.concat(",", webAuthnAuth.crossOriginAndRemainder);
         string memory clientDataJSON = string.concat(
             // A well formed clientDataJSON will always begin with
             // {"type":"webauthn.get","challenge":"
@@ -111,12 +118,11 @@ library WebAuthn {
             '",',
             '"origin":"',
             webAuthnAuth.origin,
-            '",',
-            '"crossOrigin":',
-            webAuthnAuth.crossOrigin ? "true" : "false",
+            '"',
             remainder,
             "}"
         );
+        console2.log(clientDataJSON);
 
         // Skip 13., 14., and 15.
 
