@@ -99,6 +99,6 @@ abstract contract ERC1271 {
     /// @dev Please override this function to return the domain name and version.
     function _domainNameAndVersion() internal view virtual returns (string memory name, string memory version);
 
-    /// @dev Implement to vefify signature
+    /// @dev Implement to verify signature
     function _validateSignature(bytes32 message, bytes calldata signature) internal view virtual returns (bool);
 }

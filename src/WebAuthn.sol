@@ -4,7 +4,6 @@ pragma solidity ^0.8.0;
 // TODO check apache license
 import {Base64Url} from "FreshCryptoLib/utils/Base64Url.sol";
 import {FCL_ecdsa} from "FreshCryptoLib/FCL_ecdsa.sol";
-import {Test, console2} from "forge-std/Test.sol";
 
 /// @notice Helper library for external contracts to verify WebAuthn signatures.
 /// @author Wilson Cusack
@@ -122,7 +121,6 @@ library WebAuthn {
             remainder,
             "}"
         );
-        console2.log(clientDataJSON);
 
         // Skip 13., 14., and 15.
 
