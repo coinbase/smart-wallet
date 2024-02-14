@@ -7,11 +7,11 @@ import {ERC4337Account} from "./ERC4337Account.sol";
 /// Inspired by Ambire's DeploylessUniversalSigValidator (https://github.com/AmbireTech/signature-validator/blob/main/contracts/DeploylessUniversalSigValidator.sol)
 /// @author Lukas Rosario
 contract Universal1271InputGenerator {
-    constructor(ERC4337Account _account, bytes memory _encodedData) {
+    constructor(ERC4337Account account, bytes memory encodedData) {
         // This allows us to get a replay-safe hash on any deployed or undeployed account
         // in a single eth_call. We do this by calling replaySafeHash on a deployed account,
         // or by simulating the deployment of an undeployed account and then calling replaySafeHash on it.
-        bytes32 replaySafeHash = universal1271Input(_account, _encodedData);
+        bytes32 replaySafeHash = universal1271Input(account, encodedData);
         assembly {
             mstore(0x80, replaySafeHash)
             return(0x80, 0x20)
