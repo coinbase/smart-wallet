@@ -159,8 +159,8 @@ library WebAuthn {
         // staticcall will not revert if address has no code
         // check return length
         // note that even if precompile exists, ret.length is 0 when verification returns false
-        // so an invalid signature will be checked twice: once by the precompile and once by FCL
-        // ideal this signature failure is simulated offchain and no one actually pay this gas. 
+        // so an invalid signature will be checked twice: once by the precompile and once by FCL.
+        // Ideally this signature failure is simulated offchain and no one actually pay this gas.
         bool valid = ret.length > 0;
         if (success && valid) return abi.decode(ret, (uint256)) == 1;
 
