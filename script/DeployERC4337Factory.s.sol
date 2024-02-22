@@ -15,9 +15,7 @@ contract ERC4337FactoryDeployScript is Script {
         ERC4337Factory f = new ERC4337Factory{salt: "0x1"}(address(c));
         bytes[] memory owners = new bytes[](1);
         owners[0] = abi.encode(vm.addr(deployerPrivateKey));
-        address account = f.createAccount(owners, 0);
         console2.log("implementation", address(c));
         console2.log("factory", address(f));
-        console2.log("account", account);
     }
 }
