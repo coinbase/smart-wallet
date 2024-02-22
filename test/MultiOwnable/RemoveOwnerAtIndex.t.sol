@@ -18,8 +18,8 @@ contract RemoveOwnerAtIndexTest is MultiOwnableTestBase {
     }
 
     function testEmitsRemoveOwner() public {
-        vm.expectEmit(true, true, true, false);
-        emit MultiOwnable.RemoveOwner(owner2Bytes, owner1Bytes, _index());
+        vm.expectEmit(true, true, true, true);
+        emit MultiOwnable.RemoveOwner(_index(), owner2Bytes);
         vm.prank(owner1Address);
         _removeOwner();
     }
