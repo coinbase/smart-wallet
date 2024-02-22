@@ -33,8 +33,8 @@ contract MultiOwnable {
     error InvalidOwnerBytesLength(bytes owner);
     error InvalidEthereumAddressOwner(bytes owner);
 
-    event AddOwner(bytes indexed owner, bytes indexed addedBy, uint8 indexed index);
-    event RemoveOwner(bytes indexed owner, bytes indexed removedBy, uint8 indexed index);
+    event AddOwner(uint8 indexed index, bytes owner);
+    event RemoveOwner(uint8 indexed index, bytes owner);
 
     modifier onlyOwner() virtual {
         _checkOwner();
@@ -72,7 +72,7 @@ contract MultiOwnable {
         delete _getMultiOwnableStorage().ownerAtIndex[index];
 
         // removedBy may be address(this) when used with smart account
-        emit RemoveOwner(owner, abi.encode(msg.sender), index);
+        emit RemoveOwner(index, owner);
     }
 
     function isOwnerAddress(address account) public view virtual returns (bool) {
@@ -127,7 +127,7 @@ contract MultiOwnable {
         _getMultiOwnableStorage().isOwner[owner] = true;
         _getMultiOwnableStorage().ownerAtIndex[index] = owner;
 
-        emit AddOwner(owner, abi.encode(msg.sender), index);
+        emit AddOwner(index, owner);
     }
 
     /// @dev There is no logic in this contract

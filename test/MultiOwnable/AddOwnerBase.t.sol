@@ -4,24 +4,22 @@ pragma solidity ^0.8.23;
 import "./MultiOwnableTestBase.t.sol";
 
 abstract contract AddOwnerBaseTest is MultiOwnableTestBase {
-    address newOwner = address(0x404);
-
     function testSetsIsOwner() public {
         vm.prank(owner1Address);
         _addOwner();
-        assert(mock.isOwnerAddress(newOwner));
+        assert(mock.isOwnerAddress(abi.decode(_newOwner(), (address))));
     }
 
     function testSetsOwnerAtIndex() public {
         uint8 index = _index();
         vm.prank(owner1Address);
         _addOwner();
-        assertEq(mock.ownerAtIndex(index), abi.encode(newOwner));
+        assertEq(mock.ownerAtIndex(index), _newOwner());
     }
 
     function testEmitsAddOwner() public {
-        vm.expectEmit(true, true, true, false);
-        emit MultiOwnable.AddOwner(abi.encode(newOwner), owner1Bytes, _index());
+        vm.expectEmit(true, true, true, true);
+        emit MultiOwnable.AddOwner(_index(), _newOwner());
         vm.prank(owner1Address);
         _addOwner();
     }
@@ -34,4 +32,5 @@ abstract contract AddOwnerBaseTest is MultiOwnableTestBase {
 
     function _addOwner() internal virtual;
     function _index() internal virtual returns (uint8);
+    function _newOwner() internal virtual returns (bytes memory);
 }
