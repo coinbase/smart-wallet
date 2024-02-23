@@ -26,7 +26,7 @@ library WebAuthn {
         string crossOriginAndRemainder;
         /// @dev The r value of secp256r1 signature
         uint256 r;
-        /// @dev The r value of secp256r1 signature
+        /// @dev The s value of secp256r1 signature
         uint256 s;
     }
 
