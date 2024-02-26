@@ -4,9 +4,10 @@ pragma solidity ^0.8.4;
 import {LibClone} from "solady/src/utils/LibClone.sol";
 import {CoinbaseSmartWallet} from "./CoinbaseSmartWallet.sol";
 
-/// @notice Update version of Solady simple ERC4337 account factory implementation.
+/// @title Coinbase Smart Wallet Factory
+/// @notice CoinbaseSmartWallet factory, based on Solady's ERC4337Factory.
+/// @author Coinbase (https://github.com/coinbase/smart-wallet)
 /// @author Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC4337Factory.sol)
-/// @author Wilson Cusack
 contract CoinbaseSmartWalletFactory {
     /// @dev Address of the ERC4337 implementation.
     address public immutable implementation;

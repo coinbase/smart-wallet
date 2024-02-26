@@ -5,7 +5,7 @@ import {EIP712} from "solady/src/utils/EIP712.sol";
 
 /// @notice ERC-1271 with guards for same signer being used on multiple accounts
 /// Based on Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC1271.sol)
-/// @author Wilson Cusack
+/// @author Coinbase (https://github.com/coinbase/smart-wallet)
 abstract contract ERC1271 {
     /// @dev We use `bytes32 hash` rather than `bytes message`
     /// In the EIP-712 context, `bytes message` would be useful for showing users a full message

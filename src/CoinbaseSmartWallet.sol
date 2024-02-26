@@ -10,9 +10,11 @@ import {WebAuthn} from "./WebAuthn.sol";
 import {MultiOwnable} from "./MultiOwnable.sol";
 import {ERC1271} from "./ERC1271.sol";
 
-/// @notice Coinbase ERC4337 account, built on Solady ERC4337 account implementation
+/// @title Coinbase Smart Wallet
+/// @notice ERC4337-compatible smart contract wallet, based on Solady ERC4337 account implementation
+/// with inspiration from Alchemy's LightAccount and Daimo's DaimoAccount
+/// @author Coinbase (https://github.com/coinbase/smart-wallet)
 /// @author Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC4337.sol)
-/// @author Wilson Cusack
 contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
     /// @dev Signature struct which should be encoded as bytes for any signature
     /// passed to this contract, via ERC-4337 or ERC-1271.
