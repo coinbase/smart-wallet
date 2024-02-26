@@ -26,7 +26,7 @@ library WebAuthn {
         string crossOriginAndRemainder;
         /// @dev The r value of secp256r1 signature
         uint256 r;
-        /// @dev The r value of secp256r1 signature
+        /// @dev The s value of secp256r1 signature
         uint256 s;
     }
 
@@ -87,6 +87,17 @@ library WebAuthn {
      * - Does NOT verify the attestation object: This assumes that
      *   response.attestationObject is NOT present in the response, i.e. the
      *   RP does not intend to verify an attestation.
+     * 
+     * Our verification does not use full JSON parsing but leverages the serialization spec 
+     * https://www.w3.org/TR/webauthn/#clientdatajson-serialization
+     * which is depended on by the limited verification algorithm 
+     * https://www.w3.org/TR/webauthn/#clientdatajson-verification.
+     * We believe our templating approach is robust to future changes because the spec states
+     * "...future versions of this specification must not remove any of the fields 
+     * type, challenge, origin, or crossOrigin from CollectedClientData. 
+     * They also must not change the serialization algorithm to change the order 
+     * in which those fields are serialized."
+     * https://www.w3.org/TR/webauthn/#clientdatajson-development
      */
     function verify(
         bytes memory challenge,
