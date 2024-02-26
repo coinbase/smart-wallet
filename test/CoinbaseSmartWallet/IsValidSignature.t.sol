@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "./SmartWalletTestBase.sol";
-import "../Utils.sol";
+import "webauthn-sol/../test/Utils.sol";
 
 contract TestIsValidSignature is SmartWalletTestBase {
     function testValidateSignatureWithPasskeySigner() public {

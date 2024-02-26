@@ -5,7 +5,7 @@ import {Receiver} from "solady/src/accounts/Receiver.sol";
 import {UUPSUpgradeable} from "solady/src/utils/UUPSUpgradeable.sol";
 import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
 import {UserOperation, UserOperationLib} from "account-abstraction/interfaces/UserOperation.sol";
-import {WebAuthn} from "./WebAuthn.sol";
+import {WebAuthn} from "webauthn-sol/WebAuthn.sol";
 
 import {MultiOwnable} from "./MultiOwnable.sol";
 import {ERC1271} from "./ERC1271.sol";
