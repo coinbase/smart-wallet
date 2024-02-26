@@ -1,9 +1,9 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.21;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
 
-import "./ERC4337AccountTestBase.t.sol";
+import "./SmartWalletTestBase.sol";
 
-contract TestCanSkipChainIdValidation is AccountTestBase {
+contract TestCanSkipChainIdValidation is SmartWalletTestBase {
     bytes4[] approvedSelectors = [
         MultiOwnable.addOwnerAddress.selector,
         MultiOwnable.addOwnerPublicKey.selector,
@@ -12,7 +12,7 @@ contract TestCanSkipChainIdValidation is AccountTestBase {
         MultiOwnable.removeOwnerAtIndex.selector,
         UUPSUpgradeable.upgradeToAndCall.selector
     ];
-    bytes4[] otherSelectors = [ERC4337Account.execute.selector, ERC4337Account.executeBatch.selector];
+    bytes4[] otherSelectors = [CoinbaseSmartWallet.execute.selector, CoinbaseSmartWallet.executeBatch.selector];
 
     function test_approvedSelectorsReturnTrue() public {
         for (uint256 i = 0; i < approvedSelectors.length; i++) {

@@ -1,13 +1,13 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.21;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
 
-import "./ERC4337AccountTestBase.t.sol";
+import "./SmartWalletTestBase.sol";
 
-contract TestExecuteWithoutChainIdValidation is AccountTestBase {
+contract TestExecuteWithoutChainIdValidation is SmartWalletTestBase {
     function setUp() public override {
         super.setUp();
         userOpNonce = account.REPLAYABLE_NONCE_KEY() << 64;
-        userOpCalldata = abi.encodeWithSelector(ERC4337Account.executeWithoutChainIdValidation.selector);
+        userOpCalldata = abi.encodeWithSelector(CoinbaseSmartWallet.executeWithoutChainIdValidation.selector);
     }
 
     function test_revertsIfCallerNotEntryPoint() public {
@@ -27,7 +27,7 @@ contract TestExecuteWithoutChainIdValidation is AccountTestBase {
         assertFalse(account.isOwnerAddress(newOwner));
 
         userOpCalldata = abi.encodeWithSelector(
-            ERC4337Account.executeWithoutChainIdValidation.selector,
+            CoinbaseSmartWallet.executeWithoutChainIdValidation.selector,
             abi.encodeWithSelector(MultiOwnable.addOwnerAddress.selector, newOwner)
         );
         _sendUserOperation(_getUserOpWithSignature());
@@ -36,8 +36,8 @@ contract TestExecuteWithoutChainIdValidation is AccountTestBase {
 
     function test_cannotCallExec() public {
         userOpCalldata = abi.encodeWithSelector(
-            ERC4337Account.executeWithoutChainIdValidation.selector,
-            abi.encodeWithSelector(ERC4337Account.execute.selector, "")
+            CoinbaseSmartWallet.executeWithoutChainIdValidation.selector,
+            abi.encodeWithSelector(CoinbaseSmartWallet.execute.selector, "")
         );
         UserOperation memory userOp = _getUserOpWithSignature();
         vm.expectEmit(true, true, true, true);
@@ -50,6 +50,6 @@ contract TestExecuteWithoutChainIdValidation is AccountTestBase {
     function _sign(UserOperation memory userOp) internal view override returns (bytes memory signature) {
         bytes32 toSign = account.getUserOpHashWithoutChainId(userOp);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, toSign);
-        signature = abi.encode(ERC4337Account.SignatureWrapper(0, abi.encodePacked(r, s, v)));
+        signature = abi.encode(CoinbaseSmartWallet.SignatureWrapper(0, abi.encodePacked(r, s, v)));
     }
 }

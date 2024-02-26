@@ -6,7 +6,7 @@ struct MultiOwnableStorage {
     /// @dev tracks the index of the next owner added, not useful after 255 owners added.
     uint8 nextOwnerIndex;
     /// @dev Allows an owner to be idenfitied by a uint8.
-    /// Passkey verifier does not recover the address, but requires
+    /// Seco256r1 verifier does not recover the address, but requires
     /// the X,Y coordinates to be passed for verification.
     /// In the context of checking whether something was signed by an owner
     /// this means that the signature needs to include an identifier of the owner.
@@ -16,10 +16,9 @@ struct MultiOwnableStorage {
     mapping(bytes => bool) isOwner;
 }
 
-/// @notice Auth contract allowing multiple owners
-/// identifies owners as bytes to allow for secp256r1 X,Y coordinates to
-/// identify an owner.
-/// Designed for use in smart account context.
+/// @title Multi Ownable
+/// @notice Auth contract allowing multiple owners, each identified as bytes.
+/// @author Coinbase (https://github.com/coinbase/smart-wallet)
 contract MultiOwnable {
     /// keccak256(abi.encode(uint256(keccak256("coinbase.storage.MultiOwnable")) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant MultiOwnableStorageLocation =

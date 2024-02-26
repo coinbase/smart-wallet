@@ -1,20 +1,21 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.21;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
 
 import {Test, console2, stdError} from "forge-std/Test.sol";
 import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
 
-import "../../src/ERC4337Account.sol";
-import {MockERC4337Account} from "../mocks/MockERC4337Account.sol";
+import "../../src/CoinbaseSmartWallet.sol";
+import {MockCoinbaseSmartWallet} from "../mocks/MockCoinbaseSmartWallet.sol";
 import {Static} from "./Static.sol";
 
-contract AccountTestBase is Test {
-    ERC4337Account public account;
+contract SmartWalletTestBase is Test {
+    CoinbaseSmartWallet public account;
     uint256 signerPrivateKey = 0xa11ce;
     address signer = vm.addr(signerPrivateKey);
     bytes[] owners;
+    uint256 passkeyPrivateKey = uint256(0x03d99692017473e2d631945a812607b23269d85721e0f370b8d3e7d29a874fd2);
     bytes passkeyOwner =
-        hex"d0266650cb64be790f59ad65381659583bfbf6d8338783af12f4c9f6cd70333f8224d6f6a871980a9f08df9ff70ba3531299e8da7e42a9e8e89b84fb1f53febe";
+        hex"1c05286fe694493eae33312f2d2e0d0abeda8db76238b7a204be1fb87f54ce4228fef61ef4ac300f631657635c28e59bfb2fe71bce1634c81c65642042f6dc4d";
     IEntryPoint entryPoint = IEntryPoint(0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789);
     address bundler = address(uint160(uint256(keccak256(abi.encodePacked("bundler")))));
 
@@ -24,7 +25,7 @@ contract AccountTestBase is Test {
 
     function setUp() public virtual {
         vm.etch(0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789, Static.ENTRY_POINT_BYTES);
-        account = new MockERC4337Account();
+        account = new MockCoinbaseSmartWallet();
         owners.push(abi.encode(signer));
         owners.push(passkeyOwner);
         account.initialize(owners);
@@ -61,5 +62,20 @@ contract AccountTestBase is Test {
         bytes32 toSign = entryPoint.getUserOpHash(userOp);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, toSign);
         signature = abi.encodePacked(uint8(0), r, s, v);
+    }
+
+    function _randomBytes(uint256 seed) internal pure returns (bytes memory result) {
+        /// @solidity memory-safe-assembly
+        assembly {
+            mstore(0x00, seed)
+            let r := keccak256(0x00, 0x20)
+            if lt(byte(2, r), 0x20) {
+                result := mload(0x40)
+                let n := and(r, 0x7f)
+                mstore(result, n)
+                codecopy(add(result, 0x20), byte(1, r), add(n, 0x40))
+                mstore(0x40, add(add(result, 0x40), n))
+            }
+        }
     }
 }

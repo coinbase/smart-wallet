@@ -5,7 +5,7 @@ import {EIP712} from "solady/src/utils/EIP712.sol";
 
 /// @notice ERC-1271 with guards for same signer being used on multiple accounts
 /// Based on Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC1271.sol)
-/// @author Wilson Cusack
+/// @author Coinbase (https://github.com/coinbase/smart-wallet)
 abstract contract ERC1271 {
     /// @dev We use `bytes32 hash` rather than `bytes message`
     /// In the EIP-712 context, `bytes message` would be useful for showing users a full message
@@ -20,7 +20,7 @@ abstract contract ERC1271 {
     ///
     ///  keccak256("\x19Ethereum Signed Message:\n" || len(someMessage) || someMessage),
     ///
-    bytes32 private constant _MESSAGE_TYPEHASH = keccak256("CoinbaseSmartAccountMessage(bytes32 hash)");
+    bytes32 private constant _MESSAGE_TYPEHASH = keccak256("CoinbaseSmartWalletMessage(bytes32 hash)");
 
     /// @dev Validates the signature with ERC1271 return,
     /// so that this account can also be used as a signer.
@@ -38,7 +38,7 @@ abstract contract ERC1271 {
     /// to protect against the same signature being used for many accounts.
     /// @return
     ///  keccak256(\x19\x01 || this.domainSeparator ||
-    ///      hashStruct(CoinbaseSmartAccountMessage({
+    ///      hashStruct(CoinbaseSmartWalletMessage({
     ///          hash: `hash`
     ///      }))
     ///  )
