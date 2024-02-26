@@ -20,7 +20,7 @@ abstract contract ERC1271 {
     ///
     ///  keccak256("\x19Ethereum Signed Message:\n" || len(someMessage) || someMessage),
     ///
-    bytes32 private constant _MESSAGE_TYPEHASH = keccak256("CoinbaseSmartAccountMessage(bytes32 hash)");
+    bytes32 private constant _MESSAGE_TYPEHASH = keccak256("CoinbaseSmartWalletMessage(bytes32 hash)");
 
     /// @dev Validates the signature with ERC1271 return,
     /// so that this account can also be used as a signer.
@@ -38,7 +38,7 @@ abstract contract ERC1271 {
     /// to protect against the same signature being used for many accounts.
     /// @return
     ///  keccak256(\x19\x01 || this.domainSeparator ||
-    ///      hashStruct(CoinbaseSmartAccountMessage({
+    ///      hashStruct(CoinbaseSmartWalletMessage({
     ///          hash: `hash`
     ///      }))
     ///  )

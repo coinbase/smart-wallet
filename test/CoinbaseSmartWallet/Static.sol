@@ -1,6 +1,9 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.21;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
 
+/// @dev Allows us to run without forking mode
+/// and also skip things like via_ir and remappings that are required
+/// by some dependencies
 library Static {
     /// @dev 1-9-2023: cast code 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789  --rpc-url https://goerli.base.org
     bytes constant ENTRY_POINT_BYTES =

@@ -2,12 +2,12 @@
 pragma solidity ^0.8.4;
 
 import {LibClone} from "solady/src/utils/LibClone.sol";
-import {ERC4337Account} from "./ERC4337Account.sol";
+import {CoinbaseSmartWallet} from "./CoinbaseSmartWallet.sol";
 
 /// @notice Update version of Solady simple ERC4337 account factory implementation.
 /// @author Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC4337Factory.sol)
 /// @author Wilson Cusack
-contract ERC4337Factory {
+contract CoinbaseSmartWalletFactory {
     /// @dev Address of the ERC4337 implementation.
     address public immutable implementation;
 
@@ -20,17 +20,23 @@ contract ERC4337Factory {
     /// @dev Deploys an ERC4337 account and returns its deterministic address.
     /// @param owners the initial set of addresses and or public keys that should be able to control the account
     /// @param nonce the nonce of the account, allowing multiple accounts with the same set of initial owners to exist
-    function createAccount(bytes[] calldata owners, uint256 nonce) public payable virtual returns (address account) {
+    function createAccount(bytes[] calldata owners, uint256 nonce)
+        public
+        payable
+        virtual
+        returns (CoinbaseSmartWallet account)
+    {
         if (owners.length == 0) {
             revert OwnerRequired();
         }
-        
-        bool alreadyDeployed;
-        (alreadyDeployed, account) =
+
+        (bool alreadyDeployed, address accountAddress) =
             LibClone.createDeterministicERC1967(msg.value, implementation, _getSalt(owners, nonce));
 
+        account = CoinbaseSmartWallet(payable(accountAddress));
+
         if (alreadyDeployed == false) {
-            ERC4337Account(payable(account)).initialize(owners);
+            account.initialize(owners);
         }
     }
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import {ERC4337Account, UserOperation} from "../../src/ERC4337Account.sol";
+import {CoinbaseSmartWallet, UserOperation} from "../../src/CoinbaseSmartWallet.sol";
 
 contract MockEntryPoint {
     mapping(address => uint256) public balanceOf;
@@ -22,7 +22,7 @@ contract MockEntryPoint {
         bytes32 userOpHash,
         uint256 missingAccountFunds
     ) public payable returns (uint256 validationData) {
-        validationData = ERC4337Account(payable(account)).validateUserOp(userOp, userOpHash, missingAccountFunds);
+        validationData = CoinbaseSmartWallet(payable(account)).validateUserOp(userOp, userOpHash, missingAccountFunds);
     }
 
     receive() external payable {

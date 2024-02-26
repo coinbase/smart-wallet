@@ -13,7 +13,7 @@ import {ERC1271} from "./ERC1271.sol";
 /// @notice Coinbase ERC4337 account, built on Solady ERC4337 account implementation
 /// @author Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC4337.sol)
 /// @author Wilson Cusack
-contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
+contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
     /// @dev Signature struct which should be encoded as bytes for any signature
     /// passed to this contract, via ERC-4337 or ERC-1271.
     struct SignatureWrapper {
@@ -156,12 +156,14 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
         }
     }
 
-    /// @dev Returns the canonical ERC4337 EntryPoint contract.
-    /// Override this function to return a different EntryPoint.
+    /// @dev Returns address for EntryPoint v0.6
     function entryPoint() public view virtual returns (address) {
         return 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789;
     }
 
+    /// @dev Computes the hash of the UserOperation in the same way
+    /// as EntryPoint v0.6, but leaves out the chain ID.
+    /// This allows accounts to sign a hash that can be used on many chains.
     function getUserOpHashWithoutChainId(UserOperation calldata userOp)
         public
         view
@@ -171,6 +173,8 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
         return keccak256(abi.encode(UserOperationLib.hash(userOp), entryPoint()));
     }
 
+    /// @dev Returns whether a function on this contract can be called via
+    /// executeWithoutChainIdValidation
     function canSkipChainIdValidation(bytes4 functionSelector) public pure returns (bool) {
         if (
             functionSelector == MultiOwnable.addOwnerPublicKey.selector
@@ -185,7 +189,7 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
         return false;
     }
 
-    // From https://github.com/alchemyplatform/light-account/blob/912340322f7855cbc1d333ddaac2d39c74b4dcc6/src/LightAccount.sol#L347C5-L354C6
+    /// From https://github.com/alchemyplatform/light-account/blob/912340322f7855cbc1d333ddaac2d39c74b4dcc6/src/LightAccount.sol#L347C5-L354C6
     function _call(address target, uint256 value, bytes memory data) internal {
         (bool success, bytes memory result) = target.call{value: value}(data);
         if (!success) {
@@ -195,7 +199,7 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
         }
     }
 
-    /// @dev Validate user op and 1271 signatures
+    /// @dev Internal method used to validate user op and 1271 signatures
     function _validateSignature(bytes32 message, bytes calldata wrappedSignatureBytes)
         internal
         view
@@ -246,6 +250,6 @@ contract ERC4337Account is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
     function _authorizeUpgrade(address) internal view virtual override(UUPSUpgradeable) onlyOwner {}
 
     function _domainNameAndVersion() internal pure override returns (string memory, string memory) {
-        return ("Coinbase Smart Account", "1");
+        return ("Coinbase Smart Wallet", "1");
     }
 }

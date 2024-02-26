@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.0;
 
-import "../src/ERC4337Account.sol";
+// import "../src/CoinbaseSmartWallet.sol";
 import {Base64Url} from "FreshCryptoLib/utils/Base64Url.sol";
 
 struct WebAuthnInfo {
