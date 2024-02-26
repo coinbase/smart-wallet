@@ -19,8 +19,13 @@ contract ERC4337Factory {
     /// @param owners the initial set of addresses and or public keys that should be able to control the account
     /// @param nonce the nonce of the account, allowing multiple accounts with the same set of initial owners to exist
     function createAccount(bytes[] calldata owners, uint256 nonce) public payable virtual returns (address account) {
-        account = LibClone.deployDeterministicERC1967(msg.value, implementation, _getSalt(owners, nonce));
-        ERC4337Account(payable(account)).initialize(owners);
+        bool alreadyDeployed;
+        (alreadyDeployed, account) =
+            LibClone.createDeterministicERC1967(msg.value, implementation, _getSalt(owners, nonce));
+
+        if (alreadyDeployed == false) {
+            ERC4337Account(payable(account)).initialize(owners);
+        }
     }
 
     /// @dev Returns the deterministic address of the account created via `createAccount`.

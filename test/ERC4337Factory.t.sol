@@ -18,6 +18,8 @@ contract ERC4337FactoryTest is Test {
     }
 
     function test_createAccountSetsOwnersCorrectly() public {
+        address expectedAddress = factory.getAddress(owners, 0);
+        vm.expectCall(expectedAddress, abi.encodeCall(ERC4337Account.initialize, (owners)));
         address a = factory.createAccount{value: 1e18}(owners, 0);
         assert(ERC4337Account(payable(a)).isOwnerAddress(address(1)));
         assert(ERC4337Account(payable(a)).isOwnerAddress(address(2)));
@@ -27,6 +29,14 @@ contract ERC4337FactoryTest is Test {
         address p = factory.getAddress(owners, 0);
         address a = factory.createAccount{value: 1e18}(owners, 0);
         assertEq(a, p);
+    }
+
+    function test_CreateAccount_ReturnsPredeterminedAddress_WhenAccountAlreadyExists() public {
+        address p = factory.getAddress(owners, 0);
+        address a = factory.createAccount{value: 1e18}(owners, 0);
+        address b = factory.createAccount{value: 1e18}(owners, 0);
+        assertEq(a, p);
+        assertEq(a, b);
     }
 
     function testDeployDeterministicPassValues() public {
