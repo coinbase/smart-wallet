@@ -25,6 +25,13 @@ contract ERC4337FactoryTest is Test {
         assert(ERC4337Account(payable(a)).isOwnerAddress(address(2)));
     }
 
+    function test_revertsIfNoOwners() public {
+        owners.pop();
+        owners.pop();
+        vm.expectRevert(ERC4337Factory.OwnerRequired.selector);
+        factory.createAccount{value: 1e18}(owners, 0);
+    }
+
     function test_createAccountDeploysToPredeterminedAddress() public {
         address p = factory.getAddress(owners, 0);
         address a = factory.createAccount{value: 1e18}(owners, 0);
