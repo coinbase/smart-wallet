@@ -18,9 +18,9 @@ import {MultiOwnable} from "./MultiOwnable.sol";
 contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
     /// @notice Wrapper struct, used during signature validation, tie a signature with its signer.
     struct SignatureWrapper {
-        /// @dev The index indentifying owner (see MultiOwnable) whose signature comes from.
+        /// @dev The index indentifying owner (see MultiOwnable) who signed.
         uint8 ownerIndex;
-        /// @dev An ECDSA signature or abi encoded WebAuthnAuth struct.
+        /// @dev An ABI encoded ECDSA signature or WebAuthnAuth struct.
         bytes signatureData;
     }
 
@@ -63,10 +63,10 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
     /// @param owner      The invalid owner bytes retrieved.
     error InvalidOwnerForSignature(uint8 ownerIndex, bytes owner);
 
-    /// @notice Reverted when executing a `UserOperation` that requires the chain id to be validated
+    /// @notice Reverted when executing a `UserOperation` that requires the chain ID to be validated
     ///         but this validation has been omitted.
     ///
-    /// @dev Whitelisting of `UserOperation`s that are allowed to skip the chain id validation is
+    /// @dev Whitelisting of `UserOperation`s that are allowed to skip the chain ID validation is
     ///      based on their call selectors (see `canSkipChainIdValidation()`).
     ///
     /// @param selector The user operation call selector that raised the error.
@@ -149,7 +149,7 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
     /// @dev Reverts if the signature verification fails (except for the case mentionned earlier).
     ///
     /// @param userOp              The `UserOperation` to validate.
-    /// @param userOpHash          The `UserOperation` hash (including the chain id).
+    /// @param userOpHash          The `UserOperation` hash (including the chain ID).
     /// @param missingAccountFunds The missing account funds that must be deposited on the Entrypoint.
     ///
     /// @return validationData The encoded `ValidationData` structure.
@@ -189,8 +189,8 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
     /// @notice Execute the given call from this account to this account (i.e., self call).
     ///
     /// @dev Can only be called by the Entrypoint.
-    /// @dev Reverts if the given call is not authorized to skip the chain id validtion.
-    /// @dev `validateUserOp()` will recompute the `userOpHash` without the chain id befor validatin
+    /// @dev Reverts if the given call is not authorized to skip the chain ID validtion.
+    /// @dev `validateUserOp()` will recompute the `userOpHash` without the chain ID befor validatin
     ///      it if the `UserOperation` aims at executing this function. This allows certain operations
     ///      to be replayed for all accounts sharing the same address across chains. E.g. This may be
     ///      useful for syncing owner changes.
@@ -230,7 +230,7 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
         }
     }
 
-    /// @notice Get the address of the EntryPoint v0.6.
+    /// @notice Returns the address of the EntryPoint v0.6.
     ///
     /// @return The address of the EntryPoint v0.6
     function entryPoint() public view virtual returns (address) {
@@ -238,13 +238,13 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
     }
 
     /// @notice Computes the hash of the `UserOperation` in the same way as EntryPoint v0.6, but
-    ///         leaves out the chain id.
+    ///         leaves out the chain ID.
     ///
     /// @dev This allows accounts to sign a hash that can be used on many chains.
     ///
     /// @param userOp The `UserOperation` to compute the hash for.
     ///
-    /// @return userOpHash The `UserOperation` hash, not including the chain id.
+    /// @return userOpHash The `UserOperation` hash, not including the chain ID.
     function getUserOpHashWithoutChainId(UserOperation calldata userOp)
         public
         view
@@ -254,11 +254,11 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
         return keccak256(abi.encode(UserOperationLib.hash(userOp), entryPoint()));
     }
 
-    /// @notice Check if the given function selector is whitelisted to skip the chain id validation.
+    /// @notice Check if the given function selector is whitelisted to skip the chain ID validation.
     ///
     /// @param functionSelector The function selector to check.
     ////
-    /// @return `true` is the function selector is whitelisted to skip the chain id validation, else `false`.
+    /// @return `true` is the function selector is whitelisted to skip the chain ID validation, else `false`.
     function canSkipChainIdValidation(bytes4 functionSelector) public pure returns (bool) {
         if (
             functionSelector == MultiOwnable.addOwnerPublicKey.selector
