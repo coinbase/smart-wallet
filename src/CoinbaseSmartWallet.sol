@@ -42,7 +42,7 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
 
     /// @notice Reverted during signature validation when the given signature length is invalid.
     ///
-    /// @dev ECDSA signature are expected to be exactly 65 bytes long (the r,s and v values).
+    /// @dev ECDSA signature are expected to be exactly 65 bytes long (the r, s and v values).
     /// @dev WebAuthn encoded structs are expected to be at least 66 bytes long.
     ///
     /// @param length The invalid received signature length.
