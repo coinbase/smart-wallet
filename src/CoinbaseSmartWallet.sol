@@ -20,7 +20,7 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
     struct SignatureWrapper {
         /// @dev The index indentifying owner (see MultiOwnable) who signed.
         uint8 ownerIndex;
-        /// @dev An ABI encoded ECDSA signature or WebAuthnAuth struct.
+        /// @dev An ABI encoded ECDSA signature (r, s, v) or WebAuthnAuth struct.
         bytes signatureData;
     }
 
