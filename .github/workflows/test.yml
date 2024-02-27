@@ -1,6 +1,9 @@
 name: test
 
-on: workflow_dispatch
+on:
+  pull_request:
+    branches:
+      - main
 
 env:
   FOUNDRY_PROFILE: ci
@@ -32,3 +35,8 @@ jobs:
         run: |
           forge test -vvv
         id: test
+
+      - name: Check formatting
+        run: |
+          forge fmt --check
+        id: fmt
