@@ -18,31 +18,31 @@ import {MultiOwnable} from "./MultiOwnable.sol";
 contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
     /// @notice Wrapper struct, used during signature validation, tie a signature with its signer.
     struct SignatureWrapper {
-        /// @notice The index indentifying owner (see MultiOwnable) whose signature comes from.
+        /// @dev The index indentifying owner (see MultiOwnable) whose signature comes from.
         uint8 ownerIndex;
-        /// @notice An ECDSA signature or abi encoded WebAuthnAuth struct.
+        /// @dev An ECDSA signature or abi encoded WebAuthnAuth struct.
         bytes signatureData;
     }
 
     /// @notice Wrapper struct, used in `executeBatch`, describing a raw call to execute.
     struct Call {
-        /// @notice The target address to call.
+        /// @dev The target address to call.
         address target;
-        /// @notice The value to associate with the call.
+        /// @dev The value to associate with the call.
         uint256 value;
-        /// @notice The raw call data.
+        /// @dev The raw call data.
         bytes data;
     }
 
-    /// @notice The nonce key reserve for `UserOperation`s without chain id validation.
+    /// @notice Reserved nonce key (upper 192 bits of `UserOperation.nonce`) for cross-chain replayable
+    ///         transactions.
     ///
-    /// @dev Helps ensuring users have a single, sequential cross-chain history.
+    /// @dev Helps enforce sequential sequencing of replayable transactions.
     uint256 public constant REPLAYABLE_NONCE_KEY = 8453;
 
     /// @notice Reverted during signature validation when the given signature length is invalid.
     ///
-    /// @dev ECDSA signature are expected to be exactly 65 bytes long (1 bytes for the owner index
-    ///      and 64 bytes of signature).
+    /// @dev ECDSA signature are expected to be exactly 65 bytes long (the r,s and v values).
     /// @dev WebAuthn encoded structs are expected to be at least 66 bytes long.
     ///
     /// @param length The invalid received signature length.
@@ -56,11 +56,11 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
     ///
     /// @dev ECDSA signatures must be associated with ethereum address padded
     ///      to 32 bytes.
-    /// @dev WebAuthn encoded structs must be associated with 64 bytes long owners corresponding to
-    ///      their Secp256r1 pubkey (X; Y) coordinates padded to 32 bytes and packed.
+    /// @dev WebAuthn authentications must be associated with a owner of length 64 bytes: the X, Y
+    ///      values of the Secp256r1 public key.
     ///
     /// @param ownerIndex The given owner index that was used to retrieve the associated owner.
-    /// @param owner      The invalid owmer btes retrieved.
+    /// @param owner      The invalid owner bytes retrieved.
     error InvalidOwnerForSignature(uint8 ownerIndex, bytes owner);
 
     /// @notice Reverted when executing a `UserOperation` that requires the chain id to be validated
@@ -119,7 +119,7 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
     }
 
     constructor() {
-        // Impl should not be initializable (does not affect proxies which use their own storage).
+        // Implementation should not be initializable (does not affect proxies which use their own storage).
         bytes[] memory owners = new bytes[](1);
         owners[0] = abi.encode(address(0));
         _initializeOwners(owners);
