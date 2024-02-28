@@ -1,7 +1,7 @@
 > [!IMPORTANT]  
 > The code in this repository and its dependencies are still under audit. It is not yet recommended for production use.
 
-# Coinbase Smart Wallet
+# Smart Wallet
 
 This repository contains code for a new, [ERC-4337](https://eips.ethereum.org/EIPS/eip-4337) compliant smart contract wallet from Coinbase. 
 
@@ -11,7 +11,7 @@ It supports
 - Cross-chain replayability for owner updates and other actions: sign once, update everywhere. 
 
 ## Multiple Owners
-Coinbase Smart Wallet supports up to 256 concurrent owners. Each owner can transact independently, without sign off from any other owner. 
+Our smart wallet supports up to 256 concurrent owners. Each owner can transact independently, without sign off from any other owner. 
 
 Owners are identified as `bytes` to allow both Ethereum address owners and passkey (Secp256r1) public key owners. 
 
@@ -35,7 +35,7 @@ If the signer is an Ethereum address, `signatureData` should be the packed ABI e
 If the signer is a secp256r1 public key, `signatureData` should be the the ABI encoding of a [`WebAuthnAuth`](https://github.com/base-org/webauthn-sol/blob/main/src/WebAuthn.sol#L15-L34) struct. See [webauthn-sol](https://github.com/base-org/webauthn-sol) for more details. 
 
 ## Cross-chain replayability 
-If a user changes an owner or upgrade their smart wallet, they likely want this change applied to all instances of your smart wallet, across various chains. Coinbase Smart Wallet allows users to sign a single user operation which can be permissionlessly replayed on other chains. 
+If a user changes an owner or upgrade their smart wallet, they likely want this change applied to all instances of your smart wallet, across various chains. Our smart wallet allows users to sign a single user operation which can be permissionlessly replayed on other chains. 
 
 There is a special function, `executeWithoutChainIdValidation`, which can only be called by the `EntryPoint` contract (v0.6). 
 
@@ -83,7 +83,7 @@ Today, allowed are
 
 ## Deployments
 
-| Network   | Contract Address                        |
+| Network   | CoinbaseSmartWalletFacotry Address                        |
 |-----------|-----------------------------------------|
 | Base Sepolia | [0x0bA5ed008013Cc025aA8fc0A730AAda592b55402](https://sepolia.basescan.org/address/0x0bA5ed008013Cc025aA8fc0A730AAda592b55402) |
 
