@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.0;
+pragma solidity ^0.8.0;
 
-import {ERC4337Account} from "./ERC4337Account.sol";
+import {CoinbaseSmartWallet} from "../CoinbaseSmartWallet.sol";
 
 /// @notice Helper contract to generate replay-safe hashes to sign for for ERC-1271 signature validation.
 /// Inspired by Ambire's DeploylessUniversalSigValidator (https://github.com/AmbireTech/signature-validator/blob/main/contracts/DeploylessUniversalSigValidator.sol)
-/// @author Lukas Rosario
+/// @dev This contract is not meant to ever actually be deployed, only mock deployed and used via eth_call.
+/// @author Coinbase (https://github.com/coinbase/smart-wallet)
 contract Universal1271InputGenerator {
-    constructor(ERC4337Account account, bytes memory encodedData) {
+    constructor(CoinbaseSmartWallet account, bytes memory encodedData) {
         // This allows us to get a replay-safe hash on any deployed or undeployed account
         // in a single eth_call. We do this by calling replaySafeHash on a deployed account,
         // or by simulating the deployment of an undeployed account and then calling replaySafeHash on it.
@@ -28,7 +29,7 @@ contract Universal1271InputGenerator {
     /// undeployed account, this should be wrapped to include the factory address, the original
     /// hash, and the factory calldata, ie abi.encode(accountFactory, originalHash, factoryCalldata).
     function universal1271Input(
-        ERC4337Account account,
+        CoinbaseSmartWallet account,
         bytes memory encodedData
     ) public returns (bytes32) {
         bytes memory contractCode = address(account).code;
