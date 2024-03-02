@@ -3,11 +3,11 @@ pragma solidity ^0.8.23;
 
 import "./AddOwnerBase.t.sol";
 
-contract AddOwnerAddressTest is AddOwnerBaseTest {
+contract AddOwnerPublicKeyTest is AddOwnerBaseTest {
     function testSetsIsOwner() public override {
         vm.prank(owner1Address);
         _addOwner();
-        assertTrue(mock.isOwnerAddress(abi.decode(_newOwner(), (address))));
+        assertTrue(mock.isOwnerBytes(_newOwner()));
     }
 
     function testRevertsIfAlreadyOwner() public {
@@ -17,15 +17,9 @@ contract AddOwnerAddressTest is AddOwnerBaseTest {
         _addOwner();
     }
 
-    function testIncreasesOwnerIndex() public {
-        uint256 before = mock.nextOwnerIndex();
-        vm.prank(owner1Address);
-        mock.addOwnerAddress(abi.decode(_newOwner(), (address)));
-        assertEq(before + 1, mock.nextOwnerIndex());
-    }
-
     function _addOwner() internal override {
-        mock.addOwnerAddress(abi.decode(_newOwner(), (address)));
+        (bytes32 x, bytes32 y) = abi.decode(_newOwner(), (bytes32, bytes32));
+        mock.addOwnerPublicKey(x, y);
     }
 
     function _index() internal view override returns (uint256) {
@@ -33,6 +27,6 @@ contract AddOwnerAddressTest is AddOwnerBaseTest {
     }
 
     function _newOwner() internal pure override returns (bytes memory) {
-        return abi.encode(address(0x404));
+        return abi.encode(uint256(1), uint256(1));
     }
 }

@@ -4,7 +4,7 @@ pragma solidity ^0.8.4;
 /// @custom:storage-location erc7201:coinbase.storage.MultiOwnable
 struct MultiOwnableStorage {
     /// @dev tracks the index of the next owner added, not useful after 255 owners added.
-    uint8 nextOwnerIndex;
+    uint256 nextOwnerIndex;
     /// @dev Allows an owner to be idenfitied by a uint8.
     /// Seco256r1 verifier does not recover the address, but requires
     /// the X,Y coordinates to be passed for verification.
@@ -12,7 +12,7 @@ struct MultiOwnableStorage {
     /// this means that the signature needs to include an identifier of the owner.
     /// In an effort to economize calldata, we use a uint8 rather than passing the
     /// X,Y coordinates.
-    mapping(uint8 => bytes) ownerAtIndex;
+    mapping(uint256 => bytes) ownerAtIndex;
     mapping(bytes => bool) isOwner;
 }
 
@@ -26,14 +26,12 @@ contract MultiOwnable {
 
     error Unauthorized();
     error AlreadyOwner(bytes owner);
-    error IndexNotEmpty(uint8 index, bytes owner);
-    error UseAddOwner();
-    error NoOwnerAtIndex(uint8 index);
+    error NoOwnerAtIndex(uint256 index);
     error InvalidOwnerBytesLength(bytes owner);
     error InvalidEthereumAddressOwner(bytes owner);
 
-    event AddOwner(uint8 indexed index, bytes owner);
-    event RemoveOwner(uint8 indexed index, bytes owner);
+    event AddOwner(uint256 indexed index, bytes owner);
+    event RemoveOwner(uint256 indexed index, bytes owner);
 
     modifier onlyOwner() virtual {
         _checkOwner();
@@ -50,16 +48,6 @@ contract MultiOwnable {
     /// can be used if nextOwnerIndex < 255
     function addOwnerPublicKey(bytes32 x, bytes32 y) public virtual onlyOwner {
         _addOwner(abi.encode(x, y));
-    }
-
-    /// @dev adds an address owner at a specific index
-    function addOwnerAddressAtIndex(address owner, uint8 index) public virtual onlyOwner {
-        _addOwnerAtIndex(abi.encode(owner), index);
-    }
-
-    /// @dev adds a passkey owner at a specific index
-    function addOwnerPublicKeyAtIndex(bytes32 x, bytes32 y, uint8 index) public virtual onlyOwner {
-        _addOwnerAtIndex(abi.encode(x, y), index);
     }
 
     /// @dev removes an owner, identified by a specific index
@@ -82,11 +70,11 @@ contract MultiOwnable {
         return _getMultiOwnableStorage().isOwner[account];
     }
 
-    function ownerAtIndex(uint8 index) public view virtual returns (bytes memory) {
+    function ownerAtIndex(uint256 index) public view virtual returns (bytes memory) {
         return _getMultiOwnableStorage().ownerAtIndex[index];
     }
 
-    function nextOwnerIndex() public view virtual returns (uint8) {
+    function nextOwnerIndex() public view virtual returns (uint256) {
         return _getMultiOwnableStorage().nextOwnerIndex;
     }
 
@@ -98,29 +86,17 @@ contract MultiOwnable {
             if (owners[i].length == 32 && uint256(bytes32(owners[i])) > type(uint160).max) {
                 revert InvalidEthereumAddressOwner(owners[i]);
             }
-            _addOwnerAtIndexNoCheck(owners[i], _getMultiOwnableStorage().nextOwnerIndex++);
+            _addOwnerAtIndex(owners[i], _getMultiOwnableStorage().nextOwnerIndex++);
         }
     }
 
     /// @dev convenience function that can be used to add the first
     /// 255 owners.
     function _addOwner(bytes memory owner) internal virtual {
-        _addOwnerAtIndexNoCheck(owner, _getMultiOwnableStorage().nextOwnerIndex++);
+        _addOwnerAtIndex(owner, _getMultiOwnableStorage().nextOwnerIndex++);
     }
 
-    /// @dev adds an owner, identified by a specific index
-    /// Used after 255 addOwner calls
-    /// reverts if nextOwnerIndex != 255
-    /// reverts if ownerAtIndex[index] is set
-    function _addOwnerAtIndex(bytes memory owner, uint8 index) internal virtual {
-        if (nextOwnerIndex() != 255) revert UseAddOwner();
-        bytes memory existingOwner = ownerAtIndex(index);
-        if (existingOwner.length != 0) revert IndexNotEmpty(index, existingOwner);
-
-        _addOwnerAtIndexNoCheck(owner, index);
-    }
-
-    function _addOwnerAtIndexNoCheck(bytes memory owner, uint8 index) internal virtual {
+    function _addOwnerAtIndex(bytes memory owner, uint256 index) internal virtual {
         if (isOwnerBytes(owner)) revert AlreadyOwner(owner);
 
         _getMultiOwnableStorage().isOwner[owner] = true;
