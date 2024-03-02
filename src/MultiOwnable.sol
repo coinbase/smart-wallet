@@ -3,15 +3,18 @@ pragma solidity ^0.8.4;
 
 /// @custom:storage-location erc7201:coinbase.storage.MultiOwnable
 struct MultiOwnableStorage {
-    /// @dev tracks the index of the next owner added, not useful after 255 owners added.
+    /// @dev tracks the index of the next owner added
     uint256 nextOwnerIndex;
-    /// @dev Allows an owner to be idenfitied by a uint8.
-    /// Seco256r1 verifier does not recover the address, but requires
-    /// the X,Y coordinates to be passed for verification.
-    /// In the context of checking whether something was signed by an owner
-    /// this means that the signature needs to include an identifier of the owner.
-    /// In an effort to economize calldata, we use a uint8 rather than passing the
-    /// X,Y coordinates.
+    /// @dev Allows an owner to be idenfitied by a uint256.
+    /// Some uses--such as signature validation for secp256r1 public 
+    /// key owners--requires the caller to assert which owner signed.
+    /// To economize calldata, we allow an index to identify an owner,
+    /// so that the full owner bytes do not need to be passed. 
+    /// Note, we use uint256 rather than a smaller uint because it 
+    /// provides flexibility at little to no cost. 
+    /// uint256 allows that we will (practically) never run out of owner indexes.
+    /// And on L2, where calldata gas is a concern, 
+    /// we should not be charged for the extra 0 bytes.  
     mapping(uint256 => bytes) ownerAtIndex;
     mapping(bytes => bool) isOwner;
 }
