@@ -82,6 +82,10 @@ contract MultiOwnable {
         return _getMultiOwnableStorage().isOwner[account];
     }
 
+    function isOwnerPublicKey(bytes32 x, bytes32 y) public view virtual returns (bool) {
+        return _getMultiOwnableStorage().isOwner[abi.encode(x, y)];
+    }
+
     function ownerAtIndex(uint8 index) public view virtual returns (bytes memory) {
         return _getMultiOwnableStorage().ownerAtIndex[index];
     }
