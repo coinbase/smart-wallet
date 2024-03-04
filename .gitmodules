@@ -10,9 +10,9 @@
 [submodule "lib/FreshCryptoLib"]
 	path = lib/FreshCryptoLib
 	url = https://github.com/rdubois-crypto/FreshCryptoLib
-[submodule "lib/webauthn-sol"]
-	path = lib/webauthn-sol
-	url = https://github.com/base-org/webauthn-sol
 [submodule "lib/solady"]
 	path = lib/solady
 	url = https://github.com/vectorized/solady
+[submodule "lib/webauthn-sol"]
+	path = lib/webauthn-sol
+	url = https://github.com/base-org/webauthn-sol
