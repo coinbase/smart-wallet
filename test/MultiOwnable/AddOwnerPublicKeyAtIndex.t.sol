@@ -30,12 +30,18 @@ contract AddOwnerPublicKeyAtIndexTest is AddOwnerBaseTest {
         _addOwner();
     }
 
+    function testFuzzIsOwnerPublicKey(bytes32 x, bytes32 y) external {
+        vm.assume(x > 0 && y > 0);
+        vm.startPrank(owner1Address);
+        mock.addOwnerPublicKeyAtIndex(x, y, _index());
+        bytes memory xy = abi.encode(x, y);
+        assert(mock.isOwnerBytes(xy));
+        assert(mock.isOwnerPublicKey(x, y));
+    }
+
     function _addOwner() internal override {
         (bytes32 x, bytes32 y) = abi.decode(_newOwner(), (bytes32, bytes32));
         mock.addOwnerPublicKeyAtIndex(x, y, _index());
-        // bytes memory xy = abi.encode(x, y);
-        // assert(mock.isOwnerBytes(xy));
-        // assert(mock.isOwnerPublicKey(x, y));
     }
 
     function _index() internal pure override returns (uint8) {
