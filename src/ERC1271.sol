@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import {EIP712} from "solady/src/utils/EIP712.sol";
-
 /// @notice ERC-1271 with guards for same signer being used on multiple accounts
 /// Based on Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC1271.sol)
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
