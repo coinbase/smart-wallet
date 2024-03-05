@@ -113,7 +113,7 @@ contract MultiOwnable {
     }
 
     function _getMultiOwnableStorage() internal pure returns (MultiOwnableStorage storage $) {
-        assembly {
+        assembly ("memory-safe") {
             $.slot := MultiOwnableStorageLocation
         }
     }
