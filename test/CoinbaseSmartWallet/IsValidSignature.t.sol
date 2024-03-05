@@ -17,8 +17,9 @@ contract TestIsValidSignature is SmartWalletTestBase {
                 signatureData: abi.encode(
                     WebAuthn.WebAuthnAuth({
                         authenticatorData: webAuthn.authenticatorData,
-                        origin: "",
-                        crossOriginAndRemainder: '"crossOrigin":false',
+                        clientDataJSON: webAuthn.clientDataJSON,
+                        typeIndex: 1,
+                        challengeIndex: 23,
                         r: uint256(r),
                         s: uint256(s)
                     })
@@ -45,8 +46,9 @@ contract TestIsValidSignature is SmartWalletTestBase {
                 signatureData: abi.encode(
                     WebAuthn.WebAuthnAuth({
                         authenticatorData: webAuthn.authenticatorData,
-                        origin: "",
-                        crossOriginAndRemainder: '"crossOrigin":false',
+                        clientDataJSON: webAuthn.clientDataJSON,
+                        typeIndex: 1,
+                        challengeIndex: 23,
                         r: uint256(r),
                         s: uint256(s)
                     })
@@ -71,8 +73,9 @@ contract TestIsValidSignature is SmartWalletTestBase {
                 signatureData: abi.encode(
                     WebAuthn.WebAuthnAuth({
                         authenticatorData: webAuthn.authenticatorData,
-                        origin: "",
-                        crossOriginAndRemainder: '"crossOrigin":false',
+                        clientDataJSON: webAuthn.clientDataJSON,
+                        typeIndex: 1,
+                        challengeIndex: 23,
                         r: uint256(r) - 1,
                         s: uint256(s)
                     })
@@ -116,8 +119,9 @@ contract TestIsValidSignature is SmartWalletTestBase {
                 signatureData: abi.encode(
                     WebAuthn.WebAuthnAuth({
                         authenticatorData: webAuthn.authenticatorData,
-                        origin: "",
-                        crossOriginAndRemainder: '"crossOrigin":false',
+                        clientDataJSON: webAuthn.clientDataJSON,
+                        typeIndex: 1,
+                        challengeIndex: 23,
                         r: uint256(r) - 1,
                         s: uint256(s)
                     })

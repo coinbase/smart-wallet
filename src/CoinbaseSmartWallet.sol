@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.23;
 
-import {Receiver} from "solady/src/accounts/Receiver.sol";
-import {UUPSUpgradeable} from "solady/src/utils/UUPSUpgradeable.sol";
-import {SignatureCheckerLib} from "solady/src/utils/SignatureCheckerLib.sol";
+import {Receiver} from "solady/accounts/Receiver.sol";
+import {UUPSUpgradeable} from "solady/utils/UUPSUpgradeable.sol";
+import {SignatureCheckerLib} from "solady/utils/SignatureCheckerLib.sol";
 import {UserOperation, UserOperationLib} from "account-abstraction/interfaces/UserOperation.sol";
 import {WebAuthn} from "webauthn-sol/WebAuthn.sol";
 
@@ -19,7 +19,7 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
     /// @notice Wrapper struct, used during signature validation, tie a signature with its signer.
     struct SignatureWrapper {
         /// @dev The index indentifying owner (see MultiOwnable) who signed.
-        uint8 ownerIndex;
+        uint256 ownerIndex;
         /// @dev An ABI encoded ECDSA signature (r, s, v) or WebAuthnAuth struct.
         bytes signatureData;
     }
@@ -61,7 +61,7 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
     ///
     /// @param ownerIndex The given owner index that was used to retrieve the associated owner.
     /// @param owner      The invalid owner bytes retrieved.
-    error InvalidOwnerForSignature(uint8 ownerIndex, bytes owner);
+    error InvalidOwnerForSignature(uint256 ownerIndex, bytes owner);
 
     /// @notice Reverted when executing a `UserOperation` that requires the chain ID to be validated
     ///         but this validation has been omitted.
@@ -263,8 +263,6 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
         if (
             functionSelector == MultiOwnable.addOwnerPublicKey.selector
                 || functionSelector == MultiOwnable.addOwnerAddress.selector
-                || functionSelector == MultiOwnable.addOwnerAddressAtIndex.selector
-                || functionSelector == MultiOwnable.addOwnerPublicKeyAtIndex.selector
                 || functionSelector == MultiOwnable.removeOwnerAtIndex.selector
                 || functionSelector == UUPSUpgradeable.upgradeToAndCall.selector
         ) {
@@ -334,8 +332,6 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
             (uint256 x, uint256 y) = abi.decode(ownerBytes, (uint256, uint256));
 
             WebAuthn.WebAuthnAuth memory auth = abi.decode(sigWrapper.signatureData, (WebAuthn.WebAuthnAuth));
-
-            auth.origin = bytes(auth.origin).length > 0 ? auth.origin : "https://sign.coinbase.com";
 
             return WebAuthn.verify({
                 challenge: abi.encode(message),

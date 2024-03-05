@@ -7,8 +7,6 @@ contract TestCanSkipChainIdValidation is SmartWalletTestBase {
     bytes4[] approvedSelectors = [
         MultiOwnable.addOwnerAddress.selector,
         MultiOwnable.addOwnerPublicKey.selector,
-        MultiOwnable.addOwnerAddressAtIndex.selector,
-        MultiOwnable.addOwnerPublicKeyAtIndex.selector,
         MultiOwnable.removeOwnerAtIndex.selector,
         UUPSUpgradeable.upgradeToAndCall.selector
     ];

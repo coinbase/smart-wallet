@@ -83,9 +83,9 @@ Today, allowed are
 
 ## Deployments
 
-| Network   | CoinbaseSmartWalletFacotry Address                        |
+| Network   | CoinbaseSmartWalletFactory Address                        |
 |-----------|-----------------------------------------|
-| Base Sepolia | [0x0bA5ed008013Cc025aA8fc0A730AAda592b55402](https://sepolia.basescan.org/address/0x0bA5ed008013Cc025aA8fc0A730AAda592b55402) |
+| Base Sepolia | [0xeD4EAeBDBBA52DBB37259a2b75AbB87abF3a19E8](https://sepolia.basescan.org/address/0xeD4EAeBDBBA52DBB37259a2b75AbB87abF3a19E8) |
 
 
 ## Developing 

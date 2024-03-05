@@ -22,4 +22,11 @@ contract MultiOwnableInitializeTest is Test {
         vm.expectRevert(abi.encodeWithSelector(MultiOwnable.InvalidOwnerBytesLength.selector, badOwner));
         mock.init(owners);
     }
+
+    function testRevertsIfLength32NotAddress() public {
+        bytes memory badOwner = abi.encodePacked(type(uint256).max);
+        owners.push(badOwner);
+        vm.expectRevert(abi.encodeWithSelector(MultiOwnable.InvalidEthereumAddressOwner.selector, badOwner));
+        mock.init(owners);
+    }
 }

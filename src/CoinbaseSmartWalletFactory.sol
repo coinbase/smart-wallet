@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import {LibClone} from "solady/src/utils/LibClone.sol";
+import {LibClone} from "solady/utils/LibClone.sol";
 import {CoinbaseSmartWallet} from "./CoinbaseSmartWallet.sol";
 
 /// @title Coinbase Smart Wallet Factory
