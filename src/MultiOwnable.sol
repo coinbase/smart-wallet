@@ -42,13 +42,11 @@ contract MultiOwnable {
     }
 
     /// @dev convenience function to add address owner
-    /// can be used if nextOwnerIndex < 255
     function addOwnerAddress(address owner) public virtual onlyOwner {
         _addOwner(abi.encode(owner));
     }
 
     /// @dev convenience function to add passkey owner
-    /// can be used if nextOwnerIndex < 255
     function addOwnerPublicKey(bytes32 x, bytes32 y) public virtual onlyOwner {
         _addOwner(abi.encode(x, y));
     }
@@ -93,8 +91,6 @@ contract MultiOwnable {
         }
     }
 
-    /// @dev convenience function that can be used to add the first
-    /// 255 owners.
     function _addOwner(bytes memory owner) internal virtual {
         _addOwnerAtIndex(owner, _getMultiOwnableStorage().nextOwnerIndex++);
     }
