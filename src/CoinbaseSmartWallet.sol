@@ -335,8 +335,6 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
 
             WebAuthn.WebAuthnAuth memory auth = abi.decode(sigWrapper.signatureData, (WebAuthn.WebAuthnAuth));
 
-            auth.origin = bytes(auth.origin).length > 0 ? auth.origin : "https://sign.coinbase.com";
-
             return WebAuthn.verify({
                 challenge: abi.encode(message),
                 requireUserVerification: false,
