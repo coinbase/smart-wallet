@@ -11,8 +11,10 @@ import {ERC1271} from "./ERC1271.sol";
 import {MultiOwnable} from "./MultiOwnable.sol";
 
 /// @title Coinbase Smart Wallet
+///
 /// @notice ERC4337-compatible smart contract wallet, based on Solady ERC4337 account implementation
-/// with inspiration from Alchemy's LightAccount and Daimo's DaimoAccount
+///         with inspiration from Alchemy's LightAccount and Daimo's DaimoAccount.
+///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
 /// @author Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC4337.sol)
 contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
