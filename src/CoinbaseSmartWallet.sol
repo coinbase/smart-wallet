@@ -272,7 +272,7 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
     ///
     /// @dev Reverts if the associated signer is invalid (based on the `ownerIndex`).
     /// @dev Reverts if the signature does not correspond to an ERC-1271 signature or to the abi
-    ///       encoded version of a `WebAuthn` struct.
+    ///      encoded version of a `WebAuthn` struct.
     /// @dev Des NOT revert if the signature verification fails to allow making a "simulation call"
     ///      without a valid signature.
     ///
