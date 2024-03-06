@@ -290,27 +290,24 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
         }
     }
 
-    /// @notice Internal method called during `UserOperation` validation to ensure its signature
-    ///         is a valid signature against its hash.
+    /// @inheritdoc ERC1271
     ///
-    /// @dev Reverts if the associated signer is invalid (based on the `ownerIndex`).
+    /// @dev Used both for classic ERC-1271 signature AND `UserOperation` validations.
+    /// @dev Reverts if the signer (based on the `ownerIndex`) is not compatible with the signature.
     /// @dev Reverts if the signature does not correspond to an ERC-1271 signature or to the abi
-    ///      encoded version of a `WebAuthn` struct.
-    /// @dev Des NOT revert if the signature verification fails to allow making a "simulation call"
+    ///      encoded version of a `WebAuthnAuth` struct.
+    /// @dev Does NOT revert if the signature verification fails to allow making a "simulation call"
     ///      without a valid signature.
     ///
-    /// @param message               The message whose signature has been performed on.
-    /// @param wrappedSignatureBytes The abi encoded `SignatureWrapper` struct.
-    ///
-    /// @return `true` if the signature verification succeeded, else `false`.
-    function _validateSignature(bytes32 message, bytes calldata wrappedSignatureBytes)
+    /// @param signature The abi encoded `SignatureWrapper` struct.
+    function _validateSignature(bytes32 message, bytes calldata signature)
         internal
         view
         virtual
         override
         returns (bool)
     {
-        SignatureWrapper memory sigWrapper = abi.decode(wrappedSignatureBytes, (SignatureWrapper));
+        SignatureWrapper memory sigWrapper = abi.decode(signature, (SignatureWrapper));
         bytes memory ownerBytes = ownerAtIndex(sigWrapper.ownerIndex);
 
         if (sigWrapper.signatureData.length == 65) {
