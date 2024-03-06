@@ -7,35 +7,33 @@ pragma solidity ^0.8.4;
 ///         signer being used on multiple accounts, using a nested approach based on EIP-712.
 ///
 /// @dev To prevent the same signature from being validated on different accounts owned by the samer signer,
-///      we introduce an "anti cross-account-replay layer" (ACARL), based on EIP-712, wrapping the original
-///      signed hash (OSH).
+///      we introduce an anti cross-account-replay layer: the original signed hash (OSH) is wrapped in a
+///      `CoinbaseSmartWalletMessage` (CSWM) struct, which is itself hashed using EIP-712.
 ///
-///      The ACARL wraps the OSH in a custom `CoinbaseSmartWalletMessage(bytes32 hash)` struct which is
-///      in turned hashed following EIP-712. During this second hashing, the `domainSeparator` used have
-///      its `verifyingContract` field set to the the address of the account. This mechanism is coupling
-///      the signature of the ACARL hash to this account, effectively preventing it from being replayed
-///      on another account owned by the same signer.
+///      When hashing the CSWM, the `domainSeparator` used has its `verifyingContract` field set to the address
+///      of the targeted account. This mechanism is coupling the signature of the CSWM hash with the account,
+///      effectively preventing it from being replayed on another account owned by the same signer.
 ///
 ///      See `replaySafeHash()` for the implementation details.
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
 /// @author Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC1271.sol)
 abstract contract ERC1271 {
-    /// @dev Precomputed `typeHash` used to produce the ACARL (wrapping the OSH) hash using EIP-712.
+    /// @dev Precomputed `typeHash` used to produce the CSWM hash using EIP-712.
     ///
     ///      The OSH must either be:
     ///         - An EIP-191 hash: keccak256("\x19Ethereum Signed Message:\n" || len(someMessage) || someMessage)
     ///         - An EIP-712 hash: keccak256("\x19\x01" || someDomainSeparator || hashStruct(someStruct))
     bytes32 private constant _MESSAGE_TYPEHASH = keccak256("CoinbaseSmartWalletMessage(bytes32 hash)");
 
-    /// @notice Validates the `signature` against the given `hash` after wrapping it in an ACARL. Allows the implementing
-    ///         account to be used as a signer.
+    /// @notice Validates the `signature` against the given `hash` after wrapping it in a CSWM. It allows the
+    ///         implementing account to be used as a signer.
     ///
     /// @dev This implementation follows ERC-1271. See https://eips.ethereum.org/EIPS/eip-1271.
-    /// @dev The signature is validated against the ACARL hash of the given `hash`.
+    /// @dev IMPORTANT: The signature is validated against the CSWM hash.
     ///
     /// @param hash      The original signed hash.
-    /// @param signature The signature of the ACARL hash to validate.
+    /// @param signature The signature of the CSWM hash to validate.
     ///
     /// @return result `0x1626ba7e` if validation succeeded, else `0xffffffff`.
     function isValidSignature(bytes32 hash, bytes calldata signature) public view virtual returns (bytes4 result) {
@@ -47,7 +45,7 @@ abstract contract ERC1271 {
         return 0xffffffff;
     }
 
-    /// @notice User-friendly wrapper around `_eip712Hash()` to produce ACARL hash from the given OSH.
+    /// @notice User-friendly wrapper around `_eip712Hash()` to produce CSWM hash from the given OSH.
     ///
     /// @dev The returned EIP-712 compliant hash (see https://eips.ethereum.org/EIPS/eip-712)is the result of:
     ///      keccak256(
@@ -56,9 +54,9 @@ abstract contract ERC1271 {
     ///         hashStruct(CoinbaseSmartWalletMessage({ hash: `hash`}))
     ///      )
     ///
-    /// @param osh The original signed hash used to create an ACARL hash from.
+    /// @param osh The original signed hash used to create an CSWM hash from.
     ///
-    /// @return The resulting ACARL hash.
+    /// @return The resulting CSWM hash.
     function replaySafeHash(bytes32 osh) public view virtual returns (bytes32) {
         return _eip712Hash(osh);
     }
