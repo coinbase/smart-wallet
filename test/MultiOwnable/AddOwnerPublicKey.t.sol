@@ -22,6 +22,15 @@ contract AddOwnerPublicKeyTest is AddOwnerBaseTest {
         mock.addOwnerPublicKey(x, y);
     }
 
+    function testFuzzIsOwnerPublicKey(bytes32 x, bytes32 y) external {
+        vm.assume(x > 0 && y > 0);
+        vm.startPrank(owner1Address);
+        mock.addOwnerPublicKey(x, y);
+        bytes memory xy = abi.encode(x, y);
+        assert(mock.isOwnerBytes(xy));
+        assert(mock.isOwnerPublicKey(x, y));
+    }
+
     function _index() internal view override returns (uint256) {
         return mock.nextOwnerIndex();
     }
