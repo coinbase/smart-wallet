@@ -55,8 +55,8 @@ contract MultiOwnable {
     /// @param owner The invalid raw abi encoded owner bytes.
     error InvalidOwnerBytesLength(bytes owner);
 
-    /// @notice Reverted when trying to intialize the contracts owners if a provided owner 32 bytes long
-    ///         but does not fit in an `address` type (`uint160`).
+    /// @notice Reverted when trying to intialize the contracts owners if a provided owner is 32 bytes
+    ///         long but does not fit in an `address` type (`uint160`).
     ///
     /// @param owner The invalid raw abi encoded owner bytes.
     error InvalidEthereumAddressOwner(bytes owner);
