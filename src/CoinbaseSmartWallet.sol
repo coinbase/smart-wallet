@@ -40,28 +40,8 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
     /// @dev Helps enforce sequential sequencing of replayable transactions.
     uint256 public constant REPLAYABLE_NONCE_KEY = 8453;
 
-    /// @notice Reverted during signature validation when the given signature length is invalid.
-    ///
-    /// @dev ECDSA signature are expected to be exactly 65 bytes long (the r, s and v values).
-    /// @dev WebAuthn encoded structs are expected to be at least 66 bytes long.
-    ///
-    /// @param length The invalid received signature length.
-    error InvalidSignatureLength(uint256 length);
-
     /// @notice Reverted when trying to re-initialize an account.
     error Initialized();
-
-    /// @notice Reverted during signature validation when the retrieved owner bytes can't be
-    ///         associated with the given signature.
-    ///
-    /// @dev ECDSA signatures must be associated with ethereum address padded
-    ///      to 32 bytes.
-    /// @dev WebAuthn authentications must be associated with a owner of length 64 bytes: the X, Y
-    ///      values of the Secp256r1 public key.
-    ///
-    /// @param ownerIndex The given owner index that was used to retrieve the associated owner.
-    /// @param owner      The invalid owner bytes retrieved.
-    error InvalidOwnerForSignature(uint256 ownerIndex, bytes owner);
 
     /// @notice Reverted when executing a `UserOperation` that requires the chain ID to be validated
     ///         but this validation has been omitted.
@@ -109,8 +89,7 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
     modifier payPrefund(uint256 missingAccountFunds) virtual {
         _;
 
-        /// @solidity memory-safe-assembly
-        assembly {
+        assembly ("memory-safe") {
             if missingAccountFunds {
                 // Ignore failure (it's EntryPoint's job to verify, not the account's).
                 pop(call(gas(), caller(), missingAccountFunds, codesize(), 0x00, codesize(), 0x00))
@@ -282,7 +261,7 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
     function _call(address target, uint256 value, bytes memory data) internal {
         (bool success, bytes memory result) = target.call{value: value}(data);
         if (!success) {
-            assembly {
+            assembly ("memory-safe") {
                 revert(add(result, 32), mload(result))
             }
         }
@@ -311,24 +290,22 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
         SignatureWrapper memory sigWrapper = abi.decode(wrappedSignatureBytes, (SignatureWrapper));
         bytes memory ownerBytes = ownerAtIndex(sigWrapper.ownerIndex);
 
-        if (sigWrapper.signatureData.length == 65) {
-            if (ownerBytes.length != 32) revert InvalidOwnerForSignature(sigWrapper.ownerIndex, ownerBytes);
+        if (ownerBytes.length == 32) {
             if (uint256(bytes32(ownerBytes)) > type(uint160).max) {
-                revert InvalidOwnerForSignature(sigWrapper.ownerIndex, ownerBytes);
+                // technically should be impossible given owners can only be added with
+                // addOwnerAddress and addOwnerPublicKey, but we leave incase of future changes.
+                revert InvalidEthereumAddressOwner(ownerBytes);
             }
 
             address owner;
-            /// @solidity memory-safe-assembly
-            assembly {
+            assembly ("memory-safe") {
                 owner := mload(add(ownerBytes, 32))
             }
+
             return SignatureCheckerLib.isValidSignatureNow(owner, message, sigWrapper.signatureData);
         }
 
-        // Passkey signature
-        if (sigWrapper.signatureData.length > 65) {
-            if (ownerBytes.length != 64) revert InvalidOwnerForSignature(sigWrapper.ownerIndex, ownerBytes);
-
+        if (ownerBytes.length == 64) {
             (uint256 x, uint256 y) = abi.decode(ownerBytes, (uint256, uint256));
 
             WebAuthn.WebAuthnAuth memory auth = abi.decode(sigWrapper.signatureData, (WebAuthn.WebAuthnAuth));
@@ -342,7 +319,7 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
             });
         }
 
-        revert InvalidSignatureLength(sigWrapper.signatureData.length);
+        revert InvalidOwnerBytesLength(ownerBytes);
     }
 
     /// @inheritdoc UUPSUpgradeable

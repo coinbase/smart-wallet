@@ -32,6 +32,30 @@ contract TestIsValidSignature is SmartWalletTestBase {
         assertEq(ret, bytes4(0x1626ba7e));
     }
 
+    function testSmartWalletSigner() public {
+        MockCoinbaseSmartWallet otherAccount = new MockCoinbaseSmartWallet();
+        otherAccount.initialize(owners);
+
+        vm.prank(signer);
+        account.addOwnerAddress(address(otherAccount));
+
+        bytes32 hash = 0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5;
+        bytes32 toSign = account.replaySafeHash(hash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, otherAccount.replaySafeHash(toSign));
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        CoinbaseSmartWallet.SignatureWrapper memory wrapperForOtherAccount =
+            CoinbaseSmartWallet.SignatureWrapper(0, signature);
+
+        bytes memory sig = abi.encode(
+            CoinbaseSmartWallet.SignatureWrapper({ownerIndex: 2, signatureData: abi.encode(wrapperForOtherAccount)})
+        );
+
+        // check a valid signature
+        bytes4 ret = account.isValidSignature(hash, sig);
+        assertEq(ret, bytes4(0x1626ba7e));
+    }
+
     function testValidateSignatureWithPasskeySignerFailsBadOwnerIndex() public {
         bytes32 hash = 0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5;
         bytes32 challenge = account.replaySafeHash(hash);
@@ -56,7 +80,7 @@ contract TestIsValidSignature is SmartWalletTestBase {
             })
         );
 
-        vm.expectRevert(abi.encodeWithSelector(CoinbaseSmartWallet.InvalidOwnerForSignature.selector, uint8(2), ""));
+        vm.expectRevert(abi.encodeWithSelector(MultiOwnable.InvalidOwnerBytesLength.selector, hex""));
         account.isValidSignature(hash, sig);
     }
 
@@ -105,7 +129,7 @@ contract TestIsValidSignature is SmartWalletTestBase {
         assertEq(ret, bytes4(0xffffffff));
     }
 
-    function testRevertsIfPasskeySigButWrongOwnerLength() public {
+    function testReturnsInvalidIfPasskeySigButWrongOwnerLength() public {
         bytes32 hash = 0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5;
         bytes32 challenge = account.replaySafeHash(hash);
         WebAuthnInfo memory webAuthn = Utils.getWebAuthnStruct(challenge);
@@ -129,10 +153,8 @@ contract TestIsValidSignature is SmartWalletTestBase {
             })
         );
 
-        vm.expectRevert(
-            abi.encodeWithSelector(CoinbaseSmartWallet.InvalidOwnerForSignature.selector, uint8(0), abi.encode(signer))
-        );
-        account.isValidSignature(hash, sig);
+        bytes4 ret = account.isValidSignature(hash, sig);
+        assertEq(ret, bytes4(0xffffffff));
     }
 
     function testRevertsIfEthereumSignatureButWrongOwnerLength() public {
@@ -140,9 +162,7 @@ contract TestIsValidSignature is SmartWalletTestBase {
         bytes32 toSign = SignatureCheckerLib.toEthSignedMessageHash(account.replaySafeHash(hash));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, toSign);
         bytes memory signature = abi.encodePacked(r, s, v);
-        vm.expectRevert(
-            abi.encodeWithSelector(CoinbaseSmartWallet.InvalidOwnerForSignature.selector, uint8(1), passkeyOwner)
-        );
+        vm.expectRevert();
         account.isValidSignature(hash, abi.encode(CoinbaseSmartWallet.SignatureWrapper(1, signature)));
     }
 }
