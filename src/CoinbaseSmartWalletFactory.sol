@@ -11,7 +11,7 @@ import {CoinbaseSmartWallet} from "./CoinbaseSmartWallet.sol";
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
 /// @author Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC4337Factory.sol)
 contract CoinbaseSmartWalletFactory {
-    /// @notice Address of the ERC-4337 implementation used to deploy new cloned accounts.
+    /// @notice Address of the ERC-4337 implementation used as implementation for new accounts.
     address public immutable implementation;
 
     /// @notice Reverted when trying to create a new `CoinbaseSmartWallet` account without any owner.
