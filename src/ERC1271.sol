@@ -7,8 +7,8 @@ pragma solidity ^0.8.4;
 ///         signer being used on multiple accounts.
 ///
 /// @dev To prevent the same signature from being validated on different accounts owned by the samer signer,
-///      we introduce an anti cross-account-replay layer: the original signed hash (OSH) is wrapped in a
-///      `CoinbaseSmartWalletMessage` (CSWM) struct, which is itself hashed using EIP-712.
+///      we introduce an anti cross-account-replay layer: the original hash is wrapped in a `CoinbaseSmartWalletMessage`
+///      (CSWM) struct, which is itself hashed using EIP-712.
 ///
 ///      When hashing the CSWM, the `domainSeparator` used has its `verifyingContract` field set to the address
 ///      of the targeted account. This mechanism is coupling the signature of the CSWM hash with the account,
@@ -21,7 +21,7 @@ pragma solidity ^0.8.4;
 abstract contract ERC1271 {
     /// @dev Precomputed `typeHash` used to produce the CSWM hash using EIP-712.
     ///
-    ///      The OSH must either be:
+    ///      The original hash must either be:
     ///         - An EIP-191 hash: keccak256("\x19Ethereum Signed Message:\n" || len(someMessage) || someMessage)
     ///         - An EIP-712 hash: keccak256("\x19\x01" || someDomainSeparator || hashStruct(someStruct))
     bytes32 private constant _MESSAGE_TYPEHASH = keccak256("CoinbaseSmartWalletMessage(bytes32 hash)");
@@ -45,7 +45,7 @@ abstract contract ERC1271 {
         return 0xffffffff;
     }
 
-    /// @notice User-friendly wrapper around `_eip712Hash()` to produce CSWM hash from the given OSH.
+    /// @notice User-friendly wrapper around `_eip712Hash()` to produce CSWM hash from the given `hash`.
     ///
     /// @dev The returned EIP-712 compliant hash (see https://eips.ethereum.org/EIPS/eip-712)is the result of:
     ///      keccak256(
@@ -54,11 +54,11 @@ abstract contract ERC1271 {
     ///         hashStruct(CoinbaseSmartWalletMessage({ hash: `hash`}))
     ///      )
     ///
-    /// @param osh The original signed hash used to create an CSWM hash from.
+    /// @param hash The original hash used to create an CSWM hash from.
     ///
     /// @return The resulting CSWM hash.
-    function replaySafeHash(bytes32 osh) public view virtual returns (bytes32) {
-        return _eip712Hash(osh);
+    function replaySafeHash(bytes32 hash) public view virtual returns (bytes32) {
+        return _eip712Hash(hash);
     }
 
     /// @notice Returns information about the `EIP712Domain` used to create EIP-712 compliant hashes.
