@@ -22,6 +22,39 @@ abstract contract ERC1271 {
     ///         - An EIP-712 hash: keccak256("\x19\x01" || someDomainSeparator || hashStruct(someStruct))
     bytes32 private constant _MESSAGE_TYPEHASH = keccak256("CoinbaseSmartWalletMessage(bytes32 hash)");
 
+    /// @notice Returns information about the `EIP712Domain` used to create EIP-712 compliant hashes.
+    ///
+    /// @dev Follows ERC-5267 (see https://eips.ethereum.org/EIPS/eip-5267).
+    ///
+    /// @return fields The bitmap of used fields.
+    /// @return name The value of the `EIP712Domain.name` field.
+    /// @return version The value of the `EIP712Domain.version` field.
+    /// @return chainId The value of the `EIP712Domain.chainId` field.
+    /// @return verifyingContract The value of the `EIP712Domain.verifyingContract` field.
+    /// @return salt The value of the `EIP712Domain.salt` field.
+    /// @return extensions The list of EIP numbers, that extends EIP-712 with new domain fields.
+    function eip712Domain()
+        external
+        view
+        virtual
+        returns (
+            bytes1 fields,
+            string memory name,
+            string memory version,
+            uint256 chainId,
+            address verifyingContract,
+            bytes32 salt,
+            uint256[] memory extensions
+        )
+    {
+        fields = hex"0f"; // `0b1111`.
+        (name, version) = _domainNameAndVersion();
+        chainId = block.chainid;
+        verifyingContract = address(this);
+        salt = salt; // `bytes32(0)`.
+        extensions = extensions; // `new uint256[](0)`.
+    }
+
     /// @notice Validates the `signature` against the given `hash`.
     ///
     /// @dev This implementation follows ERC-1271. See https://eips.ethereum.org/EIPS/eip-1271.
@@ -56,39 +89,6 @@ abstract contract ERC1271 {
     /// @return The corresponding replay-safe hash.
     function replaySafeHash(bytes32 hash) public view virtual returns (bytes32) {
         return _eip712Hash(hash);
-    }
-
-    /// @notice Returns information about the `EIP712Domain` used to create EIP-712 compliant hashes.
-    ///
-    /// @dev Follows ERC-5267 (see https://eips.ethereum.org/EIPS/eip-5267).
-    ///
-    /// @return fields The bitmap of used fields.
-    /// @return name The value of the `EIP712Domain.name` field.
-    /// @return version The value of the `EIP712Domain.version` field.
-    /// @return chainId The value of the `EIP712Domain.chainId` field.
-    /// @return verifyingContract The value of the `EIP712Domain.verifyingContract` field.
-    /// @return salt The value of the `EIP712Domain.salt` field.
-    /// @return extensions The list of EIP numbers, that extends EIP-712 with new domain fields.
-    function eip712Domain()
-        external
-        view
-        virtual
-        returns (
-            bytes1 fields,
-            string memory name,
-            string memory version,
-            uint256 chainId,
-            address verifyingContract,
-            bytes32 salt,
-            uint256[] memory extensions
-        )
-    {
-        fields = hex"0f"; // `0b1111`.
-        (name, version) = _domainNameAndVersion();
-        chainId = block.chainid;
-        verifyingContract = address(this);
-        salt = salt; // `bytes32(0)`.
-        extensions = extensions; // `new uint256[](0)`.
     }
 
     /// @notice Returns the `domainSeparator` used to create EIP-712 compliant hashes.
