@@ -73,7 +73,7 @@ contract MultiOwnable {
     /// @param owner The raw abi encoded owner bytes.
     event RemoveOwner(uint256 indexed index, bytes owner);
 
-    /// @notice Access control modifier ensuring the caller is an owner fo this account (or the account itself).
+    /// @notice Access control modifier ensuring the caller is an authorized owner
     modifier onlyOwner() virtual {
         _checkOwner();
         _;
