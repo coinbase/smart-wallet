@@ -60,8 +60,8 @@ contract CoinbaseSmartWalletFactory {
 
     /// @notice Returns the deterministic address of the account created via `createAccount()`.
     ///
-    /// @param owners The initial set of owners that was / will be provided to `createAccount()`.
-    /// @param nonce  The nonce that was / will be provided to `createAccount()`.
+    /// @param owners The initial set of owners provided to `createAccount()`.
+    /// @param nonce  The nonce provided to `createAccount()`.
     ///
     /// @return predicted The predicted account deployment address.
     function getAddress(bytes[] calldata owners, uint256 nonce) external view returns (address predicted) {
@@ -81,8 +81,8 @@ contract CoinbaseSmartWalletFactory {
 
     /// @notice Returns the salt that will be / was used to deploy the account (using create2).
     ///
-    /// @param owners The initial set of owners that was / will be provided to `createAccount()`.
-    /// @param nonce  The nonce that was / will be provided to `createAccount()`.
+    /// @param owners The initial set of owners provided to `createAccount()`.
+    /// @param nonce  The nonce provided to `createAccount()`.
     ///
     /// @return salt The computed salt.
     function _getSalt(bytes[] calldata owners, uint256 nonce) internal pure returns (bytes32 salt) {
