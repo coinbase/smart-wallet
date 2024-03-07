@@ -203,7 +203,7 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
     ///
     /// @param calls The list of `Call`s to execute.
     function executeBatch(Call[] calldata calls) public payable virtual onlyEntryPointOrOwner {
-        for (uint256 i = 0; i < calls.length;) {
+        for (uint256 i; i < calls.length;) {
             _call(calls[i].target, calls[i].value, calls[i].data);
             unchecked {
                 ++i;

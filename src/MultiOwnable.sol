@@ -160,7 +160,7 @@ contract MultiOwnable {
     ///
     /// @param owners The intiial list of owners to register.
     function _initializeOwners(bytes[] memory owners) internal virtual {
-        for (uint256 i = 0; i < owners.length; i++) {
+        for (uint256 i; i < owners.length; i++) {
             if (owners[i].length != 32 && owners[i].length != 64) {
                 revert InvalidOwnerBytesLength(owners[i]);
             }
