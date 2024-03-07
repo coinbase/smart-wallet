@@ -30,8 +30,9 @@ struct MultiOwnableStorage {
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
 contract MultiOwnable {
-    /// @dev Slot or the `MultiOwnableStorage` struct in storage.
+    /// @dev Slot for the `MultiOwnableStorage` struct in storage.
     ///      Computed from: keccak256(abi.encode(uint256(keccak256("coinbase.storage.MultiOwnable")) - 1)) & ~bytes32(uint256(0xff))
+    ///      Follows ERC-7201 (see https://eips.ethereum.org/EIPS/eip-7201).
     bytes32 private constant MultiOwnableStorageLocation =
         0x97e2c6aad4ce5d562ebfaa00db6b9e0fb66ea5d8162ed5b243f51a2e03086f00;
 

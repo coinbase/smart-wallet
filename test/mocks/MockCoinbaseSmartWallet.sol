@@ -9,7 +9,7 @@ import {CoinbaseSmartWallet} from "../../src/CoinbaseSmartWallet.sol";
 contract MockCoinbaseSmartWallet is CoinbaseSmartWallet {
     constructor() {
         // allow for easier testing
-        _$().nextOwnerIndex = 0;
+        _getMultiOwnableStorage().nextOwnerIndex = 0;
     }
 
     function _brutalized(address a) private pure returns (address result) {
