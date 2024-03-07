@@ -96,7 +96,7 @@ contract MultiOwnable {
 
     /// @notice Removes an owner from the given `index`.
     ///
-    /// @dev Revert if not owner is registered at `index`.
+    /// @dev Reverts if the owner is not registered at `index`.
     ///
     /// @param index The index to remove from.
     function removeOwnerAtIndex(uint256 index) public virtual onlyOwner {
