@@ -4,7 +4,7 @@ pragma solidity ^0.8.4;
 /// @title ERC-1271 With Cross Account Replay Protection
 ///
 /// @notice Abstract ERC-1271 implementation (based on Solady's) with guards to handle the same
-///         signer being used on multiple accounts, using a nested approach based on EIP-712.
+///         signer being used on multiple accounts.
 ///
 /// @dev To prevent the same signature from being validated on different accounts owned by the samer signer,
 ///      we introduce an anti cross-account-replay layer: the original signed hash (OSH) is wrapped in a
