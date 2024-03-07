@@ -10,9 +10,7 @@ struct MultiOwnableStorage {
     /// @dev Mapping of indices to raw owner bytes, used to idenfitied owners by their
     ///      uint256 id (to economize calldata).
     ///      NOTE: `uint256` rather than a smaller uint because it provides flexibility,
-    ///      like never run out of owner indexes (practically), at little to no cost.
-    ///      Furthermore on L2, where calldata gas is a concern we should not be charged
-    ///      for the extra 0 bytes.
+    ///      in that we will practically never run out of indices.
     ///
     ///      In the context of checking whether something was signed by an owner this
     ///      means that the signature also needs to include the id of the owner.

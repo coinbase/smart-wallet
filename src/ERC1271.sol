@@ -7,33 +7,30 @@ pragma solidity ^0.8.4;
 ///         signer being used on multiple accounts.
 ///
 /// @dev To prevent the same signature from being validated on different accounts owned by the samer signer,
-///      we introduce an anti cross-account-replay layer: the original hash is wrapped in a `CoinbaseSmartWalletMessage`
-///      (CSWM) struct, which is itself hashed using EIP-712.
-///
-///      When hashing the CSWM, the `domainSeparator` used has its `verifyingContract` field set to the address
-///      of the targeted account. This mechanism is coupling the signature of the CSWM hash with the account,
-///      effectively preventing it from being replayed on another account owned by the same signer.
-///
-///      See `replaySafeHash()` for the implementation details.
+///      we introduce an anti cross-account-replay layer: the original hash is input into a new EIP-712 compliant
+///      hash. The domain separator of this outer hash contains the chain id and address of this contract, so that
+///      it cannot be used on two accounts (see `replaySafeHash()` for the implementation details).
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
 /// @author Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC1271.sol)
 abstract contract ERC1271 {
-    /// @dev Precomputed `typeHash` used to produce the CSWM hash using EIP-712.
+    /// @dev Precomputed `typeHash` used to produce EIP-712 compliant hash when applying the anti
+    ///      cross-account-replay layer.
     ///
     ///      The original hash must either be:
     ///         - An EIP-191 hash: keccak256("\x19Ethereum Signed Message:\n" || len(someMessage) || someMessage)
     ///         - An EIP-712 hash: keccak256("\x19\x01" || someDomainSeparator || hashStruct(someStruct))
     bytes32 private constant _MESSAGE_TYPEHASH = keccak256("CoinbaseSmartWalletMessage(bytes32 hash)");
 
-    /// @notice Validates the `signature` against the given `hash` after wrapping it in a CSWM. It allows the
-    ///         implementing account to be used as a signer.
+    /// @notice Validates the `signature` against the given `hash`.
     ///
     /// @dev This implementation follows ERC-1271. See https://eips.ethereum.org/EIPS/eip-1271.
-    /// @dev IMPORTANT: The signature is validated against the CSWM hash.
+    /// @dev IMPORTANT: Signature verification is performed on the hash produced AFTER applying the anti
+    ///      cross-account-replay layer on the given `hash` (i.e., verification is run on the replay-safe
+    ///      hash version).
     ///
-    /// @param hash      The original signed hash.
-    /// @param signature The signature of the CSWM hash to validate.
+    /// @param hash      The original hash.
+    /// @param signature The signature of the replay-safe hash to validate.
     ///
     /// @return result `0x1626ba7e` if validation succeeded, else `0xffffffff`.
     function isValidSignature(bytes32 hash, bytes calldata signature) public view virtual returns (bytes4 result) {
@@ -45,18 +42,18 @@ abstract contract ERC1271 {
         return 0xffffffff;
     }
 
-    /// @notice User-friendly wrapper around `_eip712Hash()` to produce CSWM hash from the given `hash`.
+    /// @notice Wrapper around `_eip712Hash()` to produce a replay-safe hash fron the given `hash`.
     ///
-    /// @dev The returned EIP-712 compliant hash (see https://eips.ethereum.org/EIPS/eip-712)is the result of:
+    /// @dev The returned EIP-712 compliant replay-safe hash is the result of:
     ///      keccak256(
     ///         \x19\x01 ||
     ///         this.domainSeparator ||
     ///         hashStruct(CoinbaseSmartWalletMessage({ hash: `hash`}))
     ///      )
     ///
-    /// @param hash The original hash used to create an CSWM hash from.
+    /// @param hash The original hash.
     ///
-    /// @return The resulting CSWM hash.
+    /// @return The corresponding replay-safe hash.
     function replaySafeHash(bytes32 hash) public view virtual returns (bytes32) {
         return _eip712Hash(hash);
     }
