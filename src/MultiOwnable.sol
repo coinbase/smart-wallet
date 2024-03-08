@@ -9,11 +9,11 @@ struct MultiOwnableStorage {
     uint256 nextOwnerIndex;
     /// @dev Mapping of indices to raw owner bytes, used to idenfitied owners by their
     ///      uint256 id (to economize calldata).
-    ///      NOTE: `uint256` rather than a smaller uint because it provides flexibility,
-    ///      in that we will practically never run out of indices.
     ///
-    ///      In the context of checking whether something was signed by an owner this
-    ///      means that the signature also needs to include the id of the owner.
+    ///      Some uses -such as signature validation for secp256r1 public key owners-
+    ///      requires the caller to assert which owner signed. To economize calldata,
+    ///      we allow an index to identify an owner, so that the full owner bytes do
+    ///      not need to be passed.
     ///
     ///      The underlying raw bytes can either be:
     ///         - An abi encoded ethereum address
