@@ -8,9 +8,9 @@ struct MultiOwnableStorage {
     /// @dev Tracks the index of the next owner to add.
     uint256 nextOwnerIndex;
     /// @dev Mapping of indices to raw owner bytes, used to idenfitied owners by their
-    ///      uint256 id (to economize calldata).
+    ///      uint256 id.
     ///
-    ///      Some uses -such as signature validation for secp256r1 public key owners-
+    ///      Some uses —-such as signature validation for secp256r1 public key owners—-
     ///      requires the caller to assert which owner signed. To economize calldata,
     ///      we allow an index to identify an owner, so that the full owner bytes do
     ///      not need to be passed.
