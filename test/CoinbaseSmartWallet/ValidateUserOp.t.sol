@@ -28,7 +28,7 @@ contract TestValidateUserOp is SmartWalletTestBase {
         vm.etch(account.entryPoint(), address(new MockEntryPoint()).code);
         MockEntryPoint ep = MockEntryPoint(payable(account.entryPoint()));
 
-        UserOperation memory userOp;
+        PackedUserOperation memory userOp;
         // Success returns 0.
         userOp.signature = abi.encode(CoinbaseSmartWallet.SignatureWrapper(0, abi.encodePacked(t.r, t.s, t.v)));
         assertEq(ep.validateUserOp(address(account), userOp, t.userOpHash, t.missingAccountFunds), 0);

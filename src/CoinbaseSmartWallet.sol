@@ -4,7 +4,7 @@ pragma solidity 0.8.23;
 import {Receiver} from "solady/accounts/Receiver.sol";
 import {UUPSUpgradeable} from "solady/utils/UUPSUpgradeable.sol";
 import {SignatureCheckerLib} from "solady/utils/SignatureCheckerLib.sol";
-import {UserOperation, UserOperationLib} from "account-abstraction/interfaces/UserOperation.sol";
+import {PackedUserOperation, UserOperationLib} from "account-abstraction/core/UserOperationLib.sol";
 import {WebAuthn} from "webauthn-sol/WebAuthn.sol";
 
 import {ERC1271} from "./ERC1271.sol";
@@ -132,7 +132,7 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
     /// @param missingAccountFunds The missing account funds that must be deposited on the Entrypoint.
     ///
     /// @return validationData The encoded `ValidationData` structure.
-    function validateUserOp(UserOperation calldata userOp, bytes32 userOpHash, uint256 missingAccountFunds)
+    function validateUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash, uint256 missingAccountFunds)
         public
         payable
         virtual
@@ -224,7 +224,7 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
     /// @param userOp The `UserOperation` to compute the hash for.
     ///
     /// @return userOpHash The `UserOperation` hash, not including the chain ID.
-    function getUserOpHashWithoutChainId(UserOperation calldata userOp)
+    function getUserOpHashWithoutChainId(PackedUserOperation calldata userOp)
         public
         view
         virtual

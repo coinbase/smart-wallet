@@ -31,34 +31,32 @@ contract SmartWalletTestBase is Test {
         account.initialize(owners);
     }
 
-    function _sendUserOperation(UserOperation memory userOp) internal {
-        UserOperation[] memory ops = new UserOperation[](1);
+    function _sendUserOperation(PackedUserOperation memory userOp) internal {
+        PackedUserOperation[] memory ops = new PackedUserOperation[](1);
         ops[0] = userOp;
         entryPoint.handleOps(ops, payable(bundler));
     }
 
-    function _getUserOp() internal view returns (UserOperation memory userOp) {
-        userOp = UserOperation({
+    function _getUserOp() internal view returns (PackedUserOperation memory userOp) {
+        userOp = PackedUserOperation({
             sender: address(account),
             nonce: userOpNonce,
             initCode: "",
             callData: userOpCalldata,
-            callGasLimit: uint256(1_000_000),
-            verificationGasLimit: uint256(1_000_000),
+            accountGasLimits: bytes32(uint256(1_000_000) << 128 | uint256(1_000_000)),
             preVerificationGas: uint256(0),
-            maxFeePerGas: uint256(0),
-            maxPriorityFeePerGas: uint256(0),
+            gasFees: bytes32(uint256(0) << 128 | uint256(0)),
             paymasterAndData: "",
             signature: ""
         });
     }
 
-    function _getUserOpWithSignature() internal view returns (UserOperation memory userOp) {
+    function _getUserOpWithSignature() internal view returns (PackedUserOperation memory userOp) {
         userOp = _getUserOp();
         userOp.signature = _sign(userOp);
     }
 
-    function _sign(UserOperation memory userOp) internal view virtual returns (bytes memory signature) {
+    function _sign(PackedUserOperation memory userOp) internal view virtual returns (bytes memory signature) {
         bytes32 toSign = entryPoint.getUserOpHash(userOp);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, toSign);
         signature = abi.encodePacked(uint8(0), r, s, v);

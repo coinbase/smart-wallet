@@ -17,7 +17,7 @@ contract TestExecuteWithoutChainIdValidation is SmartWalletTestBase {
 
     function test_revertsIfWrongNonceKey() public {
         userOpNonce = 0;
-        UserOperation memory userOp = _getUserOpWithSignature();
+        PackedUserOperation memory userOp = _getUserOpWithSignature();
         vm.expectRevert();
         _sendUserOperation(userOp);
     }
@@ -39,15 +39,15 @@ contract TestExecuteWithoutChainIdValidation is SmartWalletTestBase {
             CoinbaseSmartWallet.executeWithoutChainIdValidation.selector,
             abi.encodeWithSelector(CoinbaseSmartWallet.execute.selector, "")
         );
-        UserOperation memory userOp = _getUserOpWithSignature();
+        PackedUserOperation memory userOp = _getUserOpWithSignature();
         vm.expectEmit(true, true, true, true);
         emit IEntryPoint.UserOperationEvent(
-            entryPoint.getUserOpHash(userOp), userOp.sender, address(0), userOp.nonce, false, 0, 48027
+            entryPoint.getUserOpHash(userOp), userOp.sender, address(0), userOp.nonce, false, 0, 146136
         );
         _sendUserOperation(userOp);
     }
 
-    function _sign(UserOperation memory userOp) internal view override returns (bytes memory signature) {
+    function _sign(PackedUserOperation memory userOp) internal view override returns (bytes memory signature) {
         bytes32 toSign = account.getUserOpHashWithoutChainId(userOp);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, toSign);
         signature = abi.encode(CoinbaseSmartWallet.SignatureWrapper(0, abi.encodePacked(r, s, v)));
