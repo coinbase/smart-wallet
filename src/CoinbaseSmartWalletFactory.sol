@@ -79,7 +79,7 @@ contract CoinbaseSmartWalletFactory {
         result = LibClone.initCodeHashERC1967(implementation);
     }
 
-    /// @notice Returns the salt that will be / was used to deploy the account (using create2).
+    /// @notice Returns the deterministic salt for a specific set of `owners` and `nonce`.
     ///
     /// @param owners The initial set of owners provided to `createAccount()`.
     /// @param nonce  The nonce provided to `createAccount()`.
