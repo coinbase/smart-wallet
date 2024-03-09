@@ -145,7 +145,7 @@ abstract contract ERC1271 {
     /// @notice Validate the `signature` against the given `message`.
     ///
     /// @dev MUST be defined by the implementation.
-    /// @dev The `signature` content MIGHT NOT necessarily be the usual (r,s,v) values. It is the responsability
+    /// @dev The `signature` content MIGHT NOT necessarily be the usual (r,s,v) values. It is the responsibility
     ///      of the implementation to decode `signature` depending on its usecase.
     ///
     /// @param message   The message whose signature has been performed on.
