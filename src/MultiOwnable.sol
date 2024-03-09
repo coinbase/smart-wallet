@@ -36,26 +36,26 @@ contract MultiOwnable {
     bytes32 private constant MUTLI_OWNABLE_STORAGE_LOCATION =
         0x97e2c6aad4ce5d562ebfaa00db6b9e0fb66ea5d8162ed5b243f51a2e03086f00;
 
-    /// @notice Reverted when the sender is not an owner and is trying to call a privileged function.
+    /// @notice Thrown when the sender is not an owner and is trying to call a privileged function.
     error Unauthorized();
 
-    /// @notice Reverted when trying to add an already registered owner.
+    /// @notice Thrown when trying to add an already registered owner.
     ///
     /// @param owner The raw abi encoded owner bytes.
     error AlreadyOwner(bytes owner);
 
-    /// @notice Reverted when trying to remove an owner from an index that is empty.
+    /// @notice Thrown when trying to remove an owner from an index that is empty.
     ///
     /// @param index The targeted index for removal.
     error NoOwnerAtIndex(uint256 index);
 
-    /// @notice Reverted when trying to intialize the contracts owners if a provided owner is neither
+    /// @notice Thrown when trying to intialize the contracts owners if a provided owner is neither
     ///         64 bytes long (for passkey) nor a valid address.
     ///
     /// @param owner The invalid raw abi encoded owner bytes.
     error InvalidOwnerBytesLength(bytes owner);
 
-    /// @notice Reverted when trying to intialize the contracts owners if a provided owner is 32 bytes
+    /// @notice Thrown when trying to intialize the contracts owners if a provided owner is 32 bytes
     ///         long but does not fit in an `address` type (`uint160`).
     ///
     /// @param owner The invalid raw abi encoded owner bytes.

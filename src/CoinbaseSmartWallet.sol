@@ -42,10 +42,10 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
     /// @dev Helps enforce sequential sequencing of replayable transactions.
     uint256 public constant REPLAYABLE_NONCE_KEY = 8453;
 
-    /// @notice Reverted when trying to re-initialize an account.
+    /// @notice Thrown when trying to re-initialize an account.
     error Initialized();
 
-    /// @notice Reverted when executing a `UserOperation` that requires the chain ID to be validated
+    /// @notice Thrown when executing a `UserOperation` that requires the chain ID to be validated
     ///         but this validation has been omitted.
     ///
     /// @dev Whitelisting of `UserOperation`s that are allowed to skip the chain ID validation is
@@ -54,7 +54,7 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
     /// @param selector The user operation call selector that raised the error.
     error SelectorNotAllowed(bytes4 selector);
 
-    /// @notice Reverted during a `UserOperation` validation when its key is invalid.
+    /// @notice Thrown during a `UserOperation` validation when its key is invalid.
     ///
     /// @dev The `UserOperation` key validation is based on the `UserOperation` call selector.
     ///

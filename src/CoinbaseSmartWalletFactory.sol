@@ -14,7 +14,7 @@ contract CoinbaseSmartWalletFactory {
     /// @notice Address of the ERC-4337 implementation used as implementation for new accounts.
     address public immutable implementation;
 
-    /// @notice Reverted when trying to create a new `CoinbaseSmartWallet` account without any owner.
+    /// @notice Thrown when trying to create a new `CoinbaseSmartWallet` account without any owner.
     error OwnerRequired();
 
     /// @notice Factory constructor used to initialize the implementation address to use for future
