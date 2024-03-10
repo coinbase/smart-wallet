@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import {LibClone} from "solady/utils/LibClone.sol";
+import {Clones} from "openzeppelin-contracts/contracts/proxy/Clones.sol";
 import {CoinbaseSmartWallet} from "./CoinbaseSmartWallet.sol";
 
 /// @title Coinbase Smart Wallet Factory
@@ -31,24 +31,22 @@ contract CoinbaseSmartWalletFactory {
             revert OwnerRequired();
         }
 
-        (bool alreadyDeployed, address accountAddress) =
-            LibClone.createDeterministicERC1967(msg.value, implementation, _getSalt(owners, nonce));
+        bytes32 salt = _getSalt(owners, nonce);
+        address accountAddress = Clones.predictDeterministicAddress(implementation, salt, address(this));
 
         account = CoinbaseSmartWallet(payable(accountAddress));
 
-        if (alreadyDeployed == false) {
-            account.initialize(owners);
+        if (address(account).code.length > 0) {
+            return account;
         }
+
+        Clones.cloneDeterministic(implementation, salt);
+        account.initialize{value: msg.value}(owners);
     }
 
     /// @dev Returns the deterministic address of the account created via `createAccount`.
     function getAddress(bytes[] calldata owners, uint256 nonce) external view returns (address predicted) {
-        predicted = LibClone.predictDeterministicAddress(initCodeHash(), _getSalt(owners, nonce), address(this));
-    }
-
-    /// @dev Returns the initialization code hash of the ERC4337 account (a minimal ERC1967 proxy).
-    function initCodeHash() public view virtual returns (bytes32 result) {
-        result = LibClone.initCodeHashERC1967(implementation);
+        predicted = Clones.predictDeterministicAddress(implementation, _getSalt(owners, nonce), address(this));
     }
 
     /// @dev Returns the salt that will be used for deterministic address

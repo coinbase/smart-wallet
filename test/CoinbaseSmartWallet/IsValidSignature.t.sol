@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import {SignatureCheckerLib} from "solady/utils/SignatureCheckerLib.sol";
+
 import "./SmartWalletTestBase.sol";
 import "webauthn-sol/../test/Utils.sol";
 

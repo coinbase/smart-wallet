@@ -2,8 +2,9 @@
 pragma solidity 0.8.23;
 
 import {Receiver} from "solady/accounts/Receiver.sol";
-import {UUPSUpgradeable} from "solady/utils/UUPSUpgradeable.sol";
-import {SignatureCheckerLib} from "solady/utils/SignatureCheckerLib.sol";
+import {UUPSUpgradeable} from "openzeppelin-contracts/contracts/proxy/utils/UUPSUpgradeable.sol";
+import {ERC1967Utils} from "openzeppelin-contracts/contracts/proxy/ERC1967/ERC1967Utils.sol";
+import {SignatureChecker} from "openzeppelin-contracts/contracts/utils/cryptography/SignatureChecker.sol";
 import {UserOperation, UserOperationLib} from "account-abstraction/interfaces/UserOperation.sol";
 import {WebAuthn} from "webauthn-sol/WebAuthn.sol";
 
@@ -209,6 +210,10 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
         }
     }
 
+    function upgradeToAndCall(address newImplementation, bytes memory data) public payable override {
+        ERC1967Utils.upgradeToAndCall(newImplementation, data);
+    }
+
     /// @notice Returns the address of the EntryPoint v0.6.
     ///
     /// @return The address of the EntryPoint v0.6
@@ -302,7 +307,7 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
                 owner := mload(add(ownerBytes, 32))
             }
 
-            return SignatureCheckerLib.isValidSignatureNow(owner, message, sigWrapper.signatureData);
+            return SignatureChecker.isValidSignatureNow(owner, message, sigWrapper.signatureData);
         }
 
         if (ownerBytes.length == 64) {

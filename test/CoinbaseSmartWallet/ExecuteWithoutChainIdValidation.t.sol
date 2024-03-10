@@ -42,7 +42,7 @@ contract TestExecuteWithoutChainIdValidation is SmartWalletTestBase {
         UserOperation memory userOp = _getUserOpWithSignature();
         vm.expectEmit(true, true, true, true);
         emit IEntryPoint.UserOperationEvent(
-            entryPoint.getUserOpHash(userOp), userOp.sender, address(0), userOp.nonce, false, 0, 48027
+            entryPoint.getUserOpHash(userOp), userOp.sender, address(0), userOp.nonce, false, 0, 48423
         );
         _sendUserOperation(userOp);
     }
