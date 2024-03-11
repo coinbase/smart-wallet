@@ -106,7 +106,7 @@ contract MultiOwnable {
         delete _getMultiOwnableStorage().isOwner[owner];
         delete _getMultiOwnableStorage().ownerAtIndex[index];
 
-        emit RemoveOwner({index: index, owner: owner});
+        emit RemoveOwner(index, owner);
     }
 
     /// @notice Checks if the given `account` address is registered as owner.
@@ -169,7 +169,7 @@ contract MultiOwnable {
                 revert InvalidEthereumAddressOwner(owners[i]);
             }
 
-            _addOwnerAtIndex({owner: owners[i], index: _getMultiOwnableStorage().nextOwnerIndex++});
+            _addOwnerAtIndex(owners[i], _getMultiOwnableStorage().nextOwnerIndex++);
         }
     }
 
@@ -177,7 +177,7 @@ contract MultiOwnable {
     ///
     /// @param owner The owner raw bytes to add.
     function _addOwner(bytes memory owner) internal virtual {
-        _addOwnerAtIndex({owner: owner, index: _getMultiOwnableStorage().nextOwnerIndex++});
+        _addOwnerAtIndex(owner, _getMultiOwnableStorage().nextOwnerIndex++);
     }
 
     /// @notice Adds an owner at the given `index`.
@@ -192,7 +192,7 @@ contract MultiOwnable {
         _getMultiOwnableStorage().isOwner[owner] = true;
         _getMultiOwnableStorage().ownerAtIndex[index] = owner;
 
-        emit AddOwner({index: index, owner: owner});
+        emit AddOwner(index, owner);
     }
 
     /// @notice Checks if the sender is an owner of this contract or the contract itself.

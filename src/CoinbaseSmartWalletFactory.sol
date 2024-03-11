@@ -45,11 +45,8 @@ contract CoinbaseSmartWalletFactory {
             revert OwnerRequired();
         }
 
-        (bool alreadyDeployed, address accountAddress) = LibClone.createDeterministicERC1967({
-            value: msg.value,
-            implementation: implementation,
-            salt: _getSalt(owners, nonce)
-        });
+        (bool alreadyDeployed, address accountAddress) =
+            LibClone.createDeterministicERC1967(msg.value, implementation, _getSalt(owners, nonce));
 
         account = CoinbaseSmartWallet(payable(accountAddress));
 
@@ -65,11 +62,7 @@ contract CoinbaseSmartWalletFactory {
     ///
     /// @return predicted The predicted account deployment address.
     function getAddress(bytes[] calldata owners, uint256 nonce) external view returns (address predicted) {
-        predicted = LibClone.predictDeterministicAddress({
-            hash: initCodeHash(),
-            salt: _getSalt(owners, nonce),
-            deployer: address(this)
-        });
+        predicted = LibClone.predictDeterministicAddress(initCodeHash(), _getSalt(owners, nonce), address(this));
     }
 
     /// @notice Returns the initialization code hash of the account (a minimal ERC1967 proxy).
