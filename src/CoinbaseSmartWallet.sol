@@ -2,7 +2,7 @@
 pragma solidity 0.8.23;
 
 import {Receiver} from "solady/accounts/Receiver.sol";
-import {UUPSUpgradeable} from "solady/utils/UUPSUpgradeable.sol";
+import {UUPSUpgradeable} from "openzeppelin-contracts/contracts/proxy/utils/UUPSUpgradeable.sol";
 import {SignatureChecker} from "openzeppelin-contracts/contracts/utils/cryptography/SignatureChecker.sol";
 import {UserOperation, UserOperationLib} from "account-abstraction/interfaces/UserOperation.sol";
 import {WebAuthn} from "webauthn-sol/WebAuthn.sol";
