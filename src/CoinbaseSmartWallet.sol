@@ -235,6 +235,15 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
         return keccak256(abi.encode(UserOperationLib.hash(userOp), entryPoint()));
     }
 
+    /// @notice Returns the implementation of the ERC1967 proxy.
+    ///
+    /// @return $ the address the implementation contract
+    function implementation() public view returns (address $) {
+        assembly {
+            $ := sload(_ERC1967_IMPLEMENTATION_SLOT)
+        }
+    }
+
     /// @notice Check if the given function selector is whitelisted to skip the chain ID validation.
     ///
     /// @param functionSelector The function selector to check.
