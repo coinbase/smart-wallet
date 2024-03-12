@@ -52,7 +52,7 @@ contract MultiOwnable {
     }
 
     /// @dev removes an owner, identified by a specific index
-    function removeOwnerAtIndex(uint8 index) public virtual onlyOwner {
+    function removeOwnerAtIndex(uint256 index) public virtual onlyOwner {
         bytes memory owner = ownerAtIndex(index);
         if (owner.length == 0) revert NoOwnerAtIndex(index);
 
