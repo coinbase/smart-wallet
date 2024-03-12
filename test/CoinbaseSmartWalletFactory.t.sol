@@ -51,4 +51,8 @@ contract CoinbaseSmartWalletFactoryTest is Test {
         CoinbaseSmartWallet a = factory.createAccount{value: 1e18}(owners, 0);
         assertEq(address(a).balance, 1e18);
     }
+
+    function test_implementation_returnsExpectedAddress() public {
+        assertEq(factory.implementation(), address(account));
+    }
 }

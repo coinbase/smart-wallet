@@ -3,22 +3,26 @@ pragma solidity ^0.8.0;
 
 import {CoinbaseSmartWallet} from "../CoinbaseSmartWallet.sol";
 
+/// @title ERC1271 Input Generator
+///
 /// @notice Helper contract for generating an ERC-1271 input hash to sign for deployed and undeployed CoinbaseSmartWallet.
-/// May be useful for generating ERC-6492 compliant signatures.
-/// Inspired by Ambire's DeploylessUniversalSigValidator (https://github.com/AmbireTech/signature-validator/blob/main/contracts/DeploylessUniversalSigValidator.sol)
-/// @dev This contract is not meant to ever actually be deployed, only mock deployed and used via a static eth_call
+///         May be useful for generating ERC-6492 compliant signatures.
+///         Inspired by Ambire's DeploylessUniversalSigValidator (https://github.com/AmbireTech/signature-validator/blob/main/contracts/DeploylessUniversalSigValidator.sol)
+///
+/// @dev This contract is not meant to ever actually be deployed, only mock deployed and used via a static eth_call.
+///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
 contract ERC1271InputGenerator {
-    /// @notice Computes and returns the expected ERC-1271 input hash for a CoinbaseSmartWallet
+    /// @notice Computes and returns the expected ERC-1271 replay-safe hash for a CoinbaseSmartWallet.
     ///
-    /// @dev If calling with solidity, replaySafeHash will be `<returned address>.code`
+    /// @dev `accountFactory` can be any address if the account is already deployed.
+    /// @dev `factoryCalldata` can be 0x if the account is already deployed.
+    /// @dev If calling with solidity, the `replaySafeHash` will be `<returned address>.code`.
     ///
-    /// @param account the account that will receive the ERC-1271 isValidSignature call
-    /// @param hash the hash the wallet was asked to sign
-    /// @param accountFactory the factory that will be used to deploy the account if it is not already deployed
-    /// can be any address if account is deployed
-    /// @param factoryCalldata the calldata that will be used to deploy the account if it is not already deployed
-    /// can be 0x if account is deployed
+    /// @param account         The account that will receive the ERC-1271 `isValidSignature` call.
+    /// @param hash            The hash the wallet was asked to sign.
+    /// @param accountFactory  The factory that will be used to deploy the account (if not already deployed).
+    /// @param factoryCalldata The calldata that will be used to deploy the account (if not already deployed).
     constructor(CoinbaseSmartWallet account, bytes32 hash, address accountFactory, bytes memory factoryCalldata) {
         // This allows us to get a replay-safe hash on any deployed or undeployed account
         // in a single eth_call, i.e. without deploying the contract. We do this by calling replaySafeHash on a deployed account,
@@ -32,6 +36,18 @@ contract ERC1271InputGenerator {
         }
     }
 
+    /// @notice Helper method to get a replay-safe hash from the given `account` by calling its `replaySafeHash()` method.
+    ///
+    ///
+    /// @dev Deploys the account if not already deployed before calling `replaySafeHash` on it.
+    /// @dev Implements ERC-6492, see https://eips.ethereum.org/EIPS/eip-6492.
+    ///
+    /// @param account         The account that will receive the ERC-1271 `isValidSignature` call.
+    /// @param hash            The hash the wallet was asked to sign.
+    /// @param accountFactory  The factory that will be used to deploy the account (if not already deployed).
+    /// @param factoryCalldata The calldata that will be used to deploy the account (if not already deployed).
+    ///
+    /// @return The replay-safe hash.
     function _coinbaseSmartWallet1271Input(
         CoinbaseSmartWallet account,
         bytes32 hash,

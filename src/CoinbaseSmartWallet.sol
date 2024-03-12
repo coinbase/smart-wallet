@@ -11,8 +11,10 @@ import {ERC1271} from "./ERC1271.sol";
 import {MultiOwnable} from "./MultiOwnable.sol";
 
 /// @title Coinbase Smart Wallet
+///
 /// @notice ERC4337-compatible smart contract wallet, based on Solady ERC4337 account implementation
-/// with inspiration from Alchemy's LightAccount and Daimo's DaimoAccount
+///         with inspiration from Alchemy's LightAccount and Daimo's DaimoAccount.
+///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
 /// @author Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC4337.sol)
 contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
@@ -40,10 +42,10 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
     /// @dev Helps enforce sequential sequencing of replayable transactions.
     uint256 public constant REPLAYABLE_NONCE_KEY = 8453;
 
-    /// @notice Reverted when trying to re-initialize an account.
+    /// @notice Thrown when trying to re-initialize an account.
     error Initialized();
 
-    /// @notice Reverted when executing a `UserOperation` that requires the chain ID to be validated
+    /// @notice Thrown when executing a `UserOperation` that requires the chain ID to be validated
     ///         but this validation has been omitted.
     ///
     /// @dev Whitelisting of `UserOperation`s that are allowed to skip the chain ID validation is
@@ -52,7 +54,7 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
     /// @param selector The user operation call selector that raised the error.
     error SelectorNotAllowed(bytes4 selector);
 
-    /// @notice Reverted during a `UserOperation` validation when its key is invalid.
+    /// @notice Thrown during a `UserOperation` validation when its key is invalid.
     ///
     /// @dev The `UserOperation` key validation is based on the `UserOperation` call selector.
     ///
@@ -201,7 +203,7 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
     ///
     /// @param calls The list of `Call`s to execute.
     function executeBatch(Call[] calldata calls) public payable virtual onlyEntryPointOrOwner {
-        for (uint256 i = 0; i < calls.length;) {
+        for (uint256 i; i < calls.length;) {
             _call(calls[i].target, calls[i].value, calls[i].data);
             unchecked {
                 ++i;
@@ -231,6 +233,15 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
         returns (bytes32 userOpHash)
     {
         return keccak256(abi.encode(UserOperationLib.hash(userOp), entryPoint()));
+    }
+
+    /// @notice Returns the implementation of the ERC1967 proxy.
+    ///
+    /// @return $ The address of implementation contract.
+    function implementation() public view returns (address $) {
+        assembly {
+            $ := sload(_ERC1967_IMPLEMENTATION_SLOT)
+        }
     }
 
     /// @notice Check if the given function selector is whitelisted to skip the chain ID validation.
@@ -267,27 +278,24 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
         }
     }
 
-    /// @notice Internal method called during `UserOperation` validation to ensure its signature
-    ///         is a valid signature against its hash.
+    /// @inheritdoc ERC1271
     ///
-    /// @dev Reverts if the associated signer is invalid (based on the `ownerIndex`).
+    /// @dev Used both for classic ERC-1271 signature AND `UserOperation` validations.
+    /// @dev Reverts if the signer (based on the `ownerIndex`) is not compatible with the signature.
     /// @dev Reverts if the signature does not correspond to an ERC-1271 signature or to the abi
-    ///       encoded version of a `WebAuthn` struct.
-    /// @dev Des NOT revert if the signature verification fails to allow making a "simulation call"
+    ///      encoded version of a `WebAuthnAuth` struct.
+    /// @dev Does NOT revert if the signature verification fails to allow making a "simulation call"
     ///      without a valid signature.
     ///
-    /// @param message               The message whose signature has been performed on.
-    /// @param wrappedSignatureBytes The abi encoded `SignatureWrapper` struct.
-    ///
-    /// @return `true` if the signature verification succeeded, else `false`.
-    function _validateSignature(bytes32 message, bytes calldata wrappedSignatureBytes)
+    /// @param signature The abi encoded `SignatureWrapper` struct.
+    function _validateSignature(bytes32 message, bytes calldata signature)
         internal
         view
         virtual
         override
         returns (bool)
     {
-        SignatureWrapper memory sigWrapper = abi.decode(wrappedSignatureBytes, (SignatureWrapper));
+        SignatureWrapper memory sigWrapper = abi.decode(signature, (SignatureWrapper));
         bytes memory ownerBytes = ownerAtIndex(sigWrapper.ownerIndex);
 
         if (ownerBytes.length == 32) {

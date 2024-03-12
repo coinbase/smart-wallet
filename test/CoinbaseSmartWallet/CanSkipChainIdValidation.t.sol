@@ -13,13 +13,13 @@ contract TestCanSkipChainIdValidation is SmartWalletTestBase {
     bytes4[] otherSelectors = [CoinbaseSmartWallet.execute.selector, CoinbaseSmartWallet.executeBatch.selector];
 
     function test_approvedSelectorsReturnTrue() public {
-        for (uint256 i = 0; i < approvedSelectors.length; i++) {
+        for (uint256 i; i < approvedSelectors.length; i++) {
             assertTrue(account.canSkipChainIdValidation(approvedSelectors[i]));
         }
     }
 
     function test_otherSelectorsReturnFalse() public {
-        for (uint256 i = 0; i < otherSelectors.length; i++) {
+        for (uint256 i; i < otherSelectors.length; i++) {
             assertFalse(account.canSkipChainIdValidation(otherSelectors[i]));
         }
     }
