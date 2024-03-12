@@ -237,7 +237,7 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
 
     /// @notice Returns the implementation of the ERC1967 proxy.
     ///
-    /// @return $ the address the implementation contract
+    /// @return $ The address of implementation contract.
     function implementation() public view returns (address $) {
         assembly {
             $ := sload(_ERC1967_IMPLEMENTATION_SLOT)
