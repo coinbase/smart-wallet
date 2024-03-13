@@ -31,11 +31,6 @@ function isValidSignatureNowCVL(uint256 time, address signer, bytes32 hash, byte
 invariant notTheSameOwnerAgain(uint256 i, uint256 j)
     (
         (i != j 
-            // indexes outside of nextOwnerIndex are empty, so can be equal. Tool takes two indexes outside of nextOwnerIndex. Invariant noMoreThanNextOwnerIndex verifies cases outside of nextOwnerIndex
-            // for constructor case: https://prover.certora.com/output/3106/84dd177a742d443e9262c1a3a62fe71a/?anonymousKey=ba5fa322bddf50487adca5995bcbd5d369905801
-            // && i < nextOwnerIndex()
-            // indexes outside of nextOwnerIndex are empty, so can be equal. Tool takes two indexes outside of nextOwnerIndex. Invariant noMoreThanNextOwnerIndex verifies cases outside of nextOwnerIndex                   
-            // && j < nextOwnerIndex()
             // you can remove owner at any index, in this case, two indexes with removed owners will be equal (assuming that one of them was originally empty/removed)               
             && ownerAtIndex(i).length != 0
             // you can remove owner at any index, in this case, two indexes with removed owners will be equal (assuming that one of them was originally empty/removed)     

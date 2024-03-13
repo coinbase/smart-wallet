@@ -116,7 +116,6 @@ rule onlyOwnerCanChangeIsOwnerBytes(env e, method f) filtered {
 // Only owner or self can call addOwnerAddress, addOwnerPublicKey,
 // removeOwnerAtIndex, upgradeToAndCall(harnessed)
 rule OnlyOwnerOrSelf(env e, method f) filtered {
-    // added filter so advanced sanity check doesn't fail on other functions. 
     // There is no difference between filtering functions and using them as a lhs of implication
     f -> f.selector == sig:addOwnerAddress(address).selector 
         || f.selector == sig:addOwnerPublicKey(bytes32, bytes32).selector
@@ -127,7 +126,7 @@ rule OnlyOwnerOrSelf(env e, method f) filtered {
 
     calldataarg args;
     f@withrevert(e, args);
-    bool isReverted = lastReverted; // added revert case so advanced sanity check doesn't fail
+    bool isReverted = lastReverted;
 
     assert !isReverted => ownerBefore;
 }
@@ -136,7 +135,6 @@ rule OnlyOwnerOrSelf(env e, method f) filtered {
 // STATUS - verified
 // Only EntryPoint, owner, or self can call execute, executeBatch
 rule OnlyOwnerSelfOrEntryPoint(env e, method f) filtered {    
-    // added filter so advanced sanity check doesn't fail on other functions. 
     // There is no difference between filtering functions and using them as a lhs of implication
     f -> f.selector == sig:execute(address, uint256, bytes).selector 
         || f.selector == sig:executeBatch(CoinbaseSmartWallet.Call[]).selector
@@ -147,7 +145,7 @@ rule OnlyOwnerSelfOrEntryPoint(env e, method f) filtered {
 
     calldataarg args;
     f@withrevert(e, args);
-    bool isReverted = lastReverted; // added revert case so advanced sanity check doesn't fail
+    bool isReverted = lastReverted;
 
     assert !isReverted => ownerBefore;
 }
@@ -156,7 +154,6 @@ rule OnlyOwnerSelfOrEntryPoint(env e, method f) filtered {
 // STATUS - verified
 // Only EntryPoint can call executeWithoutChainIdValidation, validateUserOp
 rule OnlyEntryPoint(env e, method f) filtered {    
-    // added filter so advanced sanity check doesn't fail on other functions. 
     // There is no difference between filtering functions and using them as a lhs of implication
     f -> f.selector == sig:validateUserOp(EntryPointMock.UserOperation, bytes32, uint256).selector 
         || f.selector == sig:executeWithoutChainIdValidation(bytes).selector
@@ -250,7 +247,7 @@ rule addNewOwnerCheck(env e, method f) filtered {
     require anotherIndex < nextOwnerIndex();                    // make sure anotherIndex exists, so it should be unchanged
     require isOwnerBytes(ownerAtIndex(anotherIndex));           // set a correlation between ownerAtIndex and isOwnerBytes 
     require index == nextOwnerIndex();                          // checking "only the latest index was changed"                
-    requireInvariant noMoreThanNextOwnerIndex(index);           // making non-existing indexes empty. Counter-example without it: https://prover.certora.com/output/3106/39c21239f0f346739dfb640d5f2fda74/?anonymousKey=a259bd2451300d394634d97b3310888dc8429887
+    requireInvariant noMoreThanNextOwnerIndex(index);           // making non-existing indexes empty.
     requireInvariant noMoreThanNextOwnerIndex(anotherIndex);    // making non-existing indexes empty
 
     calldataarg args;
