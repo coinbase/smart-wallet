@@ -13,6 +13,16 @@ import {CoinbaseSmartWallet} from "../CoinbaseSmartWallet.sol";
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
 contract ERC1271InputGenerator {
+    /// @notice Thrown when call to `accountFactory` with `factoryCalldata` fails.
+    error AccountDeploymentFailed();
+
+    /// @notice Thrown when the address returned from call to `accountFactory` does not
+    /// match passed account
+    ///
+    /// @param account The passed account
+    /// @param returned The returned account
+    error ReturnedAddressDoesNotMatchAccount(address account, address returned);
+
     /// @notice Computes and returns the expected ERC-1271 replay-safe hash for a CoinbaseSmartWallet.
     ///
     /// @dev `accountFactory` can be any address if the account is already deployed.
@@ -60,8 +70,15 @@ contract ERC1271InputGenerator {
         }
 
         // Deploy the account.
-        (bool success,) = accountFactory.call(factoryCalldata);
-        require(success, "CoinbaseSmartWallet1271InputGenerator: deployment");
+        (bool success, bytes memory result) = accountFactory.call(factoryCalldata);
+        if (!success) {
+            revert AccountDeploymentFailed();
+        }
+
+        address returnAddress = abi.decode(result, (address));
+        if (returnAddress != address(account)) {
+            revert ReturnedAddressDoesNotMatchAccount(address(account), returnAddress);
+        }
 
         // Call and return replaySafeHash on the now-deployed account.
         return account.replaySafeHash(hash);
