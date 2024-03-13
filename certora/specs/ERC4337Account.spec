@@ -213,35 +213,6 @@ invariant emptyInNotAnOwner(bytes empty)
 
 
 // STATUS - verified
-// "Can’t have the same owner at two different indices i ownerAtIndex" and "For any index i if ownerAtIndex[i].length != 0 => isOwner[ownerAtIndex[i]"
-invariant notTheSameOwnerAgain(uint256 i, uint256 j)
-    (
-        (i != j 
-            // indexes outside of nextOwnerIndex are empty, so can be equal. Tool takes two indexes outside of nextOwnerIndex. Invariant noMoreThanNextOwnerIndex verifies cases outside of nextOwnerIndex
-            // for constructor case: https://prover.certora.com/output/3106/84dd177a742d443e9262c1a3a62fe71a/?anonymousKey=ba5fa322bddf50487adca5995bcbd5d369905801
-            // && i < nextOwnerIndex()
-            // indexes outside of nextOwnerIndex are empty, so can be equal. Tool takes two indexes outside of nextOwnerIndex. Invariant noMoreThanNextOwnerIndex verifies cases outside of nextOwnerIndex                   
-            // && j < nextOwnerIndex()
-            // you can remove owner at any index, in this case, two indexes with removed owners will be equal (assuming that one of them was originally empty/removed)               
-            && ownerAtIndex(i).length != 0
-            // you can remove owner at any index, in this case, two indexes with removed owners will be equal (assuming that one of them was originally empty/removed)     
-            && ownerAtIndex(j).length != 0
-        )
-        => !compareBytes(ownerAtIndex(i), ownerAtIndex(j))
-    )
-    && (ownerAtIndex(i).length != 0 <=> isOwnerBytes(ownerAtIndex(i)))
-    && (ownerAtIndex(j).length != 0 <=> isOwnerBytes(ownerAtIndex(j)))
-    {
-        preserved removeOwnerAtIndex(uint256 index) with (env e2) {
-            require i == index;
-            bytes empty;
-            require empty.length == 0;
-            require !isOwnerBytes(empty);
-        }
-    }
-
-
-// STATUS - verified
 // Eth balance of account should decrease by at least missing account funds
 rule ethBalanceDecreaseByMissingAccountFunds(env e){
     uint256 _ethBalance = nativeBalances[currentContract];
