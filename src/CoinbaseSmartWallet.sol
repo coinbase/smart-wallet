@@ -171,7 +171,7 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
     ///
     /// @dev Can only be called by the Entrypoint.
     /// @dev Reverts if the given call is not authorized to skip the chain ID validtion.
-    /// @dev `validateUserOp()` will recompute the `userOpHash` without the chain ID befor validatin
+    /// @dev `validateUserOp()` will recompute the `userOpHash` without the chain ID before validating
     ///      it if the `UserOperation` aims at executing this function. This allows certain operations
     ///      to be replayed for all accounts sharing the same address across chains. E.g. This may be
     ///      useful for syncing owner changes.
