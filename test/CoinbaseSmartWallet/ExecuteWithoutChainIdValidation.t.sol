@@ -37,10 +37,11 @@ contract TestExecuteWithoutChainIdValidation is SmartWalletTestBase {
     function test_cannotCallExec() public {
         bytes memory restrictedSelectorCalldata = abi.encodeWithSelector(CoinbaseSmartWallet.execute.selector, "");
         vm.prank(address(entryPoint));
-        vm.expectRevert(abi.encodeWithSelector(
-                CoinbaseSmartWallet.SelectorNotAllowed.selector, 
-                CoinbaseSmartWallet.execute.selector
-        ));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                CoinbaseSmartWallet.SelectorNotAllowed.selector, CoinbaseSmartWallet.execute.selector
+            )
+        );
         account.executeWithoutChainIdValidation(restrictedSelectorCalldata);
     }
 
