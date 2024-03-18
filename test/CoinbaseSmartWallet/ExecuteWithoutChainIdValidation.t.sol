@@ -35,16 +35,13 @@ contract TestExecuteWithoutChainIdValidation is SmartWalletTestBase {
     }
 
     function test_cannotCallExec() public {
-        userOpCalldata = abi.encodeWithSelector(
-            CoinbaseSmartWallet.executeWithoutChainIdValidation.selector,
-            abi.encodeWithSelector(CoinbaseSmartWallet.execute.selector, "")
-        );
-        UserOperation memory userOp = _getUserOpWithSignature();
-        vm.expectEmit(true, true, true, true);
-        emit IEntryPoint.UserOperationEvent(
-            entryPoint.getUserOpHash(userOp), userOp.sender, address(0), userOp.nonce, false, 0, 48005
-        );
-        _sendUserOperation(userOp);
+        bytes memory restrictedSelectorCalldata = abi.encodeWithSelector(CoinbaseSmartWallet.execute.selector, "");
+        vm.prank(address(entryPoint));
+        vm.expectRevert(abi.encodeWithSelector(
+                CoinbaseSmartWallet.SelectorNotAllowed.selector, 
+                CoinbaseSmartWallet.execute.selector
+        ));
+        account.executeWithoutChainIdValidation(restrictedSelectorCalldata);
     }
 
     function _sign(UserOperation memory userOp) internal view override returns (bytes memory signature) {
