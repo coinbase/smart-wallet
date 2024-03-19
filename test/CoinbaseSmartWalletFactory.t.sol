@@ -2,8 +2,9 @@
 pragma solidity ^0.8.0;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {CoinbaseSmartWallet} from "../src/CoinbaseSmartWallet.sol";
+import {CoinbaseSmartWallet, MultiOwnable} from "../src/CoinbaseSmartWallet.sol";
 import {CoinbaseSmartWalletFactory} from "../src/CoinbaseSmartWalletFactory.sol";
+import {LibClone} from "solady/utils/LibClone.sol";
 
 contract CoinbaseSmartWalletFactoryTest is Test {
     CoinbaseSmartWalletFactory factory;
@@ -32,6 +33,20 @@ contract CoinbaseSmartWalletFactoryTest is Test {
         factory.createAccount{value: 1e18}(owners, 0);
     }
 
+    function test_exitIfAccountIsAlreadyInitialized() public {
+        CoinbaseSmartWallet a = factory.createAccount(owners, 0);
+        vm.expectCall(address(a), abi.encodeCall(CoinbaseSmartWallet.initialize, (owners)), 0);
+        CoinbaseSmartWallet a2 = factory.createAccount(owners, 0);
+        assertEq(address(a), address(a2));
+    }
+
+    function test_RevertsIfLength32ButLargerThanAddress() public {
+        bytes memory badOwner = abi.encode(uint256(type(uint160).max) + 1);
+        owners.push(badOwner);
+        vm.expectRevert(abi.encodeWithSelector(MultiOwnable.InvalidEthereumAddressOwner.selector, badOwner));
+        factory.createAccount{value: 1e18}(owners, 0);
+    }
+
     function test_createAccountDeploysToPredeterminedAddress() public {
         address p = factory.getAddress(owners, 0);
         CoinbaseSmartWallet a = factory.createAccount{value: 1e18}(owners, 0);
@@ -54,5 +69,11 @@ contract CoinbaseSmartWalletFactoryTest is Test {
 
     function test_implementation_returnsExpectedAddress() public {
         assertEq(factory.implementation(), address(account));
+    }
+
+    function test_initCodeHash() public {
+        bytes32 execptedHash = LibClone.initCodeHashERC1967(address(account));
+        bytes32 factoryHash = factory.initCodeHash();
+        assertEq(factoryHash, execptedHash);
     }
 }

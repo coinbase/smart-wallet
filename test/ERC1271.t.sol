@@ -21,9 +21,18 @@ contract ERC1271Test is Test {
     }
 
     function test_returnsExpectedDomainHashWhenProxy() public {
-        (, string memory name, string memory version, uint256 chainId, address verifyingContract,,) =
-            account.eip712Domain();
+        (
+            ,
+            string memory name,
+            string memory version,
+            uint256 chainId,
+            address verifyingContract,
+            bytes32 salt,
+            uint256[] memory extensions
+        ) = account.eip712Domain();
         assertEq(verifyingContract, address(account));
+        assertEq(abi.encode(extensions), abi.encode(new uint256[](0)));
+        assertEq(salt, bytes32(0));
         bytes32 expected = keccak256(
             abi.encode(
                 keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
