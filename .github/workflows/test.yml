@@ -40,3 +40,16 @@ jobs:
         run: |
           forge fmt --check
         id: fmt
+      
+      - name: Run coverage
+        run: |
+          forge coverage --report summary --report lcov
+          lcov --remove ./lcov.info -o ./lcov.info.pruned 'test/' 'script/' 'src/utils/' 
+
+      - name: Submit coverage to Coveralls
+        uses: coverallsapp/github-action@master
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path-to-lcov: ./lcov.info.pruned
+          flag-name: foundry
+          parallel: true
