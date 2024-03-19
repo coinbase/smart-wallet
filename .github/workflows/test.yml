@@ -49,8 +49,8 @@ jobs:
       - name: Run coverage
         run: |
           forge coverage --report summary --report lcov
-      
-      -name: Prune coverage
+    
+      - name: Prune coverage
         run: |
           lcov --remove ./lcov.info -o ./lcov.info.pruned 'test/' 'script/' 'src/utils/' 
           cp ./lcov.info.pruned ./lcov.info
