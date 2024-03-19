@@ -173,9 +173,10 @@ contract TestIsValidSignature is SmartWalletTestBase {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, toSign);
         bytes memory signature = abi.encodePacked(r, s, v);
         bytes32 invalidAddress = bytes32(uint256(type(uint160).max) + 1);
-        bytes32 slotOfOwnerAtIndex = 0x97e2c6aad4ce5d562ebfaa00db6b9e0fb66ea5d8162ed5b243f51a2e03086f01;
-        bytes32 slot = bytes32(uint256(keccak256(abi.encodePacked(keccak256(abi.encode(0, slotOfOwnerAtIndex))))));
-        vm.store(address(account), slot, invalidAddress);
+        bytes32 slot_ownerAtIndex = 0x97e2c6aad4ce5d562ebfaa00db6b9e0fb66ea5d8162ed5b243f51a2e03086f01; // MUTLI_OWNABLE_STORAGE_LOCATION + 1
+        bytes32 slot_ownerAtIndex_zeroIndex =
+            bytes32(uint256(keccak256(abi.encodePacked(keccak256(abi.encode(0, slot_ownerAtIndex))))));
+        vm.store(address(account), slot_ownerAtIndex_zeroIndex, invalidAddress);
         vm.expectRevert(
             abi.encodeWithSelector(MultiOwnable.InvalidEthereumAddressOwner.selector, abi.encode(invalidAddress))
         );
