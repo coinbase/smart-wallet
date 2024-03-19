@@ -165,4 +165,22 @@ contract TestIsValidSignature is SmartWalletTestBase {
         vm.expectRevert();
         account.isValidSignature(hash, abi.encode(CoinbaseSmartWallet.SignatureWrapper(1, signature)));
     }
+
+    // @dev this case should not be possible, but we need to explicitly test the revert case 
+    function testRevertsIfOwnerIsInvalidEthereumAddress() public {
+        bytes32 hash = 0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5;
+        bytes32 toSign = account.replaySafeHash(hash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, toSign);
+        bytes memory signature = abi.encodePacked(r, s, v);
+        bytes32 invalidAddress = bytes32(uint256(type(uint160).max)+1);
+        bytes32 slotOfOwnerAtIndex = 0x97e2c6aad4ce5d562ebfaa00db6b9e0fb66ea5d8162ed5b243f51a2e03086f01;
+        bytes32 slot = bytes32(uint256(keccak256(abi.encodePacked(keccak256(abi.encode(0, slotOfOwnerAtIndex))))));
+        vm.store(address(account), slot, invalidAddress);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                MultiOwnable.InvalidEthereumAddressOwner.selector,
+                abi.encode(invalidAddress))
+            );
+        account.isValidSignature(hash, abi.encode(CoinbaseSmartWallet.SignatureWrapper(0, signature)));
+    }
 }
