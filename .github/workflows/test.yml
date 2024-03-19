@@ -36,16 +36,16 @@ jobs:
           forge test -vvv
         id: test
 
+      - name: Check formatting
+        run: |
+          forge fmt --check
+        id: fmt
+
       - name: Install lcov
         run: |
           sudo apt-get install lcov
         id: lcov
 
-      - name: Check formatting
-        run: |
-          forge fmt --check
-        id: fmt
-      
       - name: Run coverage
         run: |
           forge coverage --report summary --report lcov
