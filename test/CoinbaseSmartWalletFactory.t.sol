@@ -34,7 +34,7 @@ contract CoinbaseSmartWalletFactoryTest is Test {
     }
 
     function test_exitIfAccountIsAlreadyInitialized() public {
-        CoinbaseSmartWallet a = factory.createAccount{value: 1e18}(owners, 0);
+        CoinbaseSmartWallet a = factory.createAccount(owners, 0);
         vm.expectCall(address(a), abi.encodeCall(CoinbaseSmartWallet.initialize, (owners)), 0);
         CoinbaseSmartWallet a2 = factory.createAccount(owners, 0);
         assertEq(address(a), address(a2));
