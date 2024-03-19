@@ -20,10 +20,10 @@ contract TestUpgradeToAndCall is SmartWalletTestBase {
         account.upgradeToAndCall(newImplementation, abi.encodeWithSignature("dummy()"));
         Dummy(address(account)).dummy();
     }
-    
+
     function testUpgradeToAndCallWithNonOwner() public {
         vm.startPrank(address(1));
-        vm.expectRevert(MultiOwnable.Unauthorized.selector);  
+        vm.expectRevert(MultiOwnable.Unauthorized.selector);
         account.upgradeToAndCall(newImplementation, abi.encodeWithSignature("dummy()"));
     }
 }
