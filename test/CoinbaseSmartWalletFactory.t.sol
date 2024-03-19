@@ -40,7 +40,7 @@ contract CoinbaseSmartWalletFactoryTest is Test {
         assertEq(address(a), address(a2));
     }
 
-    function testRevertsIfLength32ButLargerThanAddress() public {
+    function test_RevertsIfLength32ButLargerThanAddress() public {
         bytes memory badOwner = abi.encode(uint256(type(uint160).max) + 1);
         owners.push(badOwner);
         vm.expectRevert(abi.encodeWithSelector(MultiOwnable.InvalidEthereumAddressOwner.selector, badOwner));
