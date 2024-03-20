@@ -28,7 +28,7 @@ jobs:
           pip install solc-select
           solc-select install 0.8.23
           solc-select use 0.8.23
-          solc-select --version
+          solc --version
           ls -ltar ~/.solc-select/artifacts/
           
 
