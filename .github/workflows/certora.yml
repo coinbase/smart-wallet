@@ -15,12 +15,10 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install python
+      - name: Install Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-        run: |
-          pip install --upgrade pip
 
       - name: Install certora
         run: pip3 install certora-cli
