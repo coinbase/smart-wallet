@@ -37,7 +37,7 @@ jobs:
         run: >
           message="$(git log -n 1 --pretty=format:'CI ${{matrix.params.name}} %h .... %s')";
           certoraRun \
-            certora/conf/${{ matrix.params.command }} \
+            certora/confs/${{ matrix.params.command }} \
             --msg "$(echo $message | sed 's/[^a-zA-Z0-9., _-]/ /g')"
         env:
           CERTORAKEY: ${{ secrets.CERTORAKEY }}
