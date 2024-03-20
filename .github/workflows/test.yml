@@ -1,4 +1,4 @@
-name: test
+name: Forge CI
 
 on:
   pull_request:
@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: true
 
-    name: Run Forge Tests 
+    name: Run Forge Tests and Checks 
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -45,7 +45,7 @@ jobs:
       strategy:
         fail-fast: true
 
-      name: Run Forge Coverage
+      name: Run Coverage Reporting
       runs-on: ubuntu-latest
       steps:
         - uses: actions/checkout@v3
