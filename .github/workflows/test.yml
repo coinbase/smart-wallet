@@ -9,11 +9,11 @@ env:
   FOUNDRY_PROFILE: ci
 
 jobs:
-  check:
+  forge-test:
     strategy:
       fail-fast: true
 
-    name: Foundry project
+    name: Run Forge Tests 
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -41,24 +41,53 @@ jobs:
           forge fmt --check
         id: fmt
 
-      - name: Install lcov
-        run: |
-          sudo apt-get install lcov
-        id: lcov
+  forge-coverage:
+      strategy:
+        fail-fast: true
 
-      - name: Run coverage
-        run: |
-          forge coverage --report summary --report lcov
-    
-      - name: Prune coverage
-        run: |
-          lcov --remove ./lcov.info -o ./lcov.info.pruned 'test/' 'script/' 'src/utils/' 
-          cp ./lcov.info.pruned ./lcov.info
+      name: Run Forge Coverage
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v3
+          with:
+            submodules: recursive
 
-      - name: Submit coverage to Coveralls
-        uses: coverallsapp/github-action@master
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          path-to-lcov: ./lcov.info
-          flag-name: foundry
-          parallel: true
+        - name: Install Foundry
+          uses: foundry-rs/foundry-toolchain@v1
+          with:
+            version: nightly
+
+        - name: Install forge dependencies
+          run: forge install
+
+        - name: Install lcov
+          run: |
+            sudo apt-get install lcov
+          id: lcov
+
+        - name: Run coverage
+          run: |
+            forge coverage --report summary --report lcov
+      
+        - name: Prune coverage
+          run: |
+            lcov --remove ./lcov.info -o ./lcov.info.pruned 'test/' 'script/' 'src/utils/' 
+            cp ./lcov.info.pruned ./lcov.info
+
+        - name: Submit coverage to Coveralls
+          uses: coverallsapp/github-action@master
+          with:
+            github-token: ${{ secrets.GITHUB_TOKEN }}
+            path-to-lcov: ./lcov.info
+            flag-name: foundry
+            parallel: true
+
+  finish:
+    needs: forge-coverage
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+    - name: Coveralls Finished
+      uses: coverallsapp/github-action@v2
+      with:
+        parallel-finished: true
