@@ -10,9 +10,6 @@ env:
 
 jobs:
   forge-test:
-    strategy:
-      fail-fast: true
-
     name: Run Forge Tests and Checks 
     runs-on: ubuntu-latest
     steps:
@@ -42,9 +39,6 @@ jobs:
         id: fmt
 
   forge-coverage:
-      strategy:
-        fail-fast: true
-
       name: Run Coverage Reporting
       runs-on: ubuntu-latest
       steps:
