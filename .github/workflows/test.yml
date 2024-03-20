@@ -71,14 +71,13 @@ jobs:
       
         - name: Prune coverage
           run: |
-            lcov --remove ./lcov.info -o ./lcov.info.pruned 'test/' 'script/' 'src/utils/' 
-            cp ./lcov.info.pruned ./lcov.info
+            lcov-filter lcov.info 'test/|script/|src/utils/' > lcov-filtered.info
 
         - name: Submit coverage to Coveralls
           uses: coverallsapp/github-action@master
           with:
             github-token: ${{ secrets.GITHUB_TOKEN }}
-            path-to-lcov: ./lcov.info
+            path-to-lcov: ./lcov-filtered.info
             flag-name: foundry
             parallel: true
 
