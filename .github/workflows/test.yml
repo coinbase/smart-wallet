@@ -71,7 +71,7 @@ jobs:
       
         - name: Prune coverage
           run: |
-            lcov-filter lcov.info 'test/|script/|src/utils/' > lcov-filtered.info
+            lcov --remove ./lcov.info -o ./lcov-filtered.info 'test/*' 'script/*' 'src/utils/*' 
 
         - name: Submit coverage to Coveralls
           uses: coverallsapp/github-action@master
