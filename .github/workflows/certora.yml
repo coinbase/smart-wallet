@@ -19,6 +19,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
+        run: |
+          pip install --upgrade pip
 
       - name: Install certora
         run: pip3 install certora-cli
@@ -28,6 +30,9 @@ jobs:
           pip install solc-select
           solc-select install 0.8.23
           solc-select use 0.8.23
+          solc-select --version
+          ls -ltar ~/.solc-select/artifacts/
+          
 
       - name: Install git submodules
         run: |
