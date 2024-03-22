@@ -1,0 +1,51 @@
+name: Certora verification
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install certora
+        run: pip3 install certora-cli
+
+      - name: Install solc
+        run: |
+          wget https://github.com/ethereum/solidity/releases/download/v0.8.23/solc-static-linux
+          chmod +x solc-static-linux
+          sudo mv solc-static-linux /usr/local/bin/solc8.23
+
+      - name: Install git submodules
+        run: |
+         git submodule update --init --recursive
+
+      - name: Verify rule ${{ matrix.params.name }}
+        run: >
+          message="$(git log -n 1 --pretty=format:'CI ${{matrix.params.name}} %h .... %s')";
+          certoraRun \
+            certora/confs/${{ matrix.params.command }} \
+            --msg "$(echo $message | sed 's/[^a-zA-Z0-9., _-]/ /g')"
+        env:
+          CERTORAKEY: ${{ secrets.CERTORAKEY }}
+
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        params: 
+          - {name: ERC4337Account, command: 'ERC4337Account.conf'}
+          - {name: ERC4337AccountInv, command: 'ERC4337AccountInv.conf'}
