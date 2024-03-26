@@ -41,7 +41,7 @@ invariant notTheSameOwnerAgain(uint256 i, uint256 j)
     && (ownerAtIndex(i).length != 0 <=> isOwnerBytes(ownerAtIndex(i)))
     && (ownerAtIndex(j).length != 0 <=> isOwnerBytes(ownerAtIndex(j)))
     {
-        preserved removeOwnerAtIndex(uint256 index) with (env e2) {
+        preserved removeOwnerAtIndex(uint256 index, bytes owner) with (env e2) {
             require i == index;
             bytes empty;
             require empty.length == 0;
