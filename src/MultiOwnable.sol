@@ -49,7 +49,7 @@ contract MultiOwnable {
     /// @param index The targeted index for removal.
     error NoOwnerAtIndex(uint256 index);
 
-    /// @notice Thrown when trying to remove an owner, but the owner at the given index does not match 
+    /// @notice Thrown when trying to remove an owner, but the owner at the given index does not match
     ///         the provided owner.
     ///
     /// @param index The targeted index for removal.
