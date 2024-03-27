@@ -107,11 +107,11 @@ contract MultiOwnable {
     /// @dev Reverts if the provided owner is not registered at `index`.
     ///
     /// @param index The index to remove from.
-    /// @param _owner The owner at the specific index.
-    function removeOwnerAtIndex(uint256 index, bytes calldata _owner) public virtual onlyOwner {
+    /// @param owner_ The owner at the specific index.
+    function removeOwnerAtIndex(uint256 index, bytes calldata owner_) public virtual onlyOwner {
         bytes memory owner = ownerAtIndex(index);
         if (owner.length == 0) revert NoOwnerAtIndex(index);
-        if (keccak256(owner) != keccak256(_owner)) revert WrongOwnerAtIndex(index, _owner);
+        if (keccak256(owner) != keccak256(owner_)) revert WrongOwnerAtIndex(index, owner_);
 
         delete _getMultiOwnableStorage().isOwner[owner];
         delete _getMultiOwnableStorage().ownerAtIndex[index];
