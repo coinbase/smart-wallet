@@ -54,7 +54,6 @@ contract MultiOwnable {
     ///
     /// @param index The index of the owner to be removed
     /// @param owner The owner that was attempted to be removed.
-
     error WrongOwnerAtIndex(uint256 index, bytes owner);
 
     /// @notice Thrown when trying to intialize the contracts owners if a provided owner is neither
