@@ -6,14 +6,14 @@ import "./MultiOwnableTestBase.t.sol";
 contract RemoveOwnerAtIndexTest is MultiOwnableTestBase {
     function testRemovesOwner() public {
         vm.prank(owner1Address);
-        _removeOwner(owner2Bytes);
+        mock.removeOwnerAtIndex(_index(), owner2Bytes);
         assertFalse(mock.isOwnerBytes(owner2Bytes));
     }
 
     function testRemovesOwnerAtIndex() public {
         uint8 index = _index();
         vm.prank(owner1Address);
-        _removeOwner(owner2Bytes);
+        mock.removeOwnerAtIndex(index, owner2Bytes);
         assertEq(mock.ownerAtIndex(index), hex"");
     }
 
@@ -21,14 +21,14 @@ contract RemoveOwnerAtIndexTest is MultiOwnableTestBase {
         vm.expectEmit(true, true, true, true);
         emit MultiOwnable.RemoveOwner(_index(), owner2Bytes);
         vm.prank(owner1Address);
-        _removeOwner(owner2Bytes);
+        mock.removeOwnerAtIndex(_index(), owner2Bytes);
     }
 
     function testRevertsIfCalledByNonOwner(address a) public {
         vm.assume(a != owner1Address);
         vm.startPrank(a);
         vm.expectRevert(MultiOwnable.Unauthorized.selector);
-        _removeOwner(abi.encode(a));
+        mock.removeOwnerAtIndex(_index(), abi.encode(a));
     }
 
     function testRevertsIfNoOwnerAtIndex() public {
@@ -43,10 +43,6 @@ contract RemoveOwnerAtIndexTest is MultiOwnableTestBase {
         vm.expectRevert(abi.encodeWithSelector(MultiOwnable.WrongOwnerAtIndex.selector, index, owner1Bytes));
         vm.prank(owner1Address);
         mock.removeOwnerAtIndex(index, owner1Bytes);
-    }
-
-    function _removeOwner(bytes memory owner) internal virtual {
-        mock.removeOwnerAtIndex(_index(), owner);
     }
 
     function _index() internal virtual returns (uint8) {
