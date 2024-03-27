@@ -104,7 +104,7 @@ contract MultiOwnable {
 
     /// @notice Removes an owner from the given `index`.
     ///
-    /// @dev Reverts if the provided owner is not registered at `index`.
+    /// @dev Reverts if the provided owner is not found at `index`.
     ///
     /// @param index The index to remove from.
     /// @param owner_ The owner at the specific index.
