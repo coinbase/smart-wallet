@@ -24,10 +24,11 @@ contract RemoveOwnerAtIndexTest is MultiOwnableTestBase {
         _removeOwner(owner2Bytes);
     }
 
-    function testRevertsIfCalledByNonOwner() public {
-        vm.startPrank(address(0xdead));
+    function testRevertsIfCalledByNonOwner(address a) public {
+        vm.assume(a != owner1Address);
+        vm.startPrank(a);
         vm.expectRevert(MultiOwnable.Unauthorized.selector);
-        _removeOwner(abi.encode(0xdead));
+        _removeOwner(abi.encode(a));
     }
 
     function testRevertsIfNoOwnerAtIndex() public {
