@@ -50,7 +50,6 @@ contract MultiOwnable {
     error NoOwnerAtIndex(uint256 index);
 
     /// @notice Thrown when `owner` argument does not match owner found at index.
-    ///         the provided owner.
     ///
     /// @param index The index of the owner to be removed.
     /// @param owner Owner to be removed which did not match owner found at index.
