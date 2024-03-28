@@ -25,7 +25,7 @@ contract RemoveOwnerAtIndexTest is MultiOwnableTestBase {
     }
 
     function testRevertsIfCalledByNonOwner(address a) public {
-        vm.assume(a != owner1Address);
+        vm.assume(a != owner1Address && a != address(mock));
         vm.startPrank(a);
         vm.expectRevert(MultiOwnable.Unauthorized.selector);
         mock.removeOwnerAtIndex(_index(), abi.encode(a));
