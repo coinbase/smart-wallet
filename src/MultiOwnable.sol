@@ -7,8 +7,8 @@ pragma solidity ^0.8.4;
 struct MultiOwnableStorage {
     /// @dev Tracks the index of the next owner to add.
     uint256 nextOwnerIndex;
-    /// @dev Tracks number of current owners
-    uint256 ownerCount;
+    /// @dev Tracks number of owners that have been removed.
+    uint256 ownersRemoved;
     /// @dev Mapping of indices to raw owner bytes, used to idenfitied owners by their
     ///      uint256 id.
     ///
@@ -116,11 +116,13 @@ contract MultiOwnable {
         bytes memory owner = ownerAtIndex(index);
         if (owner.length == 0) revert NoOwnerAtIndex(index);
         if (keccak256(owner) != keccak256(owner_)) revert WrongOwnerAtIndex(index, owner_);
-        if (_getMultiOwnableStorage().ownerCount == 1) revert LastOwner();
+        if (_getMultiOwnableStorage().nextOwnerIndex - _getMultiOwnableStorage().ownersRemoved - 1 == 0) {
+            revert LastOwner();
+        }
 
         delete _getMultiOwnableStorage().isOwner[owner];
         delete _getMultiOwnableStorage().ownerAtIndex[index];
-        _getMultiOwnableStorage().ownerCount--;
+        _getMultiOwnableStorage().ownersRemoved++;
 
         emit RemoveOwner(index, owner);
     }
@@ -169,6 +171,13 @@ contract MultiOwnable {
         return _getMultiOwnableStorage().nextOwnerIndex;
     }
 
+    /// @notice Tracks the number of owners removed, used with nextOwnerIndex to avoid removing all owners
+    ///
+    /// @return The number of owners that have been removed.
+    function ownersRemoved() public view virtual returns (uint256) {
+        return _getMultiOwnableStorage().ownersRemoved;
+    }
+
     /// @notice Initialize the owners of this contract.
     ///
     /// @dev Intended to be called when the smart account is first deployed.
@@ -207,7 +216,6 @@ contract MultiOwnable {
 
         _getMultiOwnableStorage().isOwner[owner] = true;
         _getMultiOwnableStorage().ownerAtIndex[index] = owner;
-        _getMultiOwnableStorage().ownerCount++;
 
         emit AddOwner(index, owner);
     }
