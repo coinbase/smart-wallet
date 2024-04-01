@@ -102,7 +102,7 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
     constructor() {
         // Implementation should not be initializable (does not affect proxies which use their own storage).
         bytes[] memory owners = new bytes[](1);
-        owners[0] = abi.encode(address(0));
+        owners[0] = abi.encode(address(1));
         _initializeOwners(owners);
     }
 
