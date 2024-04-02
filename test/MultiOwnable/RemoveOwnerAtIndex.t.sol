@@ -40,12 +40,15 @@ contract RemoveOwnerAtIndexTest is MultiOwnableTestBase {
 
     function testRevertsIfWrongOwnerAtIndex() public {
         uint8 index = _index();
-        vm.expectRevert(abi.encodeWithSelector(MultiOwnable.WrongOwnerAtIndex.selector, index, owner1Bytes));
+        vm.expectRevert(
+            abi.encodeWithSelector(MultiOwnable.WrongOwnerAtIndex.selector, index, owner1Bytes, owner2Bytes)
+        );
         vm.prank(owner1Address);
         mock.removeOwnerAtIndex(index, owner1Bytes);
     }
 
     function test_reverts_ifIsLastOwner() public {
+        // note this could be fuzzed but it takes a very long time to complete
         uint256 owners = 100;
         MockMultiOwnable mock = new MockMultiOwnable();
         address firstOnwer = makeAddr("first");
