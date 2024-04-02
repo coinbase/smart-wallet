@@ -117,7 +117,7 @@ contract MultiOwnable {
     /// @dev Reverts if there is currently only one owner.
     /// @dev Reverts if `owner` does not match bytes found at `index`.
     ///
-    /// @param index The index of the owner to be remove.
+    /// @param index The index of the owner to be removed.
     /// @param owner The ABI encoded bytes of the owner to be removed.
     function removeOwnerAtIndex(uint256 index, bytes calldata owner) external virtual onlyOwner {
         MultiOwnableStorage storage $ = _getMultiOwnableStorage();
@@ -134,7 +134,7 @@ contract MultiOwnable {
     /// @dev Reverts if there is currently more than one owner.
     /// @dev Reverts if `owner` does not match bytes found at `index`.
     ///
-    /// @param index The index of the owner to be remove.
+    /// @param index The index of the owner to be removed.
     /// @param owner The ABI encoded bytes of the owner to be removed.
     function removeLastOwner(uint256 index, bytes calldata owner) external virtual onlyOwner {
         MultiOwnableStorage storage $ = _getMultiOwnableStorage();
@@ -245,7 +245,7 @@ contract MultiOwnable {
     /// @dev Reverts if the owner is not registered at `index`.
     /// @dev Reverts if `owner` does not match bytes found at `index`.
     ///
-    /// @param index The index of the owner to be remove.
+    /// @param index The index of the owner to be removed.
     /// @param owner The ABI encoded bytes of the owner to be removed.
     function _removeOwnerAtIndex(uint256 index, bytes calldata owner) internal virtual {
         bytes memory owner_ = ownerAtIndex(index);
