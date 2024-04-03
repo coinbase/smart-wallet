@@ -43,8 +43,15 @@ invariant notTheSameOwnerAgain(uint256 i, uint256 j)
     {
         preserved removeOwnerAtIndex(uint256 index, bytes owner) with (env e2) {
             require i == index;
-            bytes empty;
-            require empty.length == 0;
-            require !isOwnerBytes(empty);
+            bytes empty1;
+            require empty1.length == 0;
+            require !isOwnerBytes(empty1);
+        }
+
+        preserved removeLastOwner(uint256 index, bytes owner) with (env e3) {
+            require i == index;
+            bytes empty2;
+            require empty2.length == 0;
+            require !isOwnerBytes(empty2);
         }
     }
