@@ -166,7 +166,7 @@ contract TestIsValidSignature is SmartWalletTestBase {
         account.isValidSignature(hash, abi.encode(CoinbaseSmartWallet.SignatureWrapper(1, signature)));
     }
 
-    // @dev this case should not be possible, but we need to explicitly test the revert case
+    /// @dev this case should not be possible, but we need to explicitly test the revert case
     function testRevertsIfOwnerIsInvalidEthereumAddress() public {
         bytes32 hash = 0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5;
         bytes32 toSign = account.replaySafeHash(hash);

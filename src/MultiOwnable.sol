@@ -8,7 +8,7 @@ struct MultiOwnableStorage {
     /// @dev Tracks the index of the next owner to add.
     uint256 nextOwnerIndex;
     /// @dev Tracks number of owners that have been removed.
-    uint256 ownersRemoved;
+    uint256 removedOwnersCount;
     /// @dev Mapping of indices to raw owner bytes, used to idenfitied owners by their
     ///      uint256 id.
     ///
@@ -121,7 +121,7 @@ contract MultiOwnable {
     /// @param owner The ABI encoded bytes of the owner to be removed.
     function removeOwnerAtIndex(uint256 index, bytes calldata owner) external virtual onlyOwner {
         MultiOwnableStorage storage $ = _getMultiOwnableStorage();
-        if ($.nextOwnerIndex - $.ownersRemoved == 1) {
+        if ($.nextOwnerIndex - $.removedOwnersCount == 1) {
             revert LastOwner();
         }
 
@@ -138,7 +138,7 @@ contract MultiOwnable {
     /// @param owner The ABI encoded bytes of the owner to be removed.
     function removeLastOwner(uint256 index, bytes calldata owner) external virtual onlyOwner {
         MultiOwnableStorage storage $ = _getMultiOwnableStorage();
-        uint256 ownersRemaining = $.nextOwnerIndex - $.ownersRemoved;
+        uint256 ownersRemaining = $.nextOwnerIndex - $.removedOwnersCount;
         if (ownersRemaining > 1) {
             revert NotLastOwner(ownersRemaining);
         }
@@ -193,8 +193,8 @@ contract MultiOwnable {
     /// @notice Tracks the number of owners removed, used with nextOwnerIndex to avoid removing all owners
     ///
     /// @return The number of owners that have been removed.
-    function ownersRemoved() public view virtual returns (uint256) {
-        return _getMultiOwnableStorage().ownersRemoved;
+    function removedOwnersCount() public view virtual returns (uint256) {
+        return _getMultiOwnableStorage().removedOwnersCount;
     }
 
     /// @notice Initialize the owners of this contract.
@@ -257,7 +257,7 @@ contract MultiOwnable {
         MultiOwnableStorage storage $ = _getMultiOwnableStorage();
         delete $.isOwner[owner];
         delete $.ownerAtIndex[index];
-        $.ownersRemoved++;
+        $.removedOwnersCount++;
 
         emit RemoveOwner(index, owner);
     }

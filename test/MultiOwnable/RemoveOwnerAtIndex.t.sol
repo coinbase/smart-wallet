@@ -13,7 +13,7 @@ contract RemoveOwnerAtIndexTest is RemoveOwnerBaseTest {
         initialOwners[0] = abi.encode(firstOnwer);
         mock.init(initialOwners);
         assertEq(mock.nextOwnerIndex(), 1);
-        assertEq(mock.ownersRemoved(), 0);
+        assertEq(mock.removedOwnersCount(), 0);
         vm.startPrank(firstOnwer);
         for (uint256 i; i < owners; i++) {
             mock.addOwnerAddress(makeAddr(string(abi.encodePacked(i))));
@@ -21,7 +21,7 @@ contract RemoveOwnerAtIndexTest is RemoveOwnerBaseTest {
         }
         for (uint256 i = 1; i < owners + 1; i++) {
             mock.removeOwnerAtIndex(i, abi.encode(makeAddr(string(abi.encodePacked(i - 1)))));
-            assertEq(mock.ownersRemoved(), i);
+            assertEq(mock.removedOwnersCount(), i);
         }
         vm.expectRevert(MultiOwnable.LastOwner.selector);
         mock.removeOwnerAtIndex(0, abi.encode(firstOnwer));
