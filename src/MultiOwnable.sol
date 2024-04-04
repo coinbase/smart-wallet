@@ -204,7 +204,8 @@ contract MultiOwnable {
     ///
     /// @param owners The intiial list of owners to register.
     function _initializeOwners(bytes[] memory owners) internal virtual {
-        uint256 nextOwnerIndex_ = _getMultiOwnableStorage().nextOwnerIndex;
+        MultiOwnableStorage storage $ = _getMultiOwnableStorage();
+        uint256 nextOwnerIndex_ = $.nextOwnerIndex;
         for (uint256 i; i < owners.length; i++) {
             if (owners[i].length != 32 && owners[i].length != 64) {
                 revert InvalidOwnerBytesLength(owners[i]);
@@ -216,7 +217,7 @@ contract MultiOwnable {
 
             _addOwnerAtIndex(owners[i], nextOwnerIndex_++);
         }
-        _getMultiOwnableStorage().nextOwnerIndex = nextOwnerIndex_;
+        $.nextOwnerIndex = nextOwnerIndex_;
     }
 
     /// @notice Convenience function used to add the first 255 owners.
