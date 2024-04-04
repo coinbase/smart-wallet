@@ -100,7 +100,7 @@ contract MultiOwnable {
     ///
     /// @param owner The owner address.
     function addOwnerAddress(address owner) external virtual onlyOwner {
-        _addOwner(abi.encode(owner));
+        _addOwnerAtIndex(abi.encode(owner), _getMultiOwnableStorage().nextOwnerIndex++);
     }
 
     /// @notice Convenience function to add a new owner passkey.
@@ -108,7 +108,7 @@ contract MultiOwnable {
     /// @param x The owner public key x coordinate.
     /// @param y The owner public key y coordinate.
     function addOwnerPublicKey(bytes32 x, bytes32 y) external virtual onlyOwner {
-        _addOwner(abi.encode(x, y));
+        _addOwnerAtIndex(abi.encode(x, y), _getMultiOwnableStorage().nextOwnerIndex++);
     }
 
     /// @notice Removes owner at the given `index`.
@@ -218,13 +218,6 @@ contract MultiOwnable {
             _addOwnerAtIndex(owners[i], nextOwnerIndex_++);
         }
         $.nextOwnerIndex = nextOwnerIndex_;
-    }
-
-    /// @notice Convenience function used to add the first 255 owners.
-    ///
-    /// @param owner The owner raw bytes to add.
-    function _addOwner(bytes memory owner) internal virtual {
-        _addOwnerAtIndex(owner, _getMultiOwnableStorage().nextOwnerIndex++);
     }
 
     /// @notice Adds an owner at the given `index`.
