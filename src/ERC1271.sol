@@ -51,8 +51,6 @@ abstract contract ERC1271 {
         (name, version) = _domainNameAndVersion();
         chainId = block.chainid;
         verifyingContract = address(this);
-        salt = salt; // `bytes32(0)`.
-        extensions = extensions; // `new uint256[](0)`.
     }
 
     /// @notice Validates the `signature` against the given `hash`.
