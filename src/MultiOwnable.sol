@@ -100,7 +100,7 @@ contract MultiOwnable {
     ///
     /// @param owner The owner address.
     function addOwnerAddress(address owner) external virtual onlyOwner {
-        _addOwner(abi.encode(owner));
+        _addOwnerAtIndex(abi.encode(owner), _getMultiOwnableStorage().nextOwnerIndex++);
     }
 
     /// @notice Convenience function to add a new owner passkey.
@@ -108,7 +108,7 @@ contract MultiOwnable {
     /// @param x The owner public key x coordinate.
     /// @param y The owner public key y coordinate.
     function addOwnerPublicKey(bytes32 x, bytes32 y) external virtual onlyOwner {
-        _addOwner(abi.encode(x, y));
+        _addOwnerAtIndex(abi.encode(x, y), _getMultiOwnableStorage().nextOwnerIndex++);
     }
 
     /// @notice Removes owner at the given `index`.
@@ -204,6 +204,8 @@ contract MultiOwnable {
     ///
     /// @param owners The intiial list of owners to register.
     function _initializeOwners(bytes[] memory owners) internal virtual {
+        MultiOwnableStorage storage $ = _getMultiOwnableStorage();
+        uint256 nextOwnerIndex_ = $.nextOwnerIndex;
         for (uint256 i; i < owners.length; i++) {
             if (owners[i].length != 32 && owners[i].length != 64) {
                 revert InvalidOwnerBytesLength(owners[i]);
@@ -213,15 +215,9 @@ contract MultiOwnable {
                 revert InvalidEthereumAddressOwner(owners[i]);
             }
 
-            _addOwnerAtIndex(owners[i], _getMultiOwnableStorage().nextOwnerIndex++);
+            _addOwnerAtIndex(owners[i], nextOwnerIndex_++);
         }
-    }
-
-    /// @notice Convenience function used to add the first 255 owners.
-    ///
-    /// @param owner The owner raw bytes to add.
-    function _addOwner(bytes memory owner) internal virtual {
-        _addOwnerAtIndex(owner, _getMultiOwnableStorage().nextOwnerIndex++);
+        $.nextOwnerIndex = nextOwnerIndex_;
     }
 
     /// @notice Adds an owner at the given `index`.
