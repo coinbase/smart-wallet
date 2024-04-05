@@ -11,6 +11,7 @@ contract TestIsValidSignature is SmartWalletTestBase {
         WebAuthnInfo memory webAuthn = Utils.getWebAuthnStruct(challenge);
 
         (bytes32 r, bytes32 s) = vm.signP256(passkeyPrivateKey, webAuthn.messageHash);
+        s = bytes32(Utils.normalizeS(uint256(s)));
         bytes memory sig = abi.encode(
             CoinbaseSmartWallet.SignatureWrapper({
                 ownerIndex: 1,
@@ -23,7 +24,7 @@ contract TestIsValidSignature is SmartWalletTestBase {
                         r: uint256(r),
                         s: uint256(s)
                     })
-                    )
+                )
             })
         );
 
@@ -62,6 +63,7 @@ contract TestIsValidSignature is SmartWalletTestBase {
         WebAuthnInfo memory webAuthn = Utils.getWebAuthnStruct(challenge);
 
         (bytes32 r, bytes32 s) = vm.signP256(passkeyPrivateKey, webAuthn.messageHash);
+        s = bytes32(Utils.normalizeS(uint256(s)));
 
         uint8 badOwnerIndex = 2;
         bytes memory sig = abi.encode(
@@ -76,7 +78,7 @@ contract TestIsValidSignature is SmartWalletTestBase {
                         r: uint256(r),
                         s: uint256(s)
                     })
-                    )
+                )
             })
         );
 
@@ -90,6 +92,7 @@ contract TestIsValidSignature is SmartWalletTestBase {
         WebAuthnInfo memory webAuthn = Utils.getWebAuthnStruct(challenge);
 
         (bytes32 r, bytes32 s) = vm.signP256(passkeyPrivateKey, webAuthn.messageHash);
+        s = bytes32(Utils.normalizeS(uint256(s)));
 
         bytes memory sig = abi.encode(
             CoinbaseSmartWallet.SignatureWrapper({
@@ -103,7 +106,7 @@ contract TestIsValidSignature is SmartWalletTestBase {
                         r: uint256(r) - 1,
                         s: uint256(s)
                     })
-                    )
+                )
             })
         );
 
@@ -135,6 +138,7 @@ contract TestIsValidSignature is SmartWalletTestBase {
         WebAuthnInfo memory webAuthn = Utils.getWebAuthnStruct(challenge);
 
         (bytes32 r, bytes32 s) = vm.signP256(passkeyPrivateKey, webAuthn.messageHash);
+        s = bytes32(Utils.normalizeS(uint256(s)));
 
         uint8 addressOwnerIndex = 0;
         bytes memory sig = abi.encode(
@@ -149,7 +153,7 @@ contract TestIsValidSignature is SmartWalletTestBase {
                         r: uint256(r) - 1,
                         s: uint256(s)
                     })
-                    )
+                )
             })
         );
 
