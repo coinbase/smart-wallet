@@ -144,8 +144,9 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
     {
         uint256 key = userOp.nonce >> 64;
 
-        // 0xbf6ba1fc = bytes4(keccak256("executeWithoutChainIdValidation(bytes)"))
-        if (userOp.callData.length >= 4 && bytes4(userOp.callData[0:4]) == 0xbf6ba1fc) {
+        if (
+            userOp.callData.length >= 4 && bytes4(userOp.callData[0:4]) == this.executeWithoutChainIdValidation.selector
+        ) {
             userOpHash = getUserOpHashWithoutChainId(userOp);
             if (key != REPLAYABLE_NONCE_KEY) {
                 revert InvalidNonceKey(key);
@@ -176,14 +177,17 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
     ///      to be replayed for all accounts sharing the same address across chains. E.g. This may be
     ///      useful for syncing owner changes.
     ///
-    /// @param data The `UserOperation` raw call data of the  execute.
-    function executeWithoutChainIdValidation(bytes calldata data) public payable virtual onlyEntryPoint {
-        bytes4 selector = bytes4(data[0:4]);
-        if (!canSkipChainIdValidation(selector)) {
-            revert SelectorNotAllowed(selector);
-        }
+    /// @param data An array of calldata to use for separate self calls.
+    function executeWithoutChainIdValidation(bytes[] calldata data) public payable virtual onlyEntryPoint {
+        for (uint256 i; i < data.length; i++) {
+            bytes calldata call = data[i];
+            bytes4 selector = bytes4(call[0:4]);
+            if (!canSkipChainIdValidation(selector)) {
+                revert SelectorNotAllowed(selector);
+            }
 
-        _call(address(this), 0, data);
+            _call(address(this), 0, call);
+        }
     }
 
     /// @notice Execute the given call from this account.
