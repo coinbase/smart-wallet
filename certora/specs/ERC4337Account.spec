@@ -156,7 +156,7 @@ rule OnlyOwnerSelfOrEntryPoint(env e, method f) filtered {
 rule OnlyEntryPoint(env e, method f) filtered {    
     // There is no difference between filtering functions and using them as a lhs of implication
     f -> f.selector == sig:validateUserOp(EntryPointMock.UserOperation, bytes32, uint256).selector 
-        || f.selector == sig:executeWithoutChainIdValidation(bytes).selector
+        || f.selector == sig:executeWithoutChainIdValidation(bytes[]).selector
 } {
     bool ownerBefore = e.msg.sender == entryPoint();
 
