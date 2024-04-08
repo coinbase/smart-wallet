@@ -168,7 +168,7 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
         return 1;
     }
 
-    /// @notice Execute the given call from this account to this account (i.e., self call).
+    /// @notice Execute the given calls from this account to this account (i.e. self call).
     ///
     /// @dev Can only be called by the Entrypoint.
     /// @dev Reverts if the given call is not authorized to skip the chain ID validtion.
@@ -177,10 +177,10 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
     ///      to be replayed for all accounts sharing the same address across chains. E.g. This may be
     ///      useful for syncing owner changes.
     ///
-    /// @param data An array of calldata to use for separate self calls.
-    function executeWithoutChainIdValidation(bytes[] calldata data) public payable virtual onlyEntryPoint {
-        for (uint256 i; i < data.length; i++) {
-            bytes calldata call = data[i];
+    /// @param calls An array of calldata to use for separate self calls.
+    function executeWithoutChainIdValidation(bytes[] calldata calls) public payable virtual onlyEntryPoint {
+        for (uint256 i; i < calls.length; i++) {
+            bytes calldata call = calls[i];
             bytes4 selector = bytes4(call[0:4]);
             if (!canSkipChainIdValidation(selector)) {
                 revert SelectorNotAllowed(selector);
