@@ -29,9 +29,16 @@ jobs:
           chmod +x solc-static-linux
           sudo mv solc-static-linux /usr/local/bin/solc8.23
 
-      - name: Install git submodules
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly    
+
+      - name: Run Forge build
         run: |
-         git submodule update --init --recursive
+          forge --version
+          forge build --sizes
+        id: build
 
       - name: Verify rule ${{ matrix.params.name }}
         run: >
