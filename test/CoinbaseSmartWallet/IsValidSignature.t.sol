@@ -24,7 +24,7 @@ contract TestIsValidSignature is SmartWalletTestBase {
                         r: uint256(r),
                         s: uint256(s)
                     })
-                )
+                    )
             })
         );
 
@@ -78,7 +78,7 @@ contract TestIsValidSignature is SmartWalletTestBase {
                         r: uint256(r),
                         s: uint256(s)
                     })
-                )
+                    )
             })
         );
 
@@ -106,7 +106,7 @@ contract TestIsValidSignature is SmartWalletTestBase {
                         r: uint256(r) - 1,
                         s: uint256(s)
                     })
-                )
+                    )
             })
         );
 
@@ -153,7 +153,7 @@ contract TestIsValidSignature is SmartWalletTestBase {
                         r: uint256(r) - 1,
                         s: uint256(s)
                     })
-                )
+                    )
             })
         );
 

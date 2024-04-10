@@ -11,8 +11,8 @@ contract TestImplementation is SmartWalletTestBase {
 
     function setUp() public override {
         super.setUp();
-        CoinbaseSmartWalletFactory factory = new CoinbaseSmartWalletFactory(implementation);
-        account = factory.createAccount(owners, 1);
+        CoinbaseSmartWalletFactory factory = new CoinbaseSmartWalletFactory();
+        account = factory.createAccount(owners, 1, implementation);
     }
 
     function testImplementation() public {

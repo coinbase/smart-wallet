@@ -3,6 +3,7 @@ pragma solidity ^0.8.4;
 
 import {LibClone} from "solady/utils/LibClone.sol";
 import {CoinbaseSmartWallet} from "./CoinbaseSmartWallet.sol";
+import {EmptyUUPS} from "./EmptyUUPS.sol";
 
 /// @title Coinbase Smart Wallet Factory
 ///
@@ -11,18 +12,13 @@ import {CoinbaseSmartWallet} from "./CoinbaseSmartWallet.sol";
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
 /// @author Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC4337Factory.sol)
 contract CoinbaseSmartWalletFactory {
-    /// @notice Address of the ERC-4337 implementation used as implementation for new accounts.
-    address public immutable implementation;
-
+    address public emptyImplementation;
     /// @notice Thrown when trying to create a new `CoinbaseSmartWallet` account without any owner.
+
     error OwnerRequired();
 
-    /// @notice Factory constructor used to initialize the implementation address to use for future
-    ///         ERC-4337 account deployments.
-    ///
-    /// @param erc4337 The address of the ERC-4337 implementation used to deploy new cloned accounts.
-    constructor(address erc4337) payable {
-        implementation = erc4337;
+    constructor() {
+        emptyImplementation = address(new EmptyUUPS());
     }
 
     /// @notice Deploys an ERC-4337 account and returns its deterministic address.
@@ -35,7 +31,7 @@ contract CoinbaseSmartWalletFactory {
     /// @param owners The initial set of owners that should be able to control the account.
     /// @param nonce  The nonce of the account, allowing multiple accounts with the same set of initial
     ///               owners to exist.
-    function createAccount(bytes[] calldata owners, uint256 nonce)
+    function createAccount(bytes[] calldata owners, uint256 nonce, address implementation)
         public
         payable
         virtual
@@ -46,12 +42,13 @@ contract CoinbaseSmartWalletFactory {
         }
 
         (bool alreadyDeployed, address accountAddress) =
-            LibClone.createDeterministicERC1967(msg.value, implementation, _getSalt(owners, nonce));
+            LibClone.createDeterministicERC1967(msg.value, emptyImplementation, _getSalt(owners, nonce));
 
         account = CoinbaseSmartWallet(payable(accountAddress));
 
         if (alreadyDeployed == false) {
-            account.initialize(owners);
+            bytes memory data = abi.encodeWithSelector(account.initialize.selector, owners);
+            account.upgradeToAndCall(implementation, data);
         }
     }
 
@@ -69,7 +66,7 @@ contract CoinbaseSmartWalletFactory {
     ///
     /// @return result The initialization code hash.
     function initCodeHash() public view virtual returns (bytes32 result) {
-        result = LibClone.initCodeHashERC1967(implementation);
+        result = LibClone.initCodeHashERC1967(emptyImplementation);
     }
 
     /// @notice Returns the deterministic salt for a specific set of `owners` and `nonce`.

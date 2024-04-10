@@ -10,8 +10,8 @@ contract TestUpgradeToAndCall is SmartWalletTestBase {
 
     function setUp() public override {
         super.setUp();
-        CoinbaseSmartWalletFactory factory = new CoinbaseSmartWalletFactory(address(new CoinbaseSmartWallet()));
-        account = factory.createAccount(owners, 1);
+        CoinbaseSmartWalletFactory factory = new CoinbaseSmartWalletFactory();
+        account = factory.createAccount(owners, 0, address(new CoinbaseSmartWallet()));
         vm.startPrank(signer);
     }
 

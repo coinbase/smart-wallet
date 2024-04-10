@@ -65,7 +65,7 @@ contract TestValidateUserOp is SmartWalletTestBase {
                         r: uint256(r),
                         s: uint256(s)
                     })
-                )
+                    )
             })
         );
 

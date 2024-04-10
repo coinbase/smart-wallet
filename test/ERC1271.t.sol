@@ -14,10 +14,10 @@ contract ERC1271Test is Test {
     bytes[] owners;
 
     function setUp() public {
-        factory = new CoinbaseSmartWalletFactory(address(new CoinbaseSmartWallet()));
+        factory = new CoinbaseSmartWalletFactory();
         owners.push(abi.encode(address(1)));
         owners.push(abi.encode(address(2)));
-        account = factory.createAccount(owners, 0);
+        account = factory.createAccount(owners, 0, address(new CoinbaseSmartWallet()));
     }
 
     function test_returnsExpectedDomainHashWhenProxy() public {
