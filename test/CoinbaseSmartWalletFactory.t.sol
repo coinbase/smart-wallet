@@ -47,13 +47,13 @@ contract CoinbaseSmartWalletFactoryTest is Test {
     }
 
     function test_createAccountDeploysToPredeterminedAddress() public {
-        address p = factory.getAddress(owners, 0);
+        address p = factory.getAddress(owners, 0, address(account));
         CoinbaseSmartWallet a = factory.createAccount{value: 1e18}(owners, 0, address(account));
         assertEq(address(a), p);
     }
 
     function test_CreateAccount_ReturnsPredeterminedAddress_WhenAccountAlreadyExists() public {
-        address p = factory.getAddress(owners, 0);
+        address p = factory.getAddress(owners, 0, address(account));
         CoinbaseSmartWallet a = factory.createAccount{value: 1e18}(owners, 0, address(account));
         CoinbaseSmartWallet b = factory.createAccount{value: 1e18}(owners, 0, address(account));
         assertEq(address(a), p);

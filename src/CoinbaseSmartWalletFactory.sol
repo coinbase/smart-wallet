@@ -42,7 +42,7 @@ contract CoinbaseSmartWalletFactory {
         }
 
         (bool alreadyDeployed, address accountAddress) =
-            LibClone.createDeterministicERC1967(msg.value, emptyImplementation, _getSalt(owners, nonce));
+            LibClone.createDeterministicERC1967(msg.value, emptyImplementation, _getSalt(owners, nonce, implementation));
 
         account = CoinbaseSmartWallet(payable(accountAddress));
 
@@ -58,8 +58,13 @@ contract CoinbaseSmartWalletFactory {
     /// @param nonce  The nonce provided to `createAccount()`.
     ///
     /// @return predicted The predicted account deployment address.
-    function getAddress(bytes[] calldata owners, uint256 nonce) external view returns (address predicted) {
-        predicted = LibClone.predictDeterministicAddress(initCodeHash(), _getSalt(owners, nonce), address(this));
+    function getAddress(bytes[] calldata owners, uint256 nonce, address implementation)
+        external
+        view
+        returns (address predicted)
+    {
+        predicted =
+            LibClone.predictDeterministicAddress(initCodeHash(), _getSalt(owners, nonce, implementation), address(this));
     }
 
     /// @notice Returns the initialization code hash of the account (a minimal ERC1967 proxy).
@@ -75,7 +80,11 @@ contract CoinbaseSmartWalletFactory {
     /// @param nonce  The nonce provided to `createAccount()`.
     ///
     /// @return salt The computed salt.
-    function _getSalt(bytes[] calldata owners, uint256 nonce) internal pure returns (bytes32 salt) {
-        salt = keccak256(abi.encode(owners, nonce));
+    function _getSalt(bytes[] calldata owners, uint256 nonce, address implementation)
+        internal
+        pure
+        returns (bytes32 salt)
+    {
+        salt = keccak256(abi.encode(owners, nonce, implementation));
     }
 }
