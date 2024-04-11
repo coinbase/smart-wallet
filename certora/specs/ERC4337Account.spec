@@ -120,7 +120,7 @@ rule OnlyOwnerOrSelf(env e, method f) filtered {
     f -> f.selector == sig:addOwnerAddress(address).selector 
         || f.selector == sig:addOwnerPublicKey(bytes32, bytes32).selector
         || f.selector == sig:removeOwnerAtIndex(uint256, bytes).selector
-        || f.selector == sig:removeLastOwner(address, bytes).selector
+        || f.selector == sig:removeLastOwner(uint256, bytes).selector
         || f.selector == sig:upgradeToAndCall(address, bytes).selector 
 } {
     bool ownerBefore = e.msg.sender == currentContract || isOwnerAddress(e.msg.sender); // owner can remove themselves
