@@ -255,6 +255,7 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
             functionSelector == MultiOwnable.addOwnerPublicKey.selector
                 || functionSelector == MultiOwnable.addOwnerAddress.selector
                 || functionSelector == MultiOwnable.removeOwnerAtIndex.selector
+                || functionSelector == MultiOwnable.removeLastOwner.selector
                 || functionSelector == UUPSUpgradeable.upgradeToAndCall.selector
         ) {
             return true;
