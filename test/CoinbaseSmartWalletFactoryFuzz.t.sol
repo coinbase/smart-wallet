@@ -5,7 +5,6 @@ import {Test, console2} from "forge-std/Test.sol";
 import {CoinbaseSmartWallet, MultiOwnable} from "../src/CoinbaseSmartWallet.sol";
 import {CoinbaseSmartWalletFactory} from "../src/CoinbaseSmartWalletFactory.sol";
 import {LibClone} from "solady/utils/LibClone.sol";
-import "forge-std/console.sol";
 
 contract CoinbaseSmartWalletFactoryFuzzTest is Test {
    CoinbaseSmartWalletFactory factory;
