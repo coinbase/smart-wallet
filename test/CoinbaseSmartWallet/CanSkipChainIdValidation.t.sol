@@ -8,6 +8,7 @@ contract TestCanSkipChainIdValidation is SmartWalletTestBase {
         MultiOwnable.addOwnerAddress.selector,
         MultiOwnable.addOwnerPublicKey.selector,
         MultiOwnable.removeOwnerAtIndex.selector,
+        MultiOwnable.removeLastOwner.selector,
         UUPSUpgradeable.upgradeToAndCall.selector
     ];
     bytes4[] otherSelectors = [CoinbaseSmartWallet.execute.selector, CoinbaseSmartWallet.executeBatch.selector];
