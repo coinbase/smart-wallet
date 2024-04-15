@@ -23,9 +23,9 @@ contract CoinbaseSmartWalletHarness is CoinbaseSmartWallet {
     /// @dev Sends to the EntryPoint (i.e. `msg.sender`) the missing funds for this transaction.
     modifier payPrefund(uint256 missingAccountFunds) override {
         _;
-        assert (msg.sender == entryPoint);
+        assert (msg.sender == ENTRY_POINT);
         if(missingAccountFunds !=0) {
-            (bool success, ) = entryPoint.call{gas: gasleft(), value: missingAccountFunds}("");
+            (bool success, ) = ENTRY_POINT.call{gas: gasleft(), value: missingAccountFunds}("");
         }
     }
 
