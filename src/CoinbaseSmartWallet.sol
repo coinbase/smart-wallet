@@ -43,7 +43,7 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
     uint256 public constant REPLAYABLE_NONCE_KEY = 8453;
 
     /// @notice The address of the v0.6 EntryPoint contract.
-    address public entryPoint = 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789;
+    address public immutable entryPoint = 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789;
 
     /// @notice Thrown when trying to re-initialize an account.
     error Initialized();
