@@ -14,7 +14,7 @@ methods {
     function isOwnerAddress(address) external returns (bool) envfree;
     function isOwnerBytes(bytes) external returns (bool) envfree;
     function compareBytes(bytes, bytes) external returns (bool) envfree;
-    function entryPoint() external returns (address) envfree;
+    function ENTRY_POINT() external returns (address) envfree;
 }
 
 persistent ghost signatureValidTime(bytes32,uint256) returns bool;
@@ -142,7 +142,7 @@ rule OnlyOwnerSelfOrEntryPoint(env e, method f) filtered {
 } {
     bool ownerBefore = e.msg.sender == currentContract 
                         || isOwnerAddress(e.msg.sender) 
-                        || e.msg.sender == entryPoint();
+                        || e.msg.sender == ENTRY_POINT();
 
     calldataarg args;
     f@withrevert(e, args);
@@ -159,7 +159,7 @@ rule OnlyEntryPoint(env e, method f) filtered {
     f -> f.selector == sig:validateUserOp(EntryPointMock.UserOperation, bytes32, uint256).selector 
         || f.selector == sig:executeWithoutChainIdValidation(bytes[]).selector
 } {
-    bool ownerBefore = e.msg.sender == entryPoint();
+    bool ownerBefore = e.msg.sender == ENTRY_POINT();
 
     calldataarg args;
     f@withrevert(e, args);
@@ -221,7 +221,7 @@ rule ethBalanceDecreaseByMissingAccountFunds(env e){
     require e.msg.value == 0;
     require _ethBalance >= missingAccountFunds;
     require missingAccountFunds + nativeBalances[e.msg.sender] <= max_uint256;
-    require EntryPoint == entryPoint();
+    require EntryPoint == ENTRY_POINT();
 
     require EntryPoint.balanceOf(currentContract) + missingAccountFunds <= max_uint112;
     validateUserOp(e, userOp, userOpHash, missingAccountFunds);

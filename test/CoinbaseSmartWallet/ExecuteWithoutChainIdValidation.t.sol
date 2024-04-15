@@ -12,7 +12,7 @@ contract TestExecuteWithoutChainIdValidation is SmartWalletTestBase {
         userOpCalldata = abi.encodeWithSelector(CoinbaseSmartWallet.executeWithoutChainIdValidation.selector);
     }
 
-    function test_reverts_whenCallerNotEntryPoint() public {
+    function test_reverts_whenCallerNotENTRY_POINT() public {
         vm.expectRevert(MultiOwnable.Unauthorized.selector);
         account.executeWithoutChainIdValidation(calls);
     }

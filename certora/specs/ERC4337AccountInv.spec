@@ -13,7 +13,7 @@ methods {
     function isOwnerAddress(address) external returns (bool) envfree;
     function isOwnerBytes(bytes) external returns (bool) envfree;
     function compareBytes(bytes, bytes) external returns (bool) envfree;
-    function entryPoint() external returns (address) envfree;
+    function ENTRY_POINT() external returns (address) envfree;
 }
 
 persistent ghost signatureValidTime(bytes32,uint256) returns bool;

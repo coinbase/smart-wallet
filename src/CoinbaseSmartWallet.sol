@@ -43,7 +43,7 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
     uint256 public constant REPLAYABLE_NONCE_KEY = 8453;
 
     /// @notice The address of the v0.6 EntryPoint contract.
-    address public immutable entryPoint = 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789;
+    address public constant ENTRY_POINT = 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789;
 
     /// @notice Thrown when trying to re-initialize an account.
     error Initialized();
@@ -66,7 +66,7 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
 
     /// @notice Reverts if the caller is not the EntryPoint.
     modifier onlyEntryPoint() virtual {
-        if (msg.sender != entryPoint) {
+        if (msg.sender != ENTRY_POINT) {
             revert Unauthorized();
         }
 
@@ -75,7 +75,7 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
 
     /// @notice Reverts if the caller is neither the EntryPoint, the owner, nor the account itself.
     modifier onlyEntryPointOrOwner() virtual {
-        if (msg.sender != entryPoint) {
+        if (msg.sender != ENTRY_POINT) {
             _checkOwner();
         }
 
@@ -229,7 +229,7 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
         virtual
         returns (bytes32 userOpHash)
     {
-        return keccak256(abi.encode(UserOperationLib.hash(userOp), entryPoint));
+        return keccak256(abi.encode(UserOperationLib.hash(userOp), ENTRY_POINT));
     }
 
     /// @notice Returns the implementation of the ERC1967 proxy.

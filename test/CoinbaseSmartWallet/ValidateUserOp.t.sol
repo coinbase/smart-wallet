@@ -28,8 +28,8 @@ contract TestValidateUserOp is SmartWalletTestBase {
         vm.deal(address(account), 1 ether);
         assertEq(address(account).balance, 1 ether);
 
-        vm.etch(account.entryPoint(), address(new MockEntryPoint()).code);
-        MockEntryPoint ep = MockEntryPoint(payable(account.entryPoint()));
+        vm.etch(account.ENTRY_POINT(), address(new MockEntryPoint()).code);
+        MockEntryPoint ep = MockEntryPoint(payable(account.ENTRY_POINT()));
 
         UserOperation memory userOp;
         // Success returns 0.
@@ -69,8 +69,8 @@ contract TestValidateUserOp is SmartWalletTestBase {
             })
         );
 
-        vm.etch(account.entryPoint(), address(new MockEntryPoint()).code);
-        MockEntryPoint ep = MockEntryPoint(payable(account.entryPoint()));
+        vm.etch(account.ENTRY_POINT(), address(new MockEntryPoint()).code);
+        MockEntryPoint ep = MockEntryPoint(payable(account.ENTRY_POINT()));
 
         UserOperation memory userOp;
         // Success returns 0.
@@ -82,7 +82,7 @@ contract TestValidateUserOp is SmartWalletTestBase {
         UserOperation memory userOp;
         userOp.nonce = 0;
         userOp.callData = abi.encodeWithSelector(CoinbaseSmartWallet.executeWithoutChainIdValidation.selector, "");
-        vm.startPrank(account.entryPoint());
+        vm.startPrank(account.ENTRY_POINT());
         vm.expectRevert(abi.encodeWithSelector(CoinbaseSmartWallet.InvalidNonceKey.selector, 0));
         account.validateUserOp(userOp, "", 0);
     }
@@ -91,7 +91,7 @@ contract TestValidateUserOp is SmartWalletTestBase {
         UserOperation memory userOp;
         userOp.nonce = account.REPLAYABLE_NONCE_KEY() << 64;
         userOp.callData = abi.encodeWithSelector(CoinbaseSmartWallet.execute.selector, "");
-        vm.startPrank(account.entryPoint());
+        vm.startPrank(account.ENTRY_POINT());
         vm.expectRevert(
             abi.encodeWithSelector(CoinbaseSmartWallet.InvalidNonceKey.selector, account.REPLAYABLE_NONCE_KEY())
         );
