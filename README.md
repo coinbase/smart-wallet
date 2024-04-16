@@ -11,7 +11,7 @@ It supports
 - Cross-chain replayability for owner updates and other actions: sign once, update everywhere. 
 
 ## Multiple Owners
-Our smart wallet supports up to 256 concurrent owners. Each owner can transact independently, without sign off from any other owner. 
+Our smart wallet supports a practically unlimited number of concurrent owners (max 2^256). Each owner can transact independently, without sign off from any other owner. 
 
 Owners are identified as `bytes` to allow both Ethereum address owners and passkey (Secp256r1) public key owners. 
 
