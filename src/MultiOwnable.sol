@@ -120,8 +120,7 @@ contract MultiOwnable {
     /// @param index The index of the owner to be removed.
     /// @param owner The ABI encoded bytes of the owner to be removed.
     function removeOwnerAtIndex(uint256 index, bytes calldata owner) external virtual onlyOwner {
-        MultiOwnableStorage storage $ = _getMultiOwnableStorage();
-        if ($.nextOwnerIndex - $.removedOwnersCount == 1) {
+        if (ownerCount() == 1) {
             revert LastOwner();
         }
 
@@ -137,8 +136,7 @@ contract MultiOwnable {
     /// @param index The index of the owner to be removed.
     /// @param owner The ABI encoded bytes of the owner to be removed.
     function removeLastOwner(uint256 index, bytes calldata owner) external virtual onlyOwner {
-        MultiOwnableStorage storage $ = _getMultiOwnableStorage();
-        uint256 ownersRemaining = $.nextOwnerIndex - $.removedOwnersCount;
+        uint256 ownersRemaining = ownerCount();
         if (ownersRemaining > 1) {
             revert NotLastOwner(ownersRemaining);
         }
@@ -188,6 +186,14 @@ contract MultiOwnable {
     /// @return The next index that will be used to add a new owner.
     function nextOwnerIndex() public view virtual returns (uint256) {
         return _getMultiOwnableStorage().nextOwnerIndex;
+    }
+
+    /// @notice Returns the current number of owners
+    ///
+    /// @return The current owner count
+    function ownerCount() public view virtual returns (uint256) {
+        MultiOwnableStorage storage $ = _getMultiOwnableStorage();
+        return $.nextOwnerIndex - $.removedOwnersCount;
     }
 
     /// @notice Tracks the number of owners removed, used with nextOwnerIndex to avoid removing all owners
