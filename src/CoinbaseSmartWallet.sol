@@ -145,7 +145,7 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
         uint256 key = userOp.nonce >> 64;
 
         if (
-            userOp.callData.length >= 4 && bytes4(userOp.callData[0:4]) == this.executeWithoutChainIdValidation.selector
+            bytes4(userOp.callData) == this.executeWithoutChainIdValidation.selector
         ) {
             userOpHash = getUserOpHashWithoutChainId(userOp);
             if (key != REPLAYABLE_NONCE_KEY) {
@@ -181,7 +181,7 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
     function executeWithoutChainIdValidation(bytes[] calldata calls) public payable virtual onlyEntryPoint {
         for (uint256 i; i < calls.length; i++) {
             bytes calldata call = calls[i];
-            bytes4 selector = bytes4(call[0:4]);
+            bytes4 selector = bytes4(call);
             if (!canSkipChainIdValidation(selector)) {
                 revert SelectorNotAllowed(selector);
             }
