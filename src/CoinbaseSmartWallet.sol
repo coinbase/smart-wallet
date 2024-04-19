@@ -144,9 +144,7 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
     {
         uint256 key = userOp.nonce >> 64;
 
-        if (
-            bytes4(userOp.callData) == this.executeWithoutChainIdValidation.selector
-        ) {
+        if (bytes4(userOp.callData) == this.executeWithoutChainIdValidation.selector) {
             userOpHash = getUserOpHashWithoutChainId(userOp);
             if (key != REPLAYABLE_NONCE_KEY) {
                 revert InvalidNonceKey(key);
