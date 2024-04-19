@@ -106,6 +106,19 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
         _initializeOwners(owners);
     }
 
+    /// @notice Initializes the account with the the given owners.
+    ///
+    /// @dev Reverts if the account has already been initialized.
+    ///
+    /// @param owners The initial array of owners to initialize this account with.
+    function initialize(bytes[] calldata owners) external payable virtual {
+        if (nextOwnerIndex() != 0) {
+            revert Initialized();
+        }
+
+        _initializeOwners(owners);
+    }
+
     /// @notice Custom implemenentation of the ERC-4337 `validateUserOp` method. The EntryPoint will
     ///         make the call to the recipient only if this validation call returns successfully.
     ///         See `IAccount.validateUserOp()`.
@@ -200,19 +213,6 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
         for (uint256 i; i < calls.length; i++) {
             _call(calls[i].target, calls[i].value, calls[i].data);
         }
-    }
-
-    /// @notice Initializes the account with the the given owners.
-    ///
-    /// @dev Reverts if the account has already been initialized.
-    ///
-    /// @param owners The initial array of owners to initialize this account with.
-    function initialize(bytes[] calldata owners) public payable virtual {
-        if (nextOwnerIndex() != 0) {
-            revert Initialized();
-        }
-
-        _initializeOwners(owners);
     }
 
     /// @notice Returns the address of the EntryPoint v0.6.
