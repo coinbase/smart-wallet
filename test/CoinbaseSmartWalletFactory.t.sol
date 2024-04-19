@@ -18,6 +18,11 @@ contract CoinbaseSmartWalletFactoryTest is Test {
         owners.push(abi.encode(address(2)));
     }
 
+    function test_constructor_setsImplementation(address implementation) public {
+        factory = new CoinbaseSmartWalletFactory(implementation);
+        assertEq(factory.implementation(), implementation);
+    }
+
     function test_createAccountSetsOwnersCorrectly() public {
         address expectedAddress = factory.getAddress(owners, 0);
         vm.expectCall(expectedAddress, abi.encodeCall(CoinbaseSmartWallet.initialize, (owners)));
