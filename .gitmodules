@@ -19,3 +19,6 @@
 [submodule "lib/openzeppelin-contracts"]
 	path = lib/openzeppelin-contracts
 	url = https://github.com/openzeppelin/openzeppelin-contracts
+[submodule "lib/3074"]
+	path = lib/3074
+	url = https://github.com/anna-carroll/3074
