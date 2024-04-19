@@ -50,7 +50,7 @@ contract CoinbaseSmartWalletFactory {
 
         account = CoinbaseSmartWallet(payable(accountAddress));
 
-        if (alreadyDeployed == false) {
+        if (!alreadyDeployed) {
             account.initialize(owners);
         }
     }
