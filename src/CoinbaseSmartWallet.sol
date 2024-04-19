@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.23;
+pragma solidity ^0.8.23;
 
 import {Receiver} from "solady/accounts/Receiver.sol";
 import {UUPSUpgradeable} from "solady/utils/UUPSUpgradeable.sol";
 import {SignatureCheckerLib} from "solady/utils/SignatureCheckerLib.sol";
 import {UserOperation, UserOperationLib} from "account-abstraction/interfaces/UserOperation.sol";
 import {WebAuthn} from "webauthn-sol/WebAuthn.sol";
+import {BaseAuth} from "./BaseAuth.sol";
 
 import {ERC1271} from "./ERC1271.sol";
 import {MultiOwnable} from "./MultiOwnable.sol";
@@ -17,7 +18,7 @@ import {MultiOwnable} from "./MultiOwnable.sol";
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
 /// @author Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC4337.sol)
-contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
+contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271, BaseAuth {
     /// @notice Wrapper struct, used during signature validation, tie a signature with its signer.
     struct SignatureWrapper {
         /// @dev The index indentifying owner (see MultiOwnable) who signed.
@@ -210,6 +211,55 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
         for (uint256 i; i < calls.length; i++) {
             _call(calls[i].target, calls[i].value, calls[i].data);
         }
+    }
+
+    struct AuthInfo {
+        address owner;
+        uint8 v;
+        bytes32 r;
+        bytes32 s;
+    }
+
+    struct Commit {
+        uint32 validAfter;
+        uint32 validUntil;
+        bytes24 data;
+    }
+
+    mapping(bytes32 authCommit => AuthInfo info) public _authInfo;
+
+    function setAuth(bytes32 commit, address owner, uint8 v, bytes32 r, bytes32 s) public {
+        if (!isOwnerAddress(owner)) {
+            revert("not owner");
+        }
+
+        SignatureCheckerLib.isValidSignatureNow(owner, getDigest(commit), v, r, s);
+
+        _authInfo[commit] = AuthInfo({owner: owner, v: v, r: r, s: s});
+    }
+
+    function executeAuthCallBatch(Call[] calldata calls, bytes calldata commitEncoded) public onlyEntryPointOrOwner {
+        Commit memory commit = abi.decode(commitEncoded, (Commit));
+        if (block.timestamp < commit.validAfter) {
+            revert("not valid yet");
+        }
+
+        if (block.timestamp > commit.validUntil) {
+            revert("expired");
+        }
+
+        AuthInfo memory info = _authInfo[bytes32(commitEncoded)];
+
+        // not could check if info.owner is still owner
+
+        authSimple({authority: info.owner, commit: bytes32(commitEncoded), v: info.v, r: info.r, s: info.s});
+        for (uint i; i < calls.length; i++){
+            authCallSimple(calls[i].target, calls[i].data, calls[i].value, gasleft());
+        }
+    }
+
+    function authInfo(bytes32 commit) public returns (AuthInfo memory) {
+        return _authInfo[commit];
     }
 
     /// @notice Returns the address of the EntryPoint v0.6.

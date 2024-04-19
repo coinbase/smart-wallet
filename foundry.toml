@@ -2,5 +2,13 @@
 src = "src"
 out = "out"
 libs = ["lib"]
+ffi = true
+prague = true
+remappings = [
+  "forge-std/=lib/forge-std/src/",
+  "solady/=lib/solady/src/",
+]
+solc = "bin/solc"
 
-# See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
+[fmt]
+bracket_spacing = true
