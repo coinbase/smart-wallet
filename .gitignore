@@ -16,6 +16,4 @@ docs/
 .env
 .VSCodeCounter/
 
-lib/
-
 .certora_internal/
