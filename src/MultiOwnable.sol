@@ -137,7 +137,7 @@ contract MultiOwnable {
     /// @param owner The ABI encoded bytes of the owner to be removed.
     function removeLastOwner(uint256 index, bytes calldata owner) external virtual onlyOwner {
         uint256 ownersRemaining = ownerCount();
-        if (ownerCount() > 1) {
+        if (ownersRemaining > 1) {
             revert NotLastOwner(ownersRemaining);
         }
 
