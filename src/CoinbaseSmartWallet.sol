@@ -106,19 +106,6 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
         _initializeOwners(owners);
     }
 
-    /// @notice Initializes the account with the the given owners.
-    ///
-    /// @dev Reverts if the account has already been initialized.
-    ///
-    /// @param owners The initial array of owners to initialize this account with.
-    function initialize(bytes[] calldata owners) public payable virtual {
-        if (nextOwnerIndex() != 0) {
-            revert Initialized();
-        }
-
-        _initializeOwners(owners);
-    }
-
     /// @notice Custom implemenentation of the ERC-4337 `validateUserOp` method. The EntryPoint will
     ///         make the call to the recipient only if this validation call returns successfully.
     ///         See `IAccount.validateUserOp()`.
@@ -135,7 +122,7 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
     ///
     /// @return validationData The encoded `ValidationData` structure.
     function validateUserOp(UserOperation calldata userOp, bytes32 userOpHash, uint256 missingAccountFunds)
-        public
+        external
         payable
         virtual
         onlyEntryPoint
@@ -176,7 +163,7 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
     ///      useful for syncing owner changes.
     ///
     /// @param calls An array of calldata to use for separate self calls.
-    function executeWithoutChainIdValidation(bytes[] calldata calls) public payable virtual onlyEntryPoint {
+    function executeWithoutChainIdValidation(bytes[] calldata calls) external payable virtual onlyEntryPoint {
         for (uint256 i; i < calls.length; i++) {
             bytes calldata call = calls[i];
             bytes4 selector = bytes4(call);
@@ -195,7 +182,12 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
     /// @param target The target call address.
     /// @param value  The call value to user.
     /// @param data   The raw call data.
-    function execute(address target, uint256 value, bytes calldata data) public payable virtual onlyEntryPointOrOwner {
+    function execute(address target, uint256 value, bytes calldata data)
+        external
+        payable
+        virtual
+        onlyEntryPointOrOwner
+    {
         _call(target, value, data);
     }
 
@@ -204,10 +196,23 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
     /// @dev Can only be called by the Entrypoint or an owner of this account (including itself).
     ///
     /// @param calls The list of `Call`s to execute.
-    function executeBatch(Call[] calldata calls) public payable virtual onlyEntryPointOrOwner {
+    function executeBatch(Call[] calldata calls) external payable virtual onlyEntryPointOrOwner {
         for (uint256 i; i < calls.length; i++) {
             _call(calls[i].target, calls[i].value, calls[i].data);
         }
+    }
+
+    /// @notice Initializes the account with the the given owners.
+    ///
+    /// @dev Reverts if the account has already been initialized.
+    ///
+    /// @param owners The initial array of owners to initialize this account with.
+    function initialize(bytes[] calldata owners) public payable virtual {
+        if (nextOwnerIndex() != 0) {
+            revert Initialized();
+        }
+
+        _initializeOwners(owners);
     }
 
     /// @notice Returns the address of the EntryPoint v0.6.

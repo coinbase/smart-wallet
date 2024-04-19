@@ -36,7 +36,7 @@ contract CoinbaseSmartWalletFactory {
     /// @param nonce  The nonce of the account, allowing multiple accounts with the same set of initial
     ///               owners to exist.
     function createAccount(bytes[] calldata owners, uint256 nonce)
-        public
+        external
         payable
         virtual
         returns (CoinbaseSmartWallet account)
