@@ -24,6 +24,8 @@ contract MockCoinbaseSmartWallet is CoinbaseSmartWallet {
         assembly {
             mstore(0x40, add(mload(0x40), mod(filler, 0x40)))
         }
-        return super.executeBatch(calls);
+        for (uint256 i; i < calls.length; i++) {
+            _call(calls[i].target, calls[i].value, calls[i].data);
+        }
     }
 }
