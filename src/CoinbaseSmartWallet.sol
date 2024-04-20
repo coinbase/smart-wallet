@@ -143,7 +143,6 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
     ///  where `validUntil` is 0 (indefinite) and `validAfter` is 0.
     function validateUserOp(UserOperation calldata userOp, bytes32 userOpHash, uint256 missingAccountFunds)
         external
-        payable
         virtual
         onlyEntryPoint
         payPrefund(missingAccountFunds)
@@ -295,13 +294,7 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
     /// @dev Reverts if owner at `ownerIndex` is not compatible with `signature` format.
     ///
     /// @param signature ABI encoded `SignatureWrapper`.
-    function _isValidSignature(bytes32 message, bytes calldata signature)
-        internal
-        view
-        virtual
-        override
-        returns (bool)
-    {
+    function _isValidSignature(bytes32 hash, bytes calldata signature) internal view virtual override returns (bool) {
         SignatureWrapper memory sigWrapper = abi.decode(signature, (SignatureWrapper));
         bytes memory ownerBytes = ownerAtIndex(sigWrapper.ownerIndex);
 
@@ -317,7 +310,7 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
                 owner := mload(add(ownerBytes, 32))
             }
 
-            return SignatureCheckerLib.isValidSignatureNow(owner, message, sigWrapper.signatureData);
+            return SignatureCheckerLib.isValidSignatureNow(owner, hash, sigWrapper.signatureData);
         }
 
         if (ownerBytes.length == 64) {
@@ -325,7 +318,7 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
 
             WebAuthn.WebAuthnAuth memory auth = abi.decode(sigWrapper.signatureData, (WebAuthn.WebAuthnAuth));
 
-            return WebAuthn.verify({challenge: abi.encode(message), requireUV: false, webAuthnAuth: auth, x: x, y: y});
+            return WebAuthn.verify({challenge: abi.encode(hash), requireUV: false, webAuthnAuth: auth, x: x, y: y});
         }
 
         revert InvalidOwnerBytesLength(ownerBytes);
