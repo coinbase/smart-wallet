@@ -142,15 +142,13 @@ abstract contract ERC1271 {
     /// @return version The current major version of the signing domain.
     function _domainNameAndVersion() internal view virtual returns (string memory name, string memory version);
 
-    /// @notice Validate the `signature` against the given `message`.
+    /// @notice Validates the `signature` against the given `message`.
     ///
     /// @dev MUST be defined by the implementation.
-    /// @dev The `signature` content MIGHT NOT necessarily be the usual (r,s,v) values. It is the responsibility
-    ///      of the implementation to decode `signature` depending on its usecase.
     ///
     /// @param message   The message whose signature has been performed on.
     /// @param signature The signature associated with `message`.
     ///
     /// @return `true` is the signature is valid, else `false`.
-    function _validateSignature(bytes32 message, bytes calldata signature) internal view virtual returns (bool);
+    function _isValidSignature(bytes32 message, bytes calldata signature) internal view virtual returns (bool);
 }
