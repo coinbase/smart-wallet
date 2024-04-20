@@ -96,40 +96,45 @@ contract MultiOwnable {
         _;
     }
 
-    /// @notice Convenience function to add a new owner address.
+    /// @notice Adds new address owner.
     ///
     /// @param owner The owner address.
-    function addOwnerAddress(address owner) external virtual onlyOwner {
-        _addOwnerAtIndex(abi.encode(owner), _getMultiOwnableStorage().nextOwnerIndex++);
+    ///
+    /// @return false is owner already on account, true if owner added
+    function addOwnerAddress(address owner) external virtual onlyOwner returns (bool) {
+        return _addOwnerAtIndex(abi.encode(owner), _getMultiOwnableStorage().nextOwnerIndex++);
     }
 
-    /// @notice Convenience function to add a new owner passkey.
+    /// @notice Add new public key owner.
     ///
     /// @param x The owner public key x coordinate.
     /// @param y The owner public key y coordinate.
-    function addOwnerPublicKey(bytes32 x, bytes32 y) external virtual onlyOwner {
-        _addOwnerAtIndex(abi.encode(x, y), _getMultiOwnableStorage().nextOwnerIndex++);
+    ///
+    /// @return false is owner already on account, true if owner added.
+    function addOwnerPublicKey(bytes32 x, bytes32 y) external virtual onlyOwner returns (bool) {
+        return _addOwnerAtIndex(abi.encode(x, y), _getMultiOwnableStorage().nextOwnerIndex++);
     }
 
     /// @notice Removes owner at the given `index`.
     ///
-    /// @dev Reverts if the owner is not registered at `index`.
     /// @dev Reverts if there is currently only one owner.
     /// @dev Reverts if `owner` does not match bytes found at `index`.
     ///
     /// @param index The index of the owner to be removed.
     /// @param owner The ABI encoded bytes of the owner to be removed.
-    function removeOwnerAtIndex(uint256 index, bytes calldata owner) external virtual onlyOwner {
+    ///
+    /// @return false if no owner at index, true if owner found at index and removed.
+    function removeOwnerAtIndex(uint256 index, bytes calldata owner) external virtual onlyOwner returns (bool) {
         if (ownerCount() == 1) {
             revert LastOwner();
         }
 
-        _removeOwnerAtIndex(index, owner);
+        return _removeOwnerAtIndex(index, owner);
     }
 
     /// @notice Removes owner at the given `index`, which should be the only current owner.
     ///
-    /// @dev Reverts if the owner is not registered at `index`.
+    /// @dev Reverts if no owner at `index`.
     /// @dev Reverts if there is currently more than one owner.
     /// @dev Reverts if `owner` does not match bytes found at `index`.
     ///
@@ -141,7 +146,10 @@ contract MultiOwnable {
             revert NotLastOwner(ownersRemaining);
         }
 
-        _removeOwnerAtIndex(index, owner);
+        // Require owner actually removed by this call
+        if (!_removeOwnerAtIndex(index, owner)) {
+            revert NoOwnerAtIndex(index);
+        }
     }
 
     /// @notice Checks if the given `account` address is registered as owner.
@@ -221,37 +229,51 @@ contract MultiOwnable {
                 revert InvalidEthereumAddressOwner(owners[i]);
             }
 
-            _addOwnerAtIndex(owners[i], nextOwnerIndex_++);
+            if (!_addOwnerAtIndex(owners[i], nextOwnerIndex_++)) {
+                // as the initial set of owners may determine
+                // the contract's address, we avoid unexpected
+                // behavior if the same owner is passed multiple times
+                revert AlreadyOwner(owners[i]);
+            }
         }
         $.nextOwnerIndex = nextOwnerIndex_;
     }
 
-    /// @notice Adds an owner at the given `index`.
+    /// @notice Adds an owner at the given `index`, returns false if owner already on account.
     ///
     /// @dev Reverts if `owner` is already registered as an owner.
     ///
     /// @param owner The owner raw bytes to register.
     /// @param index The index to write to.
-    function _addOwnerAtIndex(bytes memory owner, uint256 index) internal virtual {
-        if (isOwnerBytes(owner)) revert AlreadyOwner(owner);
+    ///
+    /// @return bool false if owner already on account, true if owner added.
+    function _addOwnerAtIndex(bytes memory owner, uint256 index) internal virtual returns (bool) {
+        if (isOwnerBytes(owner)) {
+            return false;
+        }
 
         MultiOwnableStorage storage $ = _getMultiOwnableStorage();
         $.isOwner[owner] = true;
         $.ownerAtIndex[index] = owner;
 
         emit AddOwner(index, owner);
+
+        return true;
     }
 
-    /// @notice Removes owner at the given `index`.
+    /// @notice Removes owner at the given `index`, returns false if no owner at index.
     ///
-    /// @dev Reverts if the owner is not registered at `index`.
     /// @dev Reverts if `owner` does not match bytes found at `index`.
     ///
     /// @param index The index of the owner to be removed.
     /// @param owner The ABI encoded bytes of the owner to be removed.
-    function _removeOwnerAtIndex(uint256 index, bytes calldata owner) internal virtual {
+    ///
+    /// @return bool false if no owner at index, true if owner found at index and removed.
+    function _removeOwnerAtIndex(uint256 index, bytes calldata owner) internal virtual returns (bool) {
         bytes memory owner_ = ownerAtIndex(index);
-        if (owner_.length == 0) revert NoOwnerAtIndex(index);
+        if (owner_.length == 0) {
+            return false;
+        }
         if (keccak256(owner_) != keccak256(owner)) {
             revert WrongOwnerAtIndex({index: index, expectedOwner: owner, actualOwner: owner_});
         }
@@ -262,6 +284,8 @@ contract MultiOwnable {
         $.removedOwnersCount++;
 
         emit RemoveOwner(index, owner);
+
+        return true;
     }
 
     /// @notice Checks if the sender is an owner of this contract or the contract itself.

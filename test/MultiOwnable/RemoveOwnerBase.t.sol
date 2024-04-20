@@ -30,12 +30,6 @@ abstract contract RemoveOwnerBaseTest is MultiOwnableTestBase {
         mock.removeOwnerAtIndex(10, owner1Bytes);
     }
 
-    function test_revert_whenNoOwnerAtIndex() public {
-        index = 10;
-        vm.expectRevert(abi.encodeWithSelector(MultiOwnable.NoOwnerAtIndex.selector, index));
-        _removeOwner();
-    }
-
     function test_revert_whenWrongOwnerAtIndex() public {
         bytes memory wrongOwner = "bad";
         vm.expectRevert(
@@ -45,8 +39,8 @@ abstract contract RemoveOwnerBaseTest is MultiOwnableTestBase {
         _removeOwner();
     }
 
-    function _removeOwner() internal virtual {
+    function _removeOwner() internal virtual returns (bool) {
         vm.prank(owner1Address);
-        mock.removeOwnerAtIndex(index, ownerToRemove);
+        return mock.removeOwnerAtIndex(index, ownerToRemove);
     }
 }

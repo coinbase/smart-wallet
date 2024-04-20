@@ -10,18 +10,6 @@ contract AddOwnerPublicKeyTest is AddOwnerBaseTest {
         assertTrue(mock.isOwnerBytes(_newOwner()));
     }
 
-    function testRevertsIfAlreadyOwner() public {
-        vm.startPrank(owner1Address);
-        _addOwner();
-        vm.expectRevert(abi.encodeWithSelector(MultiOwnable.AlreadyOwner.selector, _newOwner()));
-        _addOwner();
-    }
-
-    function _addOwner() internal override {
-        (bytes32 x, bytes32 y) = abi.decode(_newOwner(), (bytes32, bytes32));
-        mock.addOwnerPublicKey(x, y);
-    }
-
     function testFuzzIsOwnerPublicKey(bytes32 x, bytes32 y) external {
         vm.assume(x > 0 && y > 0);
         vm.startPrank(owner1Address);
@@ -29,6 +17,11 @@ contract AddOwnerPublicKeyTest is AddOwnerBaseTest {
         bytes memory xy = abi.encode(x, y);
         assert(mock.isOwnerBytes(xy));
         assert(mock.isOwnerPublicKey(x, y));
+    }
+
+    function _addOwner() internal override returns (bool) {
+        (bytes32 x, bytes32 y) = abi.decode(_newOwner(), (bytes32, bytes32));
+        return mock.addOwnerPublicKey(x, y);
     }
 
     function _index() internal view override returns (uint256) {

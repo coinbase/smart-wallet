@@ -10,13 +10,6 @@ contract AddOwnerAddressTest is AddOwnerBaseTest {
         assertTrue(mock.isOwnerAddress(abi.decode(_newOwner(), (address))));
     }
 
-    function testRevertsIfAlreadyOwner() public {
-        vm.startPrank(owner1Address);
-        _addOwner();
-        vm.expectRevert(abi.encodeWithSelector(MultiOwnable.AlreadyOwner.selector, _newOwner()));
-        _addOwner();
-    }
-
     function testIncreasesOwnerIndex() public {
         uint256 before = mock.nextOwnerIndex();
         vm.prank(owner1Address);
@@ -24,8 +17,8 @@ contract AddOwnerAddressTest is AddOwnerBaseTest {
         assertEq(before + 1, mock.nextOwnerIndex());
     }
 
-    function _addOwner() internal override {
-        mock.addOwnerAddress(abi.decode(_newOwner(), (address)));
+    function _addOwner() internal override returns (bool) {
+        return mock.addOwnerAddress(abi.decode(_newOwner(), (address)));
     }
 
     function _index() internal view override returns (uint256) {

@@ -29,4 +29,9 @@ contract RemoveOwnerAtIndexTest is RemoveOwnerBaseTest {
         vm.expectRevert(MultiOwnable.LastOwner.selector);
         mock.removeOwnerAtIndex(0, abi.encode(firstOnwer));
     }
+
+    function test_returnsFalse_whenNoOwnerAtIndex() public {
+        index = 10;
+        assertFalse(_removeOwner());
+    }
 }

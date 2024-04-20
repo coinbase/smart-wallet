@@ -18,7 +18,13 @@ contract RemoveLastOwnerTest is RemoveOwnerBaseTest {
         _removeOwner();
     }
 
-    function _removeOwner() internal override {
+    function test_reverts_whenNoOwnerAtIndex() public {
+        index = 10;
+        vm.expectRevert(abi.encodeWithSelector(MultiOwnable.NoOwnerAtIndex.selector, index));
+        _removeOwner();
+    }
+
+    function _removeOwner() internal override returns (bool) {
         vm.prank(owner1Address);
         mock.removeLastOwner(index, ownerToRemove);
     }

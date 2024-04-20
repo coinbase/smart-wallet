@@ -6,6 +6,12 @@ import "./MultiOwnableTestBase.t.sol";
 abstract contract AddOwnerBaseTest is MultiOwnableTestBase {
     function testSetsIsOwner() public virtual;
 
+    function test_returnsFalse_ifAlreadyOwner() public {
+        vm.startPrank(owner1Address);
+        _addOwner();
+        assertFalse(_addOwner());
+    }
+
     function testSetsOwnerAtIndex() public {
         uint256 index = _index();
         vm.prank(owner1Address);
@@ -26,7 +32,7 @@ abstract contract AddOwnerBaseTest is MultiOwnableTestBase {
         _addOwner();
     }
 
-    function _addOwner() internal virtual;
+    function _addOwner() internal virtual returns (bool);
     function _index() internal virtual returns (uint256);
     function _newOwner() internal virtual returns (bytes memory);
 }

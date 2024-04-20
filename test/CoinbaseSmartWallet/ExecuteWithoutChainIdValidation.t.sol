@@ -61,12 +61,10 @@ contract TestExecuteWithoutChainIdValidation is SmartWalletTestBase {
     }
 
     function test_reverts_whenOneCallReverts() public {
-        bytes4 selector = MultiOwnable.addOwnerAddress.selector;
-        assertTrue(account.canSkipChainIdValidation(selector));
         address newOwner = address(6);
         assertFalse(account.isOwnerAddress(newOwner));
-        calls.push(abi.encodeWithSelector(selector, newOwner));
-        calls.push(abi.encodeWithSelector(selector, newOwner));
+        calls.push(abi.encodeWithSelector(MultiOwnable.addOwnerAddress.selector, newOwner));
+        calls.push(abi.encodeWithSelector(MultiOwnable.removeLastOwner.selector, 5, newOwner));
         userOpCalldata = abi.encodeWithSelector(CoinbaseSmartWallet.executeWithoutChainIdValidation.selector, calls);
         vm.prank(address(entryPoint));
         vm.expectRevert();
