@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import {Test, console2} from "forge-std/Test.sol";
+
 import {CoinbaseSmartWallet} from "../src/CoinbaseSmartWallet.sol";
 import {CoinbaseSmartWalletFactory} from "../src/CoinbaseSmartWalletFactory.sol";
 import {ERC1271InputGenerator} from "../src/utils/ERC1271InputGenerator.sol";

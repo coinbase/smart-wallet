@@ -2,9 +2,10 @@
 pragma solidity ^0.8.0;
 
 import {Test, console2} from "forge-std/Test.sol";
+import {LibClone} from "solady/utils/LibClone.sol";
+
 import {CoinbaseSmartWallet, MultiOwnable} from "../src/CoinbaseSmartWallet.sol";
 import {CoinbaseSmartWalletFactory} from "../src/CoinbaseSmartWalletFactory.sol";
-import {LibClone} from "solady/utils/LibClone.sol";
 
 contract CoinbaseSmartWalletFactoryTest is Test {
     CoinbaseSmartWalletFactory factory;

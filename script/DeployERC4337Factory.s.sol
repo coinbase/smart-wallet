@@ -3,7 +3,7 @@ pragma solidity ^0.8.13;
 
 import {Script, console2} from "forge-std/Script.sol";
 
-import {CoinbaseSmartWalletFactory, CoinbaseSmartWallet} from "../src/CoinbaseSmartWalletFactory.sol";
+import {CoinbaseSmartWallet, CoinbaseSmartWalletFactory} from "../src/CoinbaseSmartWalletFactory.sol";
 
 contract ERC4337FactoryDeployScript is Script {
     function setUp() public {}

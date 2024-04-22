@@ -3,8 +3,8 @@ pragma solidity ^0.8.0;
 
 import "solady/../test/utils/TestPlus.sol";
 
-import "./SmartWalletTestBase.sol";
 import {MockTarget} from "../mocks/MockTarget.sol";
+import "./SmartWalletTestBase.sol";
 
 contract TestExecuteWithoutChainIdValidation is SmartWalletTestBase, TestPlus {
     function setUp() public override {
