@@ -3,6 +3,10 @@ src = "src"
 out = "out"
 libs = ["lib"]
 
+[profile.deploy]
+optimizer = true
+optimizer_runs = 999999
+
 [fmt]
 sort_imports = true
 wrap_comments = true
