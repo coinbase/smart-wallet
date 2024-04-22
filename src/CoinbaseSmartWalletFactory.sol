@@ -61,15 +61,15 @@ contract CoinbaseSmartWalletFactory {
     /// @param owners Array of initial owners. Each item should be an ABI encoded address or 64 byte public key.
     /// @param nonce  The nonce provided to `createAccount()`.
     ///
-    /// @return predicted The predicted account deployment address.
-    function getAddress(bytes[] calldata owners, uint256 nonce) external view returns (address predicted) {
-        predicted = LibClone.predictDeterministicAddress(initCodeHash(), _getSalt(owners, nonce), address(this));
+    /// @return The predicted account deployment address.
+    function getAddress(bytes[] calldata owners, uint256 nonce) external view returns (address) {
+        return LibClone.predictDeterministicAddress(initCodeHash(), _getSalt(owners, nonce), address(this));
     }
 
     /// @notice Returns the initialization code hash of the account:
     ///         a ERC1967 proxy that's implementation is `this.implementation`.
     ///
-    /// @return result The initialization code hash.
+    /// @return The initialization code hash.
     function initCodeHash() public view virtual returns (bytes32) {
         return LibClone.initCodeHashERC1967(implementation);
     }
@@ -79,7 +79,7 @@ contract CoinbaseSmartWalletFactory {
     /// @param owners Array of initial owners. Each item should be an ABI encoded address or 64 byte public key.
     /// @param nonce  The nonce provided to `createAccount()`.
     ///
-    /// @return salt The computed salt.
+    /// @return The computed salt.
     function _getSalt(bytes[] calldata owners, uint256 nonce) internal pure returns (bytes32) {
         return keccak256(abi.encode(owners, nonce));
     }
