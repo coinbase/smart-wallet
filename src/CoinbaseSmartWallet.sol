@@ -20,12 +20,12 @@ import {MultiOwnable} from "./MultiOwnable.sol";
 /// @author Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC4337.sol)
 contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable, Receiver {
     /// @notice A wrapper struct used for signature validation so that callers
-    /// can identify the owner that signed.
+    ///         can identify the owner that signed.
     struct SignatureWrapper {
-        /// @dev The index of the owner that signed, see MultiOwnable.ownerAtIndex
+        /// @dev The index of the owner that signed, see `MultiOwnable.ownerAtIndex`
         uint256 ownerIndex;
-        /// @dev If MultiOwnable.ownerAtIndex is an Ethereum address, this should be `abi.encodePacked(r, s, v)`
-        /// If MultiOwnable.ownerAtIndex is a public key, this should be `abi.encode(WebAuthnAuth)`.
+        /// @dev If `MultiOwnable.ownerAtIndex` is an Ethereum address, this should be `abi.encodePacked(r, s, v)`
+        ///      If `MultiOwnable.ownerAtIndex` is a public key, this should be `abi.encode(WebAuthnAuth)`.
         bytes signatureData;
     }
 
@@ -43,7 +43,7 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
     ///         transactions.
     ///
     /// @dev MUST BE the `UserOperation.nonce` key when `UserOperation.calldata` is calling `executeWithoutChainIdValidation`
-    /// and MUST NOT BE `UserOperation.nonce` key when `UserOperation.calldata` is NOT calling `executeWithoutChainIdValidation`.
+    ///      and MUST NOT BE `UserOperation.nonce` key when `UserOperation.calldata` is NOT calling `executeWithoutChainIdValidation`.
     ///
     /// @dev Helps enforce sequential sequencing of replayable transactions.
     uint256 public constant REPLAYABLE_NONCE_KEY = 8453;
@@ -58,8 +58,8 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
 
     /// @notice Thrown in validateUserOp if the key of `UserOperation.nonce` does not match the calldata.
     ///
-    /// @dev Calls to `executeWithoutChainIdValidation` MUST use REPLAYABLE_NONCE_KEY and
-    /// calls NOT to `executeWithoutChainIdValidation` MUST NOT use REPLAYABLE_NONCE_KEY.
+    /// @dev Calls to `this.executeWithoutChainIdValidation` MUST use `REPLAYABLE_NONCE_KEY` and
+    ///      calls NOT to `this.executeWithoutChainIdValidation` MUST NOT use `REPLAYABLE_NONCE_KEY`.
     ///
     /// @param key The invalid `UserOperation.nonce` key.
     error InvalidNonceKey(uint256 key);
@@ -114,8 +114,8 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
     /// @dev Reverts if the account has had at least one owner, i.e. has been initialized.
     ///
     /// @param owners Array of initial owners for this account. Each item should be
-    /// an ABI encoded Ethereum address, i.e. 32 bytes with 12 leading 0 bytes,
-    /// or a 64 byte public key.
+    ///               an ABI encoded Ethereum address, i.e. 32 bytes with 12 leading 0 bytes,
+    ///               or a 64 byte public key.
     function initialize(bytes[] calldata owners) external payable virtual {
         if (nextOwnerIndex() != 0) {
             revert Initialized();
@@ -129,7 +129,7 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
     /// @notice ERC-4337 `validateUserOp` method. The EntryPoint will
     ///         call `UserOperation.sender.call(UserOperation.callData)` only if this validation call returns successfully.
     ///
-    /// @dev Signature failure should be reported by returning 1 (see: `_isValidSignature()`). This
+    /// @dev Signature failure should be reported by returning 1 (see: `this._isValidSignature`). This
     ///      allows making a "simulation call" without a valid signature. Other failures (e.g. invalid signature format) should still revert to signal failure.
     /// @dev Reverts if the `UserOperation.nonce` key is invalid for `UserOperation.calldata`.
     /// @dev Reverts if the signature format is incorrect or invalid for owner type.
@@ -139,8 +139,8 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
     /// @param missingAccountFunds The missing account funds that must be deposited on the Entrypoint.
     ///
     /// @return validationData The encoded `ValidationData` structure:
-    /// `(uint256(validAfter) << (160 + 48)) | (uint256(validUntil) << 160) | (success ? 0 : 1)`
-    ///  where `validUntil` is 0 (indefinite) and `validAfter` is 0.
+    ///                        `(uint256(validAfter) << (160 + 48)) | (uint256(validUntil) << 160) | (success ? 0 : 1)`
+    ///                        where `validUntil` is 0 (indefinite) and `validAfter` is 0.
     function validateUserOp(UserOperation calldata userOp, bytes32 userOpHash, uint256 missingAccountFunds)
         external
         virtual

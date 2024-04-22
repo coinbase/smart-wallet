@@ -94,14 +94,14 @@ contract MultiOwnable {
         _;
     }
 
-    /// @notice Add a new Ethereum address owner.
+    /// @notice Adds a new Ethereum-address owner.
     ///
     /// @param owner The owner address.
     function addOwnerAddress(address owner) external virtual onlyOwner {
         _addOwnerAtIndex(abi.encode(owner), _getMultiOwnableStorage().nextOwnerIndex++);
     }
 
-    /// @notice Adds a new public key owner.
+    /// @notice Adds a new public-key owner.
     ///
     /// @param x The owner public key x coordinate.
     /// @param y The owner public key y coordinate.
