@@ -5,9 +5,10 @@ import {CoinbaseSmartWallet} from "../CoinbaseSmartWallet.sol";
 
 /// @title ERC1271 Input Generator
 ///
-/// @notice Helper contract for generating an ERC-1271 input hash to sign for deployed and undeployed CoinbaseSmartWallet.
-///         May be useful for generating ERC-6492 compliant signatures.
-///         Inspired by Ambire's DeploylessUniversalSigValidator (https://github.com/AmbireTech/signature-validator/blob/main/contracts/DeploylessUniversalSigValidator.sol)
+/// @notice Helper contract for generating an ERC-1271 input hash to sign for deployed and undeployed
+///         CoinbaseSmartWallet. May be useful for generating ERC-6492 compliant signatures.
+///         Inspired by Ambire's DeploylessUniversalSigValidator
+///         https://github.com/AmbireTech/signature-validator/blob/d5f84f5fc00bfdf79b80205b983a8258b6d1b3ea/contracts/DeploylessUniversalSigValidator.sol.
 ///
 /// @dev This contract is not meant to ever actually be deployed, only mock deployed and used via a static eth_call.
 ///
@@ -17,9 +18,9 @@ contract ERC1271InputGenerator {
     error AccountDeploymentFailed();
 
     /// @notice Thrown when the address returned from call to `accountFactory` does not
-    /// match passed account
+    ///         match passed account
     ///
-    /// @param account The passed account
+    /// @param account  The passed account
     /// @param returned The returned account
     error ReturnedAddressDoesNotMatchAccount(address account, address returned);
 
@@ -35,7 +36,8 @@ contract ERC1271InputGenerator {
     /// @param factoryCalldata The calldata that will be used to deploy the account (if not already deployed).
     constructor(CoinbaseSmartWallet account, bytes32 hash, address accountFactory, bytes memory factoryCalldata) {
         // This allows us to get a replay-safe hash on any deployed or undeployed account
-        // in a single eth_call, i.e. without deploying the contract. We do this by calling replaySafeHash on a deployed account,
+        // in a single eth_call, i.e. without deploying the contract. We do this by calling replaySafeHash on a deployed
+        // account,
         // or by simulating the deployment of an undeployed account and then calling replaySafeHash on it.
         bytes32 replaySafeHash = _coinbaseSmartWallet1271Input(account, hash, accountFactory, factoryCalldata);
         assembly {
@@ -46,7 +48,8 @@ contract ERC1271InputGenerator {
         }
     }
 
-    /// @notice Helper method to get a replay-safe hash from the given `account` by calling its `replaySafeHash()` method.
+    /// @notice Helper method to get a replay-safe hash from the given `account` by calling its `replaySafeHash()`
+    /// method.
     ///
     ///
     /// @dev Deploys the account if not already deployed before calling `replaySafeHash` on it.

@@ -32,7 +32,8 @@ struct MultiOwnableStorage {
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
 contract MultiOwnable {
     /// @dev Slot for the `MultiOwnableStorage` struct in storage.
-    ///      Computed from: keccak256(abi.encode(uint256(keccak256("coinbase.storage.MultiOwnable")) - 1)) & ~bytes32(uint256(0xff))
+    ///      Computed from
+    ///      keccak256(abi.encode(uint256(keccak256("coinbase.storage.MultiOwnable")) - 1)) & ~bytes32(uint256(0xff))
     ///      Follows ERC-7201 (see https://eips.ethereum.org/EIPS/eip-7201).
     bytes32 private constant MUTLI_OWNABLE_STORAGE_LOCATION =
         0x97e2c6aad4ce5d562ebfaa00db6b9e0fb66ea5d8162ed5b243f51a2e03086f00;
@@ -52,13 +53,13 @@ contract MultiOwnable {
 
     /// @notice Thrown when `owner` argument does not match owner found at index.
     ///
-    /// @param index The index of the owner to be removed.
+    /// @param index         The index of the owner to be removed.
     /// @param expectedOwner The owner passed in the remove call.
-    /// @param actualOwner The actual owner at `index`.
+    /// @param actualOwner   The actual owner at `index`.
     error WrongOwnerAtIndex(uint256 index, bytes expectedOwner, bytes actualOwner);
 
     /// @notice Thrown when a provided owner is neither 64 bytes long (for public key)
-    /// nor a ABI encoded address.
+    ///         nor a ABI encoded address.
     ///
     /// @param owner The invalid owner.
     error InvalidOwnerBytesLength(bytes owner);

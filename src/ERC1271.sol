@@ -112,7 +112,8 @@ abstract contract ERC1271 {
 
     /// @notice Returns the EIP-712 typed hash of the `CoinbaseSmartWalletMessage(bytes32 hash)` data structure.
     ///
-    /// @dev Implements encode(domainSeparator : 𝔹²⁵⁶, message : 𝕊) = "\x19\x01" || domainSeparator || hashStruct(message).
+    /// @dev Implements encode(domainSeparator : 𝔹²⁵⁶, message : 𝕊) = "\x19\x01" || domainSeparator ||
+    ///      hashStruct(message).
     /// @dev See https://eips.ethereum.org/EIPS/eip-712#specification.
     ///
     /// @param hash The `CoinbaseSmartWalletMessage.hash` field to hash.
@@ -122,7 +123,8 @@ abstract contract ERC1271 {
         return keccak256(abi.encodePacked("\x19\x01", domainSeparator(), _hashStruct(hash)));
     }
 
-    /// @notice Returns the EIP-712 `hashStruct` result of the `CoinbaseSmartWalletMessage(bytes32 hash)` data structure.
+    /// @notice Returns the EIP-712 `hashStruct` result of the `CoinbaseSmartWalletMessage(bytes32 hash)` data
+    ///         structure.
     ///
     /// @dev Implements hashStruct(s : 𝕊) = keccak256(typeHash || encodeData(s)).
     /// @dev See https://eips.ethereum.org/EIPS/eip-712#definition-of-hashstruct.
@@ -138,7 +140,7 @@ abstract contract ERC1271 {
     ///
     /// @dev MUST be defined by the implementation.
     ///
-    /// @return name The user readable name of signing domain.
+    /// @return name    The user readable name of signing domain.
     /// @return version The current major version of the signing domain.
     function _domainNameAndVersion() internal view virtual returns (string memory name, string memory version);
 
@@ -146,7 +148,7 @@ abstract contract ERC1271 {
     ///
     /// @dev MUST be defined by the implementation.
     ///
-    /// @param hash   The hash whose signature has been performed on.
+    /// @param hash      The hash whose signature has been performed on.
     /// @param signature The signature associated with `hash`.
     ///
     /// @return `true` is the signature is valid, else `false`.

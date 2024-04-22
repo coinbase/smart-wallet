@@ -26,15 +26,16 @@ contract CoinbaseSmartWalletFactory {
     }
 
     /// @notice Returns the deterministic address for a CoinbaseSmartWallet created with `owners` and `nonce`
-    /// deploys and initializes contract if it has not yet been created.
+    ///         deploys and initializes contract if it has not yet been created.
     ///
     /// @dev Deployed as a ERC-1967 proxy that's implementation is `this.implementation`.
     ///
     /// @param owners Array of initial owners. Each item should be an ABI encoded address or 64 byte public key.
     /// @param nonce  The nonce of the account, a caller defined value which allows multiple accounts
-    /// with the same `owners` to exist at different addresses.
+    ///               with the same `owners` to exist at different addresses.
     ///
-    /// @return account The address of the ERC-1967 proxy created with inputs `owners`, `nonce`, and `this.implementation`.
+    /// @return account The address of the ERC-1967 proxy created with inputs `owners`, `nonce`, and
+    ///                 `this.implementation`.
     function createAccount(bytes[] calldata owners, uint256 nonce)
         external
         payable
@@ -66,7 +67,7 @@ contract CoinbaseSmartWalletFactory {
     }
 
     /// @notice Returns the initialization code hash of the account:
-    /// a ERC1967 proxy that's implementation is `this.implementation`.
+    ///         a ERC1967 proxy that's implementation is `this.implementation`.
     ///
     /// @return result The initialization code hash.
     function initCodeHash() public view virtual returns (bytes32) {

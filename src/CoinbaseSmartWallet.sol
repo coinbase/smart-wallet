@@ -43,8 +43,9 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
     /// @notice Reserved nonce key (upper 192 bits of `UserOperation.nonce`) for cross-chain replayable
     ///         transactions.
     ///
-    /// @dev MUST BE the `UserOperation.nonce` key when `UserOperation.calldata` is calling `executeWithoutChainIdValidation`
-    ///      and MUST NOT BE `UserOperation.nonce` key when `UserOperation.calldata` is NOT calling `executeWithoutChainIdValidation`.
+    /// @dev MUST BE the `UserOperation.nonce` key when `UserOperation.calldata` is calling
+    ///      `executeWithoutChainIdValidation`and MUST NOT BE `UserOperation.nonce` key when `UserOperation.calldata` is
+    ///      NOT calling `executeWithoutChainIdValidation`.
     ///
     /// @dev Helps enforce sequential sequencing of replayable transactions.
     uint256 public constant REPLAYABLE_NONCE_KEY = 8453;
@@ -52,7 +53,8 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
     /// @notice Thrown when `initialize` is called but the account already has had at least one owner.
     error Initialized();
 
-    /// @notice Thrown when a call is passed to `executeWithoutChainIdValidation` that is not allowed by `canSkipChainIdValidation`
+    /// @notice Thrown when a call is passed to `executeWithoutChainIdValidation` that is not allowed by
+    ///         `canSkipChainIdValidation`
     ///
     /// @param selector The selector of the call.
     error SelectorNotAllowed(bytes4 selector);
@@ -128,10 +130,12 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
     /// @inheritdoc IAccount
     ///
     /// @notice ERC-4337 `validateUserOp` method. The EntryPoint will
-    ///         call `UserOperation.sender.call(UserOperation.callData)` only if this validation call returns successfully.
+    ///         call `UserOperation.sender.call(UserOperation.callData)` only if this validation call returns
+    ///         successfully.
     ///
     /// @dev Signature failure should be reported by returning 1 (see: `this._isValidSignature`). This
-    ///      allows making a "simulation call" without a valid signature. Other failures (e.g. invalid signature format) should still revert to signal failure.
+    ///      allows making a "simulation call" without a valid signature. Other failures (e.g. invalid signature format)
+    ///      should still revert to signal failure.
     /// @dev Reverts if the `UserOperation.nonce` key is invalid for `UserOperation.calldata`.
     /// @dev Reverts if the signature format is incorrect or invalid for owner type.
     ///
@@ -328,7 +332,7 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
     /// @inheritdoc UUPSUpgradeable
     ///
     /// @dev Authorization logic is only based on the `msg.sender` being an owner of this account,
-    /// or `address(this)`.
+    ///      or `address(this)`.
     function _authorizeUpgrade(address) internal view virtual override(UUPSUpgradeable) onlyOwner {}
 
     /// @inheritdoc ERC1271
