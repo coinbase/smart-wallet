@@ -13,9 +13,9 @@
 [submodule "lib/solady"]
 	path = lib/solady
 	url = https://github.com/vectorized/solady
-[submodule "lib/webauthn-sol"]
-	path = lib/webauthn-sol
-	url = https://github.com/base-org/webauthn-sol
 [submodule "lib/openzeppelin-contracts"]
 	path = lib/openzeppelin-contracts
 	url = https://github.com/openzeppelin/openzeppelin-contracts
+[submodule "lib/webauthn-sol"]
+	path = lib/webauthn-sol
+	url = https://github.com/base-org/webauthn-sol
