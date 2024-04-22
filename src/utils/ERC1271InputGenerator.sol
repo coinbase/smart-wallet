@@ -49,7 +49,7 @@ contract ERC1271InputGenerator {
     }
 
     /// @notice Helper method to get a replay-safe hash from the given `account` by calling its `replaySafeHash()`
-    /// method.
+    ///         method.
     ///
     ///
     /// @dev Deploys the account if not already deployed before calling `replaySafeHash` on it.

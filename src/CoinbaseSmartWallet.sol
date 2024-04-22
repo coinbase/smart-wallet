@@ -175,7 +175,7 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
         return 1;
     }
 
-    /// @notice Execute `calls` on this account (i.e. self call).
+    /// @notice Executes `calls` on this account (i.e. self call).
     ///
     /// @dev Can only be called by the Entrypoint.
     /// @dev Reverts if the given call is not authorized to skip the chain ID validtion.
@@ -197,7 +197,7 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
         }
     }
 
-    /// @notice Execute the given call from this account.
+    /// @notice Executes the given call from this account.
     ///
     /// @dev Can only be called by the Entrypoint or an owner of this account (including itself).
     ///
@@ -226,7 +226,7 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
 
     /// @notice Returns the address of the EntryPoint v0.6.
     ///
-    /// @return Address of the EntryPoint v0.6
+    /// @return The address of the EntryPoint v0.6
     function entryPoint() public view virtual returns (address) {
         return 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789;
     }
@@ -238,13 +238,8 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
     ///
     /// @param userOp The `UserOperation` to compute the hash for.
     ///
-    /// @return userOpHash The `UserOperation` hash, which does not depend on chain ID.
-    function getUserOpHashWithoutChainId(UserOperation calldata userOp)
-        public
-        view
-        virtual
-        returns (bytes32 userOpHash)
-    {
+    /// @return The `UserOperation` hash, which does not depend on chain ID.
+    function getUserOpHashWithoutChainId(UserOperation calldata userOp) public view virtual returns (bytes32) {
         return keccak256(abi.encode(UserOperationLib.hash(userOp), entryPoint()));
     }
 
