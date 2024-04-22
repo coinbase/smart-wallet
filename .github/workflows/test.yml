@@ -38,6 +38,11 @@ jobs:
           forge fmt --check
         id: fmt
 
+      - name: Check snapshot
+        run: |
+          forge snapshot --check
+        id: snapshot
+
   forge-coverage:
       name: Run Coverage Reporting
       runs-on: ubuntu-latest

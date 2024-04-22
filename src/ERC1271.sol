@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-/// @title ERC-1271 With Cross Account Replay Protection
+/// @title ERC-1271
 ///
 /// @notice Abstract ERC-1271 implementation (based on Solady's) with guards to handle the same
 ///         signer being used on multiple accounts.
@@ -67,7 +67,7 @@ abstract contract ERC1271 {
     ///
     /// @return result `0x1626ba7e` if validation succeeded, else `0xffffffff`.
     function isValidSignature(bytes32 hash, bytes calldata signature) public view virtual returns (bytes4 result) {
-        if (_validateSignature({message: replaySafeHash(hash), signature: signature})) {
+        if (_isValidSignature({hash: replaySafeHash(hash), signature: signature})) {
             // bytes4(keccak256("isValidSignature(bytes32,bytes)"))
             return 0x1626ba7e;
         }
@@ -112,7 +112,8 @@ abstract contract ERC1271 {
 
     /// @notice Returns the EIP-712 typed hash of the `CoinbaseSmartWalletMessage(bytes32 hash)` data structure.
     ///
-    /// @dev Implements encode(domainSeparator : 𝔹²⁵⁶, message : 𝕊) = "\x19\x01" || domainSeparator || hashStruct(message).
+    /// @dev Implements encode(domainSeparator : 𝔹²⁵⁶, message : 𝕊) = "\x19\x01" || domainSeparator ||
+    ///      hashStruct(message).
     /// @dev See https://eips.ethereum.org/EIPS/eip-712#specification.
     ///
     /// @param hash The `CoinbaseSmartWalletMessage.hash` field to hash.
@@ -122,7 +123,8 @@ abstract contract ERC1271 {
         return keccak256(abi.encodePacked("\x19\x01", domainSeparator(), _hashStruct(hash)));
     }
 
-    /// @notice Returns the EIP-712 `hashStruct` result of the `CoinbaseSmartWalletMessage(bytes32 hash)` data structure.
+    /// @notice Returns the EIP-712 `hashStruct` result of the `CoinbaseSmartWalletMessage(bytes32 hash)` data
+    ///         structure.
     ///
     /// @dev Implements hashStruct(s : 𝕊) = keccak256(typeHash || encodeData(s)).
     /// @dev See https://eips.ethereum.org/EIPS/eip-712#definition-of-hashstruct.
@@ -138,19 +140,17 @@ abstract contract ERC1271 {
     ///
     /// @dev MUST be defined by the implementation.
     ///
-    /// @return name The user readable name of signing domain.
+    /// @return name    The user readable name of signing domain.
     /// @return version The current major version of the signing domain.
     function _domainNameAndVersion() internal view virtual returns (string memory name, string memory version);
 
-    /// @notice Validate the `signature` against the given `message`.
+    /// @notice Validates the `signature` against the given `hash`.
     ///
     /// @dev MUST be defined by the implementation.
-    /// @dev The `signature` content MIGHT NOT necessarily be the usual (r,s,v) values. It is the responsibility
-    ///      of the implementation to decode `signature` depending on its usecase.
     ///
-    /// @param message   The message whose signature has been performed on.
-    /// @param signature The signature associated with `message`.
+    /// @param hash      The hash whose signature has been performed on.
+    /// @param signature The signature associated with `hash`.
     ///
     /// @return `true` is the signature is valid, else `false`.
-    function _validateSignature(bytes32 message, bytes calldata signature) internal view virtual returns (bool);
+    function _isValidSignature(bytes32 hash, bytes calldata signature) internal view virtual returns (bool);
 }

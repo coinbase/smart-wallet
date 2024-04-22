@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "solady/../test/utils/TestPlus.sol";
-
-import "./SmartWalletTestBase.sol";
 import {MockTarget} from "../mocks/MockTarget.sol";
+import "./SmartWalletTestBase.sol";
 
-contract TestExecuteWithoutChainIdValidation is SmartWalletTestBase, TestPlus {
+contract TestExecuteWithoutChainIdValidation is SmartWalletTestBase {
     function setUp() public override {
         userOpCalldata = abi.encodeWithSelector(CoinbaseSmartWallet.execute.selector);
         super.setUp();
@@ -32,7 +30,7 @@ contract TestExecuteWithoutChainIdValidation is SmartWalletTestBase, TestPlus {
         assertEq(MockTarget(target).datahash(), keccak256(data));
         assertEq(target.balance, 123);
 
-        vm.prank(_randomNonZeroAddress());
+        vm.prank(makeAddr("random"));
         vm.expectRevert(MultiOwnable.Unauthorized.selector);
         account.execute(target, 123, abi.encodeWithSignature("setData(bytes)", data));
 

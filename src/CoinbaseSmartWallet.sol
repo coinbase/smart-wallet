@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.23;
 
-import {Receiver} from "solady/accounts/Receiver.sol";
-import {UUPSUpgradeable} from "solady/utils/UUPSUpgradeable.sol";
-import {SignatureCheckerLib} from "solady/utils/SignatureCheckerLib.sol";
+import {IAccount} from "account-abstraction/interfaces/IAccount.sol";
+
 import {UserOperation, UserOperationLib} from "account-abstraction/interfaces/UserOperation.sol";
+import {Receiver} from "solady/accounts/Receiver.sol";
+import {SignatureCheckerLib} from "solady/utils/SignatureCheckerLib.sol";
+import {UUPSUpgradeable} from "solady/utils/UUPSUpgradeable.sol";
 import {WebAuthn} from "webauthn-sol/WebAuthn.sol";
 
 import {ERC1271} from "./ERC1271.sol";
@@ -12,53 +14,57 @@ import {MultiOwnable} from "./MultiOwnable.sol";
 
 /// @title Coinbase Smart Wallet
 ///
-/// @notice ERC4337-compatible smart contract wallet, based on Solady ERC4337 account implementation
+/// @notice ERC-4337-compatible smart account, based on Solady's ERC4337 account implementation
 ///         with inspiration from Alchemy's LightAccount and Daimo's DaimoAccount.
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
 /// @author Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC4337.sol)
-contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271 {
-    /// @notice Wrapper struct, used during signature validation, tie a signature with its signer.
+contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable, Receiver {
+    /// @notice A wrapper struct used for signature validation so that callers
+    ///         can identify the owner that signed.
     struct SignatureWrapper {
-        /// @dev The index indentifying owner (see MultiOwnable) who signed.
+        /// @dev The index of the owner that signed, see `MultiOwnable.ownerAtIndex`
         uint256 ownerIndex;
-        /// @dev An ABI encoded ECDSA signature (r, s, v) or WebAuthnAuth struct.
+        /// @dev If `MultiOwnable.ownerAtIndex` is an Ethereum address, this should be `abi.encodePacked(r, s, v)`
+        ///      If `MultiOwnable.ownerAtIndex` is a public key, this should be `abi.encode(WebAuthnAuth)`.
         bytes signatureData;
     }
 
-    /// @notice Wrapper struct, used in `executeBatch`, describing a raw call to execute.
+    /// @notice Represents a call to make.
     struct Call {
-        /// @dev The target address to call.
+        /// @dev The address to call.
         address target;
-        /// @dev The value to associate with the call.
+        /// @dev The value to send when making the call.
         uint256 value;
-        /// @dev The raw call data.
+        /// @dev The data of the call.
         bytes data;
     }
 
     /// @notice Reserved nonce key (upper 192 bits of `UserOperation.nonce`) for cross-chain replayable
     ///         transactions.
     ///
+    /// @dev MUST BE the `UserOperation.nonce` key when `UserOperation.calldata` is calling
+    ///      `executeWithoutChainIdValidation`and MUST NOT BE `UserOperation.nonce` key when `UserOperation.calldata` is
+    ///      NOT calling `executeWithoutChainIdValidation`.
+    ///
     /// @dev Helps enforce sequential sequencing of replayable transactions.
     uint256 public constant REPLAYABLE_NONCE_KEY = 8453;
 
-    /// @notice Thrown when trying to re-initialize an account.
+    /// @notice Thrown when `initialize` is called but the account already has had at least one owner.
     error Initialized();
 
-    /// @notice Thrown when executing a `UserOperation` that requires the chain ID to be validated
-    ///         but this validation has been omitted.
+    /// @notice Thrown when a call is passed to `executeWithoutChainIdValidation` that is not allowed by
+    ///         `canSkipChainIdValidation`
     ///
-    /// @dev Whitelisting of `UserOperation`s that are allowed to skip the chain ID validation is
-    ///      based on their call selectors (see `canSkipChainIdValidation()`).
-    ///
-    /// @param selector The user operation call selector that raised the error.
+    /// @param selector The selector of the call.
     error SelectorNotAllowed(bytes4 selector);
 
-    /// @notice Thrown during a `UserOperation` validation when its key is invalid.
+    /// @notice Thrown in validateUserOp if the key of `UserOperation.nonce` does not match the calldata.
     ///
-    /// @dev The `UserOperation` key validation is based on the `UserOperation` call selector.
+    /// @dev Calls to `this.executeWithoutChainIdValidation` MUST use `REPLAYABLE_NONCE_KEY` and
+    ///      calls NOT to `this.executeWithoutChainIdValidation` MUST NOT use `REPLAYABLE_NONCE_KEY`.
     ///
-    /// @param key The invalid `UserOperation` key.
+    /// @param key The invalid `UserOperation.nonce` key.
     error InvalidNonceKey(uint256 key);
 
     /// @notice Reverts if the caller is not the EntryPoint.
@@ -106,11 +112,13 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
         _initializeOwners(owners);
     }
 
-    /// @notice Initializes the account with the the given owners.
+    /// @notice Initializes the account with the `owners`.
     ///
-    /// @dev Reverts if the account has already been initialized.
+    /// @dev Reverts if the account has had at least one owner, i.e. has been initialized.
     ///
-    /// @param owners The initial array of owners to initialize this account with.
+    /// @param owners Array of initial owners for this account. Each item should be
+    ///               an ABI encoded Ethereum address, i.e. 32 bytes with 12 leading 0 bytes,
+    ///               or a 64 byte public key.
     function initialize(bytes[] calldata owners) external payable virtual {
         if (nextOwnerIndex() != 0) {
             revert Initialized();
@@ -119,24 +127,27 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
         _initializeOwners(owners);
     }
 
-    /// @notice Custom implemenentation of the ERC-4337 `validateUserOp` method. The EntryPoint will
-    ///         make the call to the recipient only if this validation call returns successfully.
-    ///         See `IAccount.validateUserOp()`.
+    /// @inheritdoc IAccount
     ///
-    /// @dev Signature failure should be reported by returning 1 (see: `_validateSignature()`). This
-    ///      allows making a "simulation call" without a valid signature. Other failures (e.g. nonce
-    ///      mismatch, or invalid signature format) should still revert to signal failure.
-    /// @dev Reverts if the `UserOperation` key is invalid.
-    /// @dev Reverts if the signature verification fails (except for the case mentionned earlier).
+    /// @notice ERC-4337 `validateUserOp` method. The EntryPoint will
+    ///         call `UserOperation.sender.call(UserOperation.callData)` only if this validation call returns
+    ///         successfully.
+    ///
+    /// @dev Signature failure should be reported by returning 1 (see: `this._isValidSignature`). This
+    ///      allows making a "simulation call" without a valid signature. Other failures (e.g. invalid signature format)
+    ///      should still revert to signal failure.
+    /// @dev Reverts if the `UserOperation.nonce` key is invalid for `UserOperation.calldata`.
+    /// @dev Reverts if the signature format is incorrect or invalid for owner type.
     ///
     /// @param userOp              The `UserOperation` to validate.
-    /// @param userOpHash          The `UserOperation` hash (including the chain ID).
+    /// @param userOpHash          The `UserOperation` hash, as computed by `EntryPoint.getUserOpHash(UserOperation)`.
     /// @param missingAccountFunds The missing account funds that must be deposited on the Entrypoint.
     ///
-    /// @return validationData The encoded `ValidationData` structure.
+    /// @return validationData The encoded `ValidationData` structure:
+    ///                        `(uint256(validAfter) << (160 + 48)) | (uint256(validUntil) << 160) | (success ? 0 : 1)`
+    ///                        where `validUntil` is 0 (indefinite) and `validAfter` is 0.
     function validateUserOp(UserOperation calldata userOp, bytes32 userOpHash, uint256 missingAccountFunds)
         external
-        payable
         virtual
         onlyEntryPoint
         payPrefund(missingAccountFunds)
@@ -156,22 +167,20 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
         }
 
         // Return 0 if the recovered address matches the owner.
-        if (_validateSignature(userOpHash, userOp.signature)) {
+        if (_isValidSignature(userOpHash, userOp.signature)) {
             return 0;
         }
 
-        // Else return 1, which is equivalent to:
-        // `(uint256(validAfter) << (160 + 48)) | (uint256(validUntil) << 160) | (success ? 0 : 1)`
-        // where `validUntil` is 0 (indefinite) and `validAfter` is 0.
+        // Else return 1
         return 1;
     }
 
-    /// @notice Execute the given calls from this account to this account (i.e. self call).
+    /// @notice Executes `calls` on this account (i.e. self call).
     ///
     /// @dev Can only be called by the Entrypoint.
     /// @dev Reverts if the given call is not authorized to skip the chain ID validtion.
     /// @dev `validateUserOp()` will recompute the `userOpHash` without the chain ID before validating
-    ///      it if the `UserOperation` aims at executing this function. This allows certain operations
+    ///      it if the `UserOperation.calldata` is calling this function. This allows certain UserOperations
     ///      to be replayed for all accounts sharing the same address across chains. E.g. This may be
     ///      useful for syncing owner changes.
     ///
@@ -188,13 +197,13 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
         }
     }
 
-    /// @notice Execute the given call from this account.
+    /// @notice Executes the given call from this account.
     ///
     /// @dev Can only be called by the Entrypoint or an owner of this account (including itself).
     ///
-    /// @param target The target call address.
-    /// @param value  The call value to user.
-    /// @param data   The raw call data.
+    /// @param target The address to call.
+    /// @param value  The value to send with the call.
+    /// @param data   The data of the call.
     function execute(address target, uint256 value, bytes calldata data)
         external
         payable
@@ -204,7 +213,7 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
         _call(target, value, data);
     }
 
-    /// @notice Execute the given list of calls from this account.
+    /// @notice Executes batch of `Call`s.
     ///
     /// @dev Can only be called by the Entrypoint or an owner of this account (including itself).
     ///
@@ -229,13 +238,8 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
     ///
     /// @param userOp The `UserOperation` to compute the hash for.
     ///
-    /// @return userOpHash The `UserOperation` hash, not including the chain ID.
-    function getUserOpHashWithoutChainId(UserOperation calldata userOp)
-        public
-        view
-        virtual
-        returns (bytes32 userOpHash)
-    {
+    /// @return The `UserOperation` hash, which does not depend on chain ID.
+    function getUserOpHashWithoutChainId(UserOperation calldata userOp) public view virtual returns (bytes32) {
         return keccak256(abi.encode(UserOperationLib.hash(userOp), entryPoint()));
     }
 
@@ -248,11 +252,11 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
         }
     }
 
-    /// @notice Check if the given function selector is whitelisted to skip the chain ID validation.
+    /// @notice Returns whether `functionSelector` can be called in `executeWithoutChainIdValidation`.
     ///
     /// @param functionSelector The function selector to check.
     ////
-    /// @return `true` is the function selector is whitelisted to skip the chain ID validation, else `false`.
+    /// @return `true` is the function selector is allowed to skip the chain ID validation, else `false`.
     function canSkipChainIdValidation(bytes4 functionSelector) public pure returns (bool) {
         if (
             functionSelector == MultiOwnable.addOwnerPublicKey.selector
@@ -266,10 +270,11 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
         return false;
     }
 
-    /// @notice Execute the given call from this account.
+    /// @notice Executes the given call from this account.
     ///
     /// @dev Reverts if the call reverted.
-    /// @dev Impl taken from https://github.com/alchemyplatform/light-account/blob/main/src/LightAccount.sol#L347
+    /// @dev Implementation taken from
+    /// https://github.com/alchemyplatform/light-account/blob/43f625afdda544d5e5af9c370c9f4be0943e4e90/src/common/BaseLightAccount.sol#L125
     ///
     /// @param target The target call address.
     /// @param value  The call value to user.
@@ -285,21 +290,11 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
 
     /// @inheritdoc ERC1271
     ///
-    /// @dev Used both for classic ERC-1271 signature AND `UserOperation` validations.
-    /// @dev Reverts if the signer (based on the `ownerIndex`) is not compatible with the signature.
-    /// @dev Reverts if the signature does not correspond to an ERC-1271 signature or to the abi
-    ///      encoded version of a `WebAuthnAuth` struct.
-    /// @dev Does NOT revert if the signature verification fails to allow making a "simulation call"
-    ///      without a valid signature.
+    /// @dev Used by both `ERC1271.isValidSignature` AND `IAccount.validateUserOp` signature validation.
+    /// @dev Reverts if owner at `ownerIndex` is not compatible with `signature` format.
     ///
-    /// @param signature The abi encoded `SignatureWrapper` struct.
-    function _validateSignature(bytes32 message, bytes calldata signature)
-        internal
-        view
-        virtual
-        override
-        returns (bool)
-    {
+    /// @param signature ABI encoded `SignatureWrapper`.
+    function _isValidSignature(bytes32 hash, bytes calldata signature) internal view virtual override returns (bool) {
         SignatureWrapper memory sigWrapper = abi.decode(signature, (SignatureWrapper));
         bytes memory ownerBytes = ownerAtIndex(sigWrapper.ownerIndex);
 
@@ -315,7 +310,7 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
                 owner := mload(add(ownerBytes, 32))
             }
 
-            return SignatureCheckerLib.isValidSignatureNow(owner, message, sigWrapper.signatureData);
+            return SignatureCheckerLib.isValidSignatureNow(owner, hash, sigWrapper.signatureData);
         }
 
         if (ownerBytes.length == 64) {
@@ -323,7 +318,7 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
 
             WebAuthn.WebAuthnAuth memory auth = abi.decode(sigWrapper.signatureData, (WebAuthn.WebAuthnAuth));
 
-            return WebAuthn.verify({challenge: abi.encode(message), requireUV: false, webAuthnAuth: auth, x: x, y: y});
+            return WebAuthn.verify({challenge: abi.encode(hash), requireUV: false, webAuthnAuth: auth, x: x, y: y});
         }
 
         revert InvalidOwnerBytesLength(ownerBytes);
@@ -331,7 +326,8 @@ contract CoinbaseSmartWallet is MultiOwnable, UUPSUpgradeable, Receiver, ERC1271
 
     /// @inheritdoc UUPSUpgradeable
     ///
-    /// @dev Authorization logic is only based on the sender being an owner of this account.
+    /// @dev Authorization logic is only based on the `msg.sender` being an owner of this account,
+    ///      or `address(this)`.
     function _authorizeUpgrade(address) internal view virtual override(UUPSUpgradeable) onlyOwner {}
 
     /// @inheritdoc ERC1271

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import {LibClone} from "solady/utils/LibClone.sol";
 import {CoinbaseSmartWallet} from "./CoinbaseSmartWallet.sol";
+import {LibClone} from "solady/utils/LibClone.sol";
 
 /// @title Coinbase Smart Wallet Factory
 ///
@@ -18,23 +18,24 @@ contract CoinbaseSmartWalletFactory {
     error OwnerRequired();
 
     /// @notice Factory constructor used to initialize the implementation address to use for future
-    ///         ERC-4337 account deployments.
+    ///         CoinbaseSmartWallet deployments.
     ///
-    /// @param erc4337 The address of the ERC-4337 implementation used to deploy new cloned accounts.
-    constructor(address erc4337) payable {
-        implementation = erc4337;
+    /// @param implementation_ The address of the CoinbaseSmartWallet implementation which new accounts will proxy to.
+    constructor(address implementation_) payable {
+        implementation = implementation_;
     }
 
-    /// @notice Deploys an ERC-4337 account and returns its deterministic address.
+    /// @notice Returns the deterministic address for a CoinbaseSmartWallet created with `owners` and `nonce`
+    ///         deploys and initializes contract if it has not yet been created.
     ///
-    /// @dev The account is deployed behind a minimal ERC1967 proxy whose implementation points to
-    ///      the registered ERC-4337 `implementation`.
-    /// @dev The `owners` parameter is a set of addresses and/or public keys depending on the signature
-    ///      scheme used (respectively ERC-1271 or Webauthn authentication).
+    /// @dev Deployed as a ERC-1967 proxy that's implementation is `this.implementation`.
     ///
-    /// @param owners The initial set of owners that should be able to control the account.
-    /// @param nonce  The nonce of the account, allowing multiple accounts with the same set of initial
-    ///               owners to exist.
+    /// @param owners Array of initial owners. Each item should be an ABI encoded address or 64 byte public key.
+    /// @param nonce  The nonce of the account, a caller defined value which allows multiple accounts
+    ///               with the same `owners` to exist at different addresses.
+    ///
+    /// @return account The address of the ERC-1967 proxy created with inputs `owners`, `nonce`, and
+    ///                 `this.implementation`.
     function createAccount(bytes[] calldata owners, uint256 nonce)
         external
         payable
@@ -55,30 +56,31 @@ contract CoinbaseSmartWalletFactory {
         }
     }
 
-    /// @notice Returns the deterministic address of the account created via `createAccount()`.
+    /// @notice Returns the deterministic address of the account that would be created by `createAccount`.
     ///
-    /// @param owners The initial set of owners provided to `createAccount()`.
+    /// @param owners Array of initial owners. Each item should be an ABI encoded address or 64 byte public key.
     /// @param nonce  The nonce provided to `createAccount()`.
     ///
-    /// @return predicted The predicted account deployment address.
-    function getAddress(bytes[] calldata owners, uint256 nonce) external view returns (address predicted) {
-        predicted = LibClone.predictDeterministicAddress(initCodeHash(), _getSalt(owners, nonce), address(this));
+    /// @return The predicted account deployment address.
+    function getAddress(bytes[] calldata owners, uint256 nonce) external view returns (address) {
+        return LibClone.predictDeterministicAddress(initCodeHash(), _getSalt(owners, nonce), address(this));
     }
 
-    /// @notice Returns the initialization code hash of the account (a minimal ERC1967 proxy).
+    /// @notice Returns the initialization code hash of the account:
+    ///         a ERC1967 proxy that's implementation is `this.implementation`.
     ///
-    /// @return result The initialization code hash.
-    function initCodeHash() public view virtual returns (bytes32 result) {
-        result = LibClone.initCodeHashERC1967(implementation);
+    /// @return The initialization code hash.
+    function initCodeHash() public view virtual returns (bytes32) {
+        return LibClone.initCodeHashERC1967(implementation);
     }
 
-    /// @notice Returns the deterministic salt for a specific set of `owners` and `nonce`.
+    /// @notice Returns the create2 salt for `LibClone.predictDeterministicAddress`
     ///
-    /// @param owners The initial set of owners provided to `createAccount()`.
+    /// @param owners Array of initial owners. Each item should be an ABI encoded address or 64 byte public key.
     /// @param nonce  The nonce provided to `createAccount()`.
     ///
-    /// @return salt The computed salt.
-    function _getSalt(bytes[] calldata owners, uint256 nonce) internal pure returns (bytes32 salt) {
-        salt = keccak256(abi.encode(owners, nonce));
+    /// @return The computed salt.
+    function _getSalt(bytes[] calldata owners, uint256 nonce) internal pure returns (bytes32) {
+        return keccak256(abi.encode(owners, nonce));
     }
 }
