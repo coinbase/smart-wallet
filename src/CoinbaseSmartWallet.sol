@@ -295,7 +295,7 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
 
     /// @inheritdoc ERC1271
     ///
-    /// @dev Used both for ERC-1271.isValidSignature AND ERC-4337.validateUserOp signature validation.
+    /// @dev Used by both `ERC1271.isValidSignature` AND `IAccount.validateUserOp` signature validation.
     /// @dev Reverts if owner at `ownerIndex` is not compatible with `signature` format.
     ///
     /// @param signature ABI encoded `SignatureWrapper`.

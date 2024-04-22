@@ -197,7 +197,7 @@ contract MultiOwnable {
 
     /// @notice Tracks the number of owners removed
     ///
-    /// @dev used with nextOwnerIndex to avoid removing all owners
+    /// @dev Used with `this.nextOwnerIndex` to avoid removing all owners
     ///
     /// @return The number of owners that have been removed.
     function removedOwnersCount() public view virtual returns (uint256) {
