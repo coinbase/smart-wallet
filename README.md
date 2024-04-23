@@ -82,10 +82,10 @@ Today, allowed are
 - UUPSUpgradeable.upgradeToAndCall
 
 ## Deployments
-
-| Network   | CoinbaseSmartWalletFactory Address                        |
+Factory and implementation are deployed via [Safe Singleton Factory](https://github.com/safe-global/safe-singleton-factory), which today will give the same address across 248 chains. See "Deploying" below for instructions on how to deploy to new chains. 
+| Version   | Factory Address                        |
 |-----------|-----------------------------------------|
-| Base Sepolia | [0xeD4EAeBDBBA52DBB37259a2b75AbB87abF3a19E8](https://sepolia.basescan.org/address/0xeD4EAeBDBBA52DBB37259a2b75AbB87abF3a19E8) |
+| 1 | [0x0BA5ED0c6AA8c49038F819E587E2633c4A9F428a](https://basescan.org/address/0x0BA5ED0c6AA8c49038F819E587E2633c4A9F428a) |
 
 
 ## Developing 
@@ -93,6 +93,19 @@ After cloning the repo, run the tests using Forge, from [Foundry](https://github
 ```bash
 forge test
 ```
+
+## Deploying
+To deploy on a new chain, in your `.env` set
+```bash
+FOUNDRY_PROFILE=deploy
+```
+
+Then run 
+```
+forge script script/DeployFactory.s.sol --rpc-url https://...
+```
+
+As written, the script uses a private key that is loaded from env (`PRIVATE_KEY`). However the deployer can configure the deploy key as they wish, see [here](https://book.getfoundry.sh/reference/forge/forge-script?highlight=script#wallet-options---keystore). 
 
 ## Influences
 Much of the code in this repository started from Solady's [ERC4337](https://github.com/Vectorized/solady/blob/main/src/accounts/ERC4337.sol) implementation. We were also influenced by [DaimoAccount](https://github.com/daimo-eth/daimo/blob/master/packages/contract/src/DaimoAccount.sol), which pioneered using passkey signers on ERC-4337 accounts, and [LightAccount](https://github.com/alchemyplatform/light-account).

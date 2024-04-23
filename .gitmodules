@@ -7,9 +7,6 @@
 [submodule "lib/account-abstraction"]
 	path = lib/account-abstraction
 	url = https://github.com/eth-infinitism/account-abstraction
-[submodule "lib/FreshCryptoLib"]
-	path = lib/FreshCryptoLib
-	url = https://github.com/rdubois-crypto/FreshCryptoLib
 [submodule "lib/solady"]
 	path = lib/solady
 	url = https://github.com/vectorized/solady
@@ -19,3 +16,6 @@
 [submodule "lib/webauthn-sol"]
 	path = lib/webauthn-sol
 	url = https://github.com/base-org/webauthn-sol
+[submodule "lib/safe-singleton-deployer-sol"]
+	path = lib/safe-singleton-deployer-sol
+	url = https://github.com/wilsoncusack/safe-singleton-deployer-sol
