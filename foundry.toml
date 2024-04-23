@@ -10,6 +10,3 @@ optimizer_runs = 999999
 [fmt]
 sort_imports = true
 wrap_comments = true
-
-[fuzz]
-seed = "0x1"
