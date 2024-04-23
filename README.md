@@ -1,6 +1,3 @@
-> [!IMPORTANT]  
-> The code in this repository and its dependencies are still under audit. It is not yet recommended for production use.
-
 # Smart Wallet
 
 This repository contains code for a new, [ERC-4337](https://eips.ethereum.org/EIPS/eip-4337) compliant smart contract wallet from Coinbase. 
