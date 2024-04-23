@@ -54,5 +54,6 @@ jobs:
       max-parallel: 4
       matrix:
         params: 
-          - {name: ERC4337Account, command: 'ERC4337Account.conf'}
+          - {name: ERC4337Account, command: 'ERC4337Account.conf --rule cantInitTwice'}
+          - {name: ERC4337Account, command: 'ERC4337Account.conf --exclude_rule cantInitTwice'}
           - {name: ERC4337AccountInv, command: 'ERC4337AccountInv.conf'}
