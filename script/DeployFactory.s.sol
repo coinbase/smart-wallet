@@ -12,17 +12,13 @@ contract DeployFactoryScript is Script {
 
     function run() public {
         console2.log("Deploying on chain ID", block.chainid);
-        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         address implementation = SafeSingletonDeployer.broadcastDeploy({
-            deployerPrivateKey: deployerPrivateKey,
             creationCode: type(CoinbaseSmartWallet).creationCode,
-            args: "",
             salt: 0x3438ae5ce1ff7750c1e09c4b28e2a04525da412f91561eb5b57729977f591fbb
         });
         console2.log("implementation", implementation);
         assert(implementation == EXPECTED_IMPLEMENTATION);
         address factory = SafeSingletonDeployer.broadcastDeploy({
-            deployerPrivateKey: deployerPrivateKey,
             creationCode: type(CoinbaseSmartWalletFactory).creationCode,
             args: abi.encode(implementation),
             salt: 0x278d06dab87f67bb2d83470a70c8975a2c99872f290058fb43bcc47da5f0390c

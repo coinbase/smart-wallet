@@ -94,15 +94,19 @@ forge test
 ## Deploying
 To deploy on a new chain, in your `.env` set
 ```bash
-FOUNDRY_PROFILE=deploy
+#`cast wallet` name
+ACCOUNT=
+# Node RPC URL
+RPC_URL=
+# Optional Etherscan API key for contract verification
+ETHERSCAN_API_KEY=
 ```
+See [here](https://book.getfoundry.sh/reference/cast/cast-wallet-import) for more details on `cast wallet`.
 
 Then run 
 ```
-forge script script/DeployFactory.s.sol --rpc-url https://...
+make deploy
 ```
-
-As written, the script uses a private key that is loaded from env (`PRIVATE_KEY`). However the deployer can configure the deploy key as they wish, see [here](https://book.getfoundry.sh/reference/forge/forge-script?highlight=script#wallet-options---keystore). 
 
 ## Influences
 Much of the code in this repository started from Solady's [ERC4337](https://github.com/Vectorized/solady/blob/main/src/accounts/ERC4337.sol) implementation. We were also influenced by [DaimoAccount](https://github.com/daimo-eth/daimo/blob/master/packages/contract/src/DaimoAccount.sol), which pioneered using passkey signers on ERC-4337 accounts, and [LightAccount](https://github.com/alchemyplatform/light-account).
