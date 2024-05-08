@@ -9,6 +9,9 @@ import {SignatureCheckerLib} from "solady/utils/SignatureCheckerLib.sol";
 import {UUPSUpgradeable} from "solady/utils/UUPSUpgradeable.sol";
 import {WebAuthn} from "webauthn-sol/WebAuthn.sol";
 
+import {IKeyStore} from "./ext/IKeyStore.sol";
+import {IVerifier} from "./ext/IVerifier.sol";
+
 import {ERC1271} from "./ERC1271.sol";
 import {MultiOwnable} from "./MultiOwnable.sol";
 
@@ -20,14 +23,17 @@ import {MultiOwnable} from "./MultiOwnable.sol";
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
 /// @author Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC4337.sol)
 contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable, Receiver {
-    /// @notice A wrapper struct used for signature validation so that callers
-    ///         can identify the owner that signed.
+    /// @notice A wrapper struct used for signature validation.
     struct SignatureWrapper {
-        /// @dev The index of the owner that signed, see `MultiOwnable.ownerAtIndex`
-        uint256 ownerIndex;
-        /// @dev If `MultiOwnable.ownerAtIndex` is an Ethereum address, this should be `abi.encodePacked(r, s, v)`
-        ///      If `MultiOwnable.ownerAtIndex` is a public key, this should be `abi.encode(WebAuthnAuth)`.
-        bytes signatureData;
+        /// @dev The Keyspace key.
+        uint256 ksKey;
+        /// @dev The general encoding of this field should be:
+        ///      `abi.encode(sig, publicKeyX, publicKeyY, stateProof)`
+        ///
+        ///      The content of `sig` depends on the Keyspace key type:
+        ///         - For EOA key type `sig` should be `abi.encodePacked(r, s, v)`
+        ///         - For WebAuthn key type `sig` should be `abi.encode(WebAuthnAuth)`
+        bytes data;
     }
 
     /// @notice Represents a call to make.
@@ -50,6 +56,12 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
     /// @dev Helps enforce sequential sequencing of replayable transactions.
     uint256 public constant REPLAYABLE_NONCE_KEY = 8453;
 
+    /// @notice The KeyStore contract from which the L1 roots are fetched.
+    IKeyStore public immutable keyStore;
+
+    /// @notice The StateVerifier contract used to verify state proofs.
+    IVerifier public immutable stateVerifier;
+
     /// @notice Thrown when `initialize` is called but the account already has had at least one owner.
     error Initialized();
 
@@ -67,6 +79,9 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
     /// @param key The invalid `UserOperation.nonce` key.
     error InvalidNonceKey(uint256 key);
 
+    /// @notice Thrown in `_isValidSignature` if the Keyspace key is not registered as an owner for this account.
+    error InvalidKeySpaceKey(uint256 ksKey);
+
     /// @notice Reverts if the caller is not the EntryPoint.
     modifier onlyEntryPoint() virtual {
         if (msg.sender != entryPoint()) {
@@ -76,10 +91,10 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
         _;
     }
 
-    /// @notice Reverts if the caller is neither the EntryPoint, the owner, nor the account itself.
-    modifier onlyEntryPointOrOwner() virtual {
+    /// @notice Reverts if the caller is neither the EntryPoint nor the account itself.
+    modifier onlyEntryPointOrSelf() virtual {
         if (msg.sender != entryPoint()) {
-            _checkOwner();
+            _ensureIsSelf();
         }
 
         _;
@@ -105,26 +120,27 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
         }
     }
 
-    constructor() {
+    constructor(address keyStore_, address stateVerifier_) {
+        // Set the immutable variables that will be used by all proxies pointing to this implementation.
+        keyStore = IKeyStore(keyStore_);
+        stateVerifier = IVerifier(stateVerifier_);
+
         // Implementation should not be initializable (does not affect proxies which use their own storage).
-        bytes[] memory owners = new bytes[](1);
-        owners[0] = abi.encode(address(0));
-        _initializeOwners(owners);
+        KeyAndType[] memory ksKeys = new KeyAndType[](1);
+        _initializeOwners(ksKeys);
     }
 
     /// @notice Initializes the account with the `owners`.
     ///
     /// @dev Reverts if the account has had at least one owner, i.e. has been initialized.
     ///
-    /// @param owners Array of initial owners for this account. Each item should be
-    ///               an ABI encoded Ethereum address, i.e. 32 bytes with 12 leading 0 bytes,
-    ///               or a 64 byte public key.
-    function initialize(bytes[] calldata owners) external payable virtual {
-        if (nextOwnerIndex() != 0) {
+    /// @param ksKeys Array of initial Keyspace keys.
+    function initialize(KeyAndType[] memory ksKeys) external payable virtual {
+        if (ownerCount() != 0) {
             revert Initialized();
         }
 
-        _initializeOwners(owners);
+        _initializeOwners(ksKeys);
     }
 
     /// @inheritdoc IAccount
@@ -208,7 +224,7 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
         external
         payable
         virtual
-        onlyEntryPointOrOwner
+        onlyEntryPointOrSelf
     {
         _call(target, value, data);
     }
@@ -218,7 +234,7 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
     /// @dev Can only be called by the Entrypoint or an owner of this account (including itself).
     ///
     /// @param calls The list of `Call`s to execute.
-    function executeBatch(Call[] calldata calls) external payable virtual onlyEntryPointOrOwner {
+    function executeBatch(Call[] calldata calls) external payable virtual onlyEntryPointOrSelf {
         for (uint256 i; i < calls.length; i++) {
             _call(calls[i].target, calls[i].value, calls[i].data);
         }
@@ -259,9 +275,7 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
     /// @return `true` is the function selector is allowed to skip the chain ID validation, else `false`.
     function canSkipChainIdValidation(bytes4 functionSelector) public pure returns (bool) {
         if (
-            functionSelector == MultiOwnable.addOwnerPublicKey.selector
-                || functionSelector == MultiOwnable.addOwnerAddress.selector
-                || functionSelector == MultiOwnable.removeOwnerAtIndex.selector
+            functionSelector == MultiOwnable.addOwner.selector || functionSelector == MultiOwnable.removeOwner.selector
                 || functionSelector == MultiOwnable.removeLastOwner.selector
                 || functionSelector == UUPSUpgradeable.upgradeToAndCall.selector
         ) {
@@ -294,41 +308,62 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
     /// @dev Reverts if owner at `ownerIndex` is not compatible with `signature` format.
     ///
     /// @param signature ABI encoded `SignatureWrapper`.
-    function _isValidSignature(bytes32 hash, bytes calldata signature) internal view virtual override returns (bool) {
+    function _isValidSignature(bytes32 h, bytes calldata signature) internal view virtual override returns (bool) {
         SignatureWrapper memory sigWrapper = abi.decode(signature, (SignatureWrapper));
-        bytes memory ownerBytes = ownerAtIndex(sigWrapper.ownerIndex);
 
-        if (ownerBytes.length == 32) {
-            if (uint256(bytes32(ownerBytes)) > type(uint160).max) {
-                // technically should be impossible given owners can only be added with
-                // addOwnerAddress and addOwnerPublicKey, but we leave incase of future changes.
-                revert InvalidEthereumAddressOwner(ownerBytes);
-            }
-
-            address owner;
-            assembly ("memory-safe") {
-                owner := mload(add(ownerBytes, 32))
-            }
-
-            return SignatureCheckerLib.isValidSignatureNow(owner, hash, sigWrapper.signatureData);
+        // Get the signer type and revert if it's None.
+        MultiOwnable.KeySpaceKeyType ksKeyType = keySpaceKeyType(sigWrapper.ksKey);
+        if (ksKeyType == KeySpaceKeyType.None) {
+            revert InvalidKeySpaceKey(sigWrapper.ksKey);
         }
 
-        if (ownerBytes.length == 64) {
-            (uint256 x, uint256 y) = abi.decode(ownerBytes, (uint256, uint256));
+        // Decode the raw `signature`.
+        (bytes memory sig, uint256 publicKeyX, uint256 publicKeyY, bytes memory stateProof) =
+            abi.decode(sigWrapper.data, (bytes, uint256, uint256, bytes));
 
-            WebAuthn.WebAuthnAuth memory auth = abi.decode(sigWrapper.signatureData, (WebAuthn.WebAuthnAuth));
+        // Handle the EOA signature type.
+        if (ksKeyType == KeySpaceKeyType.EOA) {
+            bytes memory publicKeyBytes = abi.encode(publicKeyX, publicKeyY);
+            address signer = address(bytes20(keccak256(publicKeyBytes) << 96));
 
-            return WebAuthn.verify({challenge: abi.encode(hash), requireUV: false, webAuthnAuth: auth, x: x, y: y});
+            bool isValidSignature = SignatureCheckerLib.isValidSignatureNow(signer, h, sig);
+            if (!isValidSignature) {
+                return false;
+            }
+        }
+        // Handle the WebAuthn signature type.
+        else {
+            WebAuthn.WebAuthnAuth memory auth = abi.decode(sig, (WebAuthn.WebAuthnAuth));
+
+            bool isValidSignature = WebAuthn.verify({
+                challenge: abi.encode(h),
+                requireUV: false,
+                webAuthnAuth: auth,
+                x: publicKeyX,
+                y: publicKeyY
+            });
+
+            if (!isValidSignature) {
+                return false;
+            }
         }
 
-        revert InvalidOwnerBytesLength(ownerBytes);
+        // Verify the state proof.
+        uint256[] memory data = new uint256[](8);
+        data[0] = publicKeyX;
+        data[1] = publicKeyY;
+
+        uint256[] memory public_inputs = new uint256[](3);
+        public_inputs[0] = sigWrapper.ksKey;
+        public_inputs[1] = keyStore.root();
+        public_inputs[2] = uint256(keccak256(abi.encodePacked(data)) >> 8);
+        return stateVerifier.Verify(stateProof, public_inputs);
     }
 
     /// @inheritdoc UUPSUpgradeable
     ///
-    /// @dev Authorization logic is only based on the `msg.sender` being an owner of this account,
-    ///      or `address(this)`.
-    function _authorizeUpgrade(address) internal view virtual override(UUPSUpgradeable) onlyOwner {}
+    /// @dev Authorization logic is only based on the `msg.sender` being `address(this)`.
+    function _authorizeUpgrade(address) internal view virtual override(UUPSUpgradeable) onlySelf {}
 
     /// @inheritdoc ERC1271
     function _domainNameAndVersion() internal pure override(ERC1271) returns (string memory, string memory) {

@@ -2,6 +2,8 @@
 pragma solidity ^0.8.4;
 
 import {CoinbaseSmartWallet} from "./CoinbaseSmartWallet.sol";
+
+import {MultiOwnable} from "./MultiOwnable.sol";
 import {LibClone} from "solady/utils/LibClone.sol";
 
 /// @title Coinbase Smart Wallet Factory
@@ -14,8 +16,8 @@ contract CoinbaseSmartWalletFactory {
     /// @notice Address of the ERC-4337 implementation used as implementation for new accounts.
     address public immutable implementation;
 
-    /// @notice Thrown when trying to create a new `CoinbaseSmartWallet` account without any owner.
-    error OwnerRequired();
+    /// @notice Thrown when trying to create a new `CoinbaseSmartWallet` account without any Keyspace key.
+    error KeyRequired();
 
     /// @notice Factory constructor used to initialize the implementation address to use for future
     ///         CoinbaseSmartWallet deployments.
@@ -25,45 +27,45 @@ contract CoinbaseSmartWalletFactory {
         implementation = implementation_;
     }
 
-    /// @notice Returns the deterministic address for a CoinbaseSmartWallet created with `owners` and `nonce`
+    /// @notice Returns the deterministic address for a CoinbaseSmartWallet created with `keyspaceKeys` and `nonce`
     ///         deploys and initializes contract if it has not yet been created.
     ///
     /// @dev Deployed as a ERC-1967 proxy that's implementation is `this.implementation`.
     ///
-    /// @param owners Array of initial owners. Each item should be an ABI encoded address or 64 byte public key.
-    /// @param nonce  The nonce of the account, a caller defined value which allows multiple accounts
-    ///               with the same `owners` to exist at different addresses.
+    /// @param keyspaceKeys Array of initial Keyspace keys.
+    /// @param nonce        The nonce of the account, a caller defined value which allows multiple accounts
+    ///                     with the same `keyspaceKeys` to exist at different addresses.
     ///
-    /// @return account The address of the ERC-1967 proxy created with inputs `owners`, `nonce`, and
+    /// @return account The address of the ERC-1967 proxy created with inputs `keyspaceKeys`, `nonce`, and
     ///                 `this.implementation`.
-    function createAccount(bytes[] calldata owners, uint256 nonce)
+    function createAccount(MultiOwnable.KeyAndType[] memory keyspaceKeys, uint256 nonce)
         external
         payable
         virtual
         returns (CoinbaseSmartWallet account)
     {
-        if (owners.length == 0) {
-            revert OwnerRequired();
+        if (keyspaceKeys.length == 0) {
+            revert KeyRequired();
         }
 
         (bool alreadyDeployed, address accountAddress) =
-            LibClone.createDeterministicERC1967(msg.value, implementation, _getSalt(owners, nonce));
+            LibClone.createDeterministicERC1967(msg.value, implementation, _getSalt(keyspaceKeys, nonce));
 
         account = CoinbaseSmartWallet(payable(accountAddress));
 
         if (!alreadyDeployed) {
-            account.initialize(owners);
+            account.initialize(keyspaceKeys);
         }
     }
 
     /// @notice Returns the deterministic address of the account that would be created by `createAccount`.
     ///
-    /// @param owners Array of initial owners. Each item should be an ABI encoded address or 64 byte public key.
-    /// @param nonce  The nonce provided to `createAccount()`.
+    /// @param keyspaceKeys Array of initial Keyspace keys.
+    /// @param nonce        The nonce provided to `createAccount()`.
     ///
     /// @return The predicted account deployment address.
-    function getAddress(bytes[] calldata owners, uint256 nonce) external view returns (address) {
-        return LibClone.predictDeterministicAddress(initCodeHash(), _getSalt(owners, nonce), address(this));
+    function getAddress(MultiOwnable.KeyAndType[] memory keyspaceKeys, uint256 nonce) external view returns (address) {
+        return LibClone.predictDeterministicAddress(initCodeHash(), _getSalt(keyspaceKeys, nonce), address(this));
     }
 
     /// @notice Returns the initialization code hash of the account:
@@ -76,11 +78,11 @@ contract CoinbaseSmartWalletFactory {
 
     /// @notice Returns the create2 salt for `LibClone.predictDeterministicAddress`
     ///
-    /// @param owners Array of initial owners. Each item should be an ABI encoded address or 64 byte public key.
-    /// @param nonce  The nonce provided to `createAccount()`.
+    /// @param keyspaceKeys Array of initial Keyspace keys.
+    /// @param nonce        The nonce provided to `createAccount()`.
     ///
     /// @return The computed salt.
-    function _getSalt(bytes[] calldata owners, uint256 nonce) internal pure returns (bytes32) {
-        return keccak256(abi.encode(owners, nonce));
+    function _getSalt(MultiOwnable.KeyAndType[] memory keyspaceKeys, uint256 nonce) internal pure returns (bytes32) {
+        return keccak256(abi.encode(keyspaceKeys, nonce));
     }
 }

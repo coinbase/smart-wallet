@@ -22,7 +22,7 @@ contract TestExecuteWithoutChainIdValidation is SmartWalletTestBase {
     function testExecute() public {
         vm.deal(address(account), 1 ether);
         vm.prank(signer);
-        account.addOwnerAddress(address(this));
+        // account.addOwnerAddress(address(this));
 
         address target = address(new MockTarget());
         bytes memory data = _randomBytes(111);

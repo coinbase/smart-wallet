@@ -18,10 +18,10 @@ contract ERC1271InputGenerator {
     error AccountDeploymentFailed();
 
     /// @notice Thrown when the address returned from call to `accountFactory` does not
-    ///         match passed account
+    ///         match passed account.
     ///
-    /// @param account  The passed account
-    /// @param returned The returned account
+    /// @param account  The passed account.
+    /// @param returned The returned account.
     error ReturnedAddressDoesNotMatchAccount(address account, address returned);
 
     /// @notice Computes and returns the expected ERC-1271 replay-safe hash for a CoinbaseSmartWallet.
@@ -35,10 +35,9 @@ contract ERC1271InputGenerator {
     /// @param accountFactory  The factory that will be used to deploy the account (if not already deployed).
     /// @param factoryCalldata The calldata that will be used to deploy the account (if not already deployed).
     constructor(CoinbaseSmartWallet account, bytes32 hash, address accountFactory, bytes memory factoryCalldata) {
-        // This allows us to get a replay-safe hash on any deployed or undeployed account
-        // in a single eth_call, i.e. without deploying the contract. We do this by calling replaySafeHash on a deployed
-        // account,
-        // or by simulating the deployment of an undeployed account and then calling replaySafeHash on it.
+        // This allows us to get a replay-safe hash on any deployed or undeployed account in a single eth_call, i.e.
+        // without deploying the contract. We do this by calling replaySafeHash on a deployed account, or by simulating
+        // the deployment of an undeployed account and then calling replaySafeHash on it.
         bytes32 replaySafeHash = _coinbaseSmartWallet1271Input(account, hash, accountFactory, factoryCalldata);
         assembly {
             // store replay safe hash
@@ -50,7 +49,6 @@ contract ERC1271InputGenerator {
 
     /// @notice Helper method to get a replay-safe hash from the given `account` by calling its `replaySafeHash()`
     ///         method.
-    ///
     ///
     /// @dev Deploys the account if not already deployed before calling `replaySafeHash` on it.
     /// @dev Implements ERC-6492, see https://eips.ethereum.org/EIPS/eip-6492.
