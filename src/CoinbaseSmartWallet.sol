@@ -312,8 +312,8 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
         SignatureWrapper memory sigWrapper = abi.decode(signature, (SignatureWrapper));
 
         // Get the signer type and revert if it's None.
-        MultiOwnable.KeySpaceKeyType ksKeyType = keySpaceKeyType(sigWrapper.ksKey);
-        if (ksKeyType == KeySpaceKeyType.None) {
+        MultiOwnable.KeyspaceKeyType ksKeyType = keyspaceKeyType(sigWrapper.ksKey);
+        if (ksKeyType == KeyspaceKeyType.None) {
             revert InvalidKeySpaceKey(sigWrapper.ksKey);
         }
 
@@ -322,7 +322,7 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
             abi.decode(sigWrapper.data, (bytes, uint256, uint256, bytes));
 
         // Handle the EOA signature type.
-        if (ksKeyType == KeySpaceKeyType.EOA) {
+        if (ksKeyType == KeyspaceKeyType.EOA) {
             bytes memory publicKeyBytes = abi.encode(publicKeyX, publicKeyY);
             address signer = address(bytes20(keccak256(publicKeyBytes) << 96));
 

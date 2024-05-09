@@ -7,8 +7,8 @@ pragma solidity ^0.8.18;
 struct MultiOwnableStorage {
     /// @dev Tracks the owner count.
     uint256 ownerCount;
-    /// @dev Mapping of Keyspace keys to `KeySpaceKeyType`.
-    mapping(uint256 ksKey => MultiOwnable.KeySpaceKeyType ksKeyType) ksKeyTypes;
+    /// @dev Mapping of Keyspace keys to `KeyspaceKeyType`.
+    mapping(uint256 ksKey => MultiOwnable.KeyspaceKeyType ksKeyType) ksKeyTypes;
 }
 
 /// @title Multi Ownable
@@ -21,7 +21,7 @@ contract MultiOwnable {
     ///
     /// @dev `None` is intentionnaly placed first so that it equals the default unset value.
     ///      It is never allowed to register a new Keyspace key as an owner with type `None`.
-    enum KeySpaceKeyType {
+    enum KeyspaceKeyType {
         None,
         EOA,
         WebAuthn
@@ -34,7 +34,7 @@ contract MultiOwnable {
         /// @dev The Keyspace key.
         uint256 ksKey;
         /// @dev The Keyspace key type.
-        KeySpaceKeyType ksKeyType;
+        KeyspaceKeyType ksKeyType;
     }
 
     /// @dev Slot for the `MultiOwnableStorage` struct in storage.
@@ -46,6 +46,9 @@ contract MultiOwnable {
 
     /// @notice Thrown when the `msg.sender` is not authorized to call a privileged function.
     error Unauthorized();
+
+    /// @notice Thrown when trying to add a Keyspace key as an owner and providing a `KeyspaceKeyType.None` type.
+    error KeyspaceKeyTypeCantBeNone();
 
     /// @notice Thrown when trying to add an already registered owner.
     ///
@@ -86,15 +89,16 @@ contract MultiOwnable {
     /// @dev Reverts if the `ksKey` is already an owner.
     ///
     /// @param ksKey The Keyspace key.
-    function addOwner(uint256 ksKey, KeySpaceKeyType ksKeyType) external virtual onlySelf {
+    function addOwner(uint256 ksKey, KeyspaceKeyType ksKeyType) external virtual onlySelf {
         // Ensure the user is not adding a `None` type.
-        if (ksKeyType == KeySpaceKeyType.None) {
-            revert("Signer type can't be None");
+        if (ksKeyType == KeyspaceKeyType.None) {
+            revert KeyspaceKeyTypeCantBeNone();
         }
 
         // Ensure the Keyspace key is not already registered.
-        if (keySpaceKeyType(ksKey) != KeySpaceKeyType.None) revert AlreadyOwner(ksKey);
+        if (keyspaceKeyType(ksKey) != KeyspaceKeyType.None) revert AlreadyOwner(ksKey);
 
+        _getMultiOwnableStorage().ownerCount += 1;
         _addOwner(ksKey, ksKeyType);
     }
 
@@ -131,9 +135,9 @@ contract MultiOwnable {
     ///
     /// @param ksKey The Keyspace key.
     ///
-    /// @return The Keyspace key type. `KeySpaceKeyType.None` is returned when `ksKey` is not registered as an owner of
+    /// @return The Keyspace key type. `KeyspaceKeyType.None` is returned when `ksKey` is not registered as an owner of
     ///         this account.
-    function keySpaceKeyType(uint256 ksKey) public view virtual returns (KeySpaceKeyType) {
+    function keyspaceKeyType(uint256 ksKey) public view virtual returns (KeyspaceKeyType) {
         return _getMultiOwnableStorage().ksKeyTypes[ksKey];
     }
 
@@ -152,11 +156,11 @@ contract MultiOwnable {
     /// @param ksKeys The initial Keyspace keys to register as owners.
     function _initializeOwners(KeyAndType[] memory ksKeys) internal virtual {
         MultiOwnableStorage storage $ = _getMultiOwnableStorage();
+        $.ownerCount += ksKeys.length;
+
         for (uint256 i; i < ksKeys.length; i++) {
             _addOwner(ksKeys[i].ksKey, ksKeys[i].ksKeyType);
         }
-
-        $.ownerCount += ksKeys.length;
     }
 
     /// @notice Adds a new owner.
@@ -164,7 +168,7 @@ contract MultiOwnable {
     /// @dev Reverts if `ksKey` is already an owner.
     ///
     /// @param ksKey The Keyspace key.
-    function _addOwner(uint256 ksKey, KeySpaceKeyType ksKeyType) internal virtual {
+    function _addOwner(uint256 ksKey, KeyspaceKeyType ksKeyType) internal virtual {
         _getMultiOwnableStorage().ksKeyTypes[ksKey] = ksKeyType;
         emit OwnerAdded(ksKey);
     }
@@ -175,7 +179,9 @@ contract MultiOwnable {
     ///
     /// @param ksKey The Keyspace key to be removed.
     function _removeOwner(uint256 ksKey) internal virtual {
-        if (keySpaceKeyType(ksKey) != KeySpaceKeyType.None) revert NotAnOwner(ksKey);
+        if (keyspaceKeyType(ksKey) == KeyspaceKeyType.None) {
+            revert NotAnOwner(ksKey);
+        }
 
         MultiOwnableStorage storage $ = _getMultiOwnableStorage();
         delete $.ksKeyTypes[ksKey];
