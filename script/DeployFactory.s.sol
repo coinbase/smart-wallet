@@ -20,7 +20,7 @@ contract DeployFactoryScript is Script {
         assert(implementation == EXPECTED_IMPLEMENTATION);
         address factory = SafeSingletonDeployer.broadcastDeploy({
             creationCode: type(CoinbaseSmartWalletFactory).creationCode,
-            args: abi.encode(implementation),
+            args: abi.encode(EXPECTED_IMPLEMENTATION),
             salt: 0x278d06dab87f67bb2d83470a70c8975a2c99872f290058fb43bcc47da5f0390c
         });
         console2.log("factory", factory);
