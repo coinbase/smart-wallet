@@ -31,7 +31,7 @@ contract MultiOwnableTest is Test {
         uint256 startKey = uint256(keccak256("start-key")) - 1;
         uint256 startKeyType = uint256(keccak256("start-key-type")) - 1;
 
-        for (uint256 i = 0; i < ownerCount; i++) {
+        for (uint256 i; i < ownerCount; i++) {
             _cheat_AddOwner({ksKey: startKey + i, ksKeyType: _uintToKsKeyType(startKeyType + i, false)});
         }
         _;

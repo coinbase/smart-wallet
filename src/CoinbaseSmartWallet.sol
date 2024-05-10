@@ -31,7 +31,7 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
         ///      `abi.encode(sig, publicKeyX, publicKeyY, stateProof)`
         ///
         ///      The content of `sig` depends on the Keyspace key type:
-        ///         - For EOA key type `sig` should be `abi.encodePacked(r, s, v)`
+        ///         - For Secp256k1 key type `sig` should be `abi.encodePacked(r, s, v)`
         ///         - For WebAuthn key type `sig` should be `abi.encode(WebAuthnAuth)`
         bytes data;
     }
@@ -126,21 +126,21 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
         stateVerifier = IVerifier(stateVerifier_);
 
         // Implementation should not be initializable (does not affect proxies which use their own storage).
-        KeyAndType[] memory ksKeys = new KeyAndType[](1);
-        _initializeOwners(ksKeys);
+        KeyAndType[] memory ksKeyAndTypes = new KeyAndType[](1);
+        _initializeOwners(ksKeyAndTypes);
     }
 
     /// @notice Initializes the account with the `owners`.
     ///
     /// @dev Reverts if the account has had at least one owner, i.e. has been initialized.
     ///
-    /// @param ksKeys Array of initial Keyspace keys.
-    function initialize(KeyAndType[] memory ksKeys) external payable virtual {
+    /// @param ksKeyAndTypes Array of initial Keyspace keys and their types.
+    function initialize(KeyAndType[] memory ksKeyAndTypes) external payable virtual {
         if (ownerCount() != 0) {
             revert Initialized();
         }
 
-        _initializeOwners(ksKeys);
+        _initializeOwners(ksKeyAndTypes);
     }
 
     /// @inheritdoc IAccount
@@ -321,8 +321,8 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
         (bytes memory sig, uint256 publicKeyX, uint256 publicKeyY, bytes memory stateProof) =
             abi.decode(sigWrapper.data, (bytes, uint256, uint256, bytes));
 
-        // Handle the EOA signature type.
-        if (ksKeyType == KeyspaceKeyType.EOA) {
+        // Handle the Secp256k1 signature type.
+        if (ksKeyType == KeyspaceKeyType.Secp256k1) {
             bytes memory publicKeyBytes = abi.encode(publicKeyX, publicKeyY);
             address signer = address(bytes20(keccak256(publicKeyBytes) << 96));
 
@@ -353,11 +353,11 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
         data[0] = publicKeyX;
         data[1] = publicKeyY;
 
-        uint256[] memory public_inputs = new uint256[](3);
-        public_inputs[0] = sigWrapper.ksKey;
-        public_inputs[1] = keyStore.root();
-        public_inputs[2] = uint256(keccak256(abi.encodePacked(data)) >> 8);
-        return stateVerifier.Verify(stateProof, public_inputs);
+        uint256[] memory publicInputs = new uint256[](3);
+        publicInputs[0] = sigWrapper.ksKey;
+        publicInputs[1] = keyStore.root();
+        publicInputs[2] = uint256(keccak256(abi.encodePacked(data)) >> 8);
+        return stateVerifier.Verify(stateProof, publicInputs);
     }
 
     /// @inheritdoc UUPSUpgradeable

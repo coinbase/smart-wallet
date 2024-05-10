@@ -27,45 +27,49 @@ contract CoinbaseSmartWalletFactory {
         implementation = implementation_;
     }
 
-    /// @notice Returns the deterministic address for a CoinbaseSmartWallet created with `ksKeys` and `nonce`
+    /// @notice Returns the deterministic address for a CoinbaseSmartWallet created with `ksKeyAndTypes` and `nonce`
     ///         deploys and initializes contract if it has not yet been created.
     ///
     /// @dev Deployed as a ERC-1967 proxy that's implementation is `this.implementation`.
     ///
-    /// @param ksKeys Array of initial Keyspace keys.
-    /// @param nonce  The nonce of the account, a caller defined value which allows multiple accounts
-    ///               with the same `ksKeys` to exist at different addresses.
+    /// @param ksKeyAndTypes Array of initial Keyspace keys and their types.
+    /// @param nonce         The nonce of the account, a caller defined value which allows multiple accounts
+    ///                      with the same `ksKeyAndTypes` to exist at different addresses.
     ///
-    /// @return account The address of the ERC-1967 proxy created with inputs `ksKeys`, `nonce`, and
+    /// @return account The address of the ERC-1967 proxy created with inputs `ksKeyAndTypes`, `nonce`, and
     ///                 `this.implementation`.
-    function createAccount(MultiOwnable.KeyAndType[] memory ksKeys, uint256 nonce)
+    function createAccount(MultiOwnable.KeyAndType[] memory ksKeyAndTypes, uint256 nonce)
         external
         payable
         virtual
         returns (CoinbaseSmartWallet account)
     {
-        if (ksKeys.length == 0) {
+        if (ksKeyAndTypes.length == 0) {
             revert KeyRequired();
         }
 
         (bool alreadyDeployed, address accountAddress) =
-            LibClone.createDeterministicERC1967(msg.value, implementation, _getSalt(ksKeys, nonce));
+            LibClone.createDeterministicERC1967(msg.value, implementation, _getSalt(ksKeyAndTypes, nonce));
 
         account = CoinbaseSmartWallet(payable(accountAddress));
 
         if (!alreadyDeployed) {
-            account.initialize(ksKeys);
+            account.initialize(ksKeyAndTypes);
         }
     }
 
     /// @notice Returns the deterministic address of the account that would be created by `createAccount`.
     ///
-    /// @param ksKeys Array of initial Keyspace keys.
-    /// @param nonce  The nonce provided to `createAccount()`.
+    /// @param ksKeyAndTypes Array of initial Keyspace keys and their types.
+    /// @param nonce         The nonce provided to `createAccount()`.
     ///
     /// @return The predicted account deployment address.
-    function getAddress(MultiOwnable.KeyAndType[] memory ksKeys, uint256 nonce) external view returns (address) {
-        return LibClone.predictDeterministicAddress(initCodeHash(), _getSalt(ksKeys, nonce), address(this));
+    function getAddress(MultiOwnable.KeyAndType[] memory ksKeyAndTypes, uint256 nonce)
+        external
+        view
+        returns (address)
+    {
+        return LibClone.predictDeterministicAddress(initCodeHash(), _getSalt(ksKeyAndTypes, nonce), address(this));
     }
 
     /// @notice Returns the initialization code hash of the account:
@@ -78,11 +82,11 @@ contract CoinbaseSmartWalletFactory {
 
     /// @notice Returns the create2 salt for `LibClone.predictDeterministicAddress`
     ///
-    /// @param ksKeys Array of initial Keyspace keys.
-    /// @param nonce  The nonce provided to `createAccount()`.
+    /// @param ksKeyAndTypes Array of initial Keyspace keys and their types.
+    /// @param nonce         The nonce provided to `createAccount()`.
     ///
     /// @return The computed salt.
-    function _getSalt(MultiOwnable.KeyAndType[] memory ksKeys, uint256 nonce) internal pure returns (bytes32) {
-        return keccak256(abi.encode(ksKeys, nonce));
+    function _getSalt(MultiOwnable.KeyAndType[] memory ksKeyAndTypes, uint256 nonce) internal pure returns (bytes32) {
+        return keccak256(abi.encode(ksKeyAndTypes, nonce));
     }
 }

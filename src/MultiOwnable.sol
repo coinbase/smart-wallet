@@ -23,7 +23,7 @@ contract MultiOwnable {
     ///      It is never allowed to register a new Keyspace key as an owner with type `None`.
     enum KeyspaceKeyType {
         None,
-        EOA,
+        Secp256k1,
         WebAuthn
     }
 
