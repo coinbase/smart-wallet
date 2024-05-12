@@ -793,7 +793,7 @@ contract CoinbaseSmartWalletTest is Test {
             data = bytes.concat(b, data);
         }
 
-        sut.upgradeToAndCall({newImplementation: newImpl, data: data});
+        sut.upgradeToAndCall({newImplementation: newImpl, data: ""});
         assertEq(_readEip1967ImplementationSlot(), newImpl);
     }
 
@@ -874,9 +874,9 @@ contract CoinbaseSmartWalletTest is Test {
         return 0x97e2c6aad4ce5d562ebfaa00db6b9e0fb66ea5d8162ed5b243f51a2e03086f00;
     }
 
-    function _sanitizeAddress(address addr) private pure returns (address) {
+    function _sanitizeAddress(address addr) private view returns (address) {
         addr = address(uint160(bound(uint160(addr), 100, type(uint160).max)));
-        if (addr == VM_ADDRESS || addr == CONSOLE) {
+        if (addr == VM_ADDRESS || addr == CONSOLE || addr == msg.sender) {
             addr = address(0xdead);
         }
 

@@ -1,0 +1,38 @@
+{
+  "domain": {
+    "name": "Coinbase Smart Wallet",
+    "version": "1",
+    "chainId": 31337,
+    "verifyingContract": "0x5615dEB798BB3E4dFa0139dFa1b3D433Cc23b72f"
+  },
+  "message": {
+    "hash": "0xce4889db5daacf13a5d2063d377e7339c7de21673fa7d84e722536df7dcc8146"
+  },
+  "primaryType": "CoinbaseSmartWalletMessage",
+  "types": {
+    "EIP712Domain": [
+      {
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "name": "version",
+        "type": "string"
+      },
+      {
+        "name": "chainId",
+        "type": "uint256"
+      },
+      {
+        "name": "verifyingContract",
+        "type": "address"
+      }
+    ],
+    "CoinbaseSmartWalletMessage": [
+      {
+        "name": "hash",
+        "type": "bytes32"
+      }
+    ]
+  }
+}
