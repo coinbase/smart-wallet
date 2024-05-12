@@ -6,7 +6,7 @@
     "verifyingContract": "0x5615dEB798BB3E4dFa0139dFa1b3D433Cc23b72f"
   },
   "message": {
-    "hash": "0xce4889db5daacf13a5d2063d377e7339c7de21673fa7d84e722536df7dcc8146"
+    "hash": "0x000000000000000000000000000000000000000000000000000000000000ff00"
   },
   "primaryType": "CoinbaseSmartWalletMessage",
   "types": {

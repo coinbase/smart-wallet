@@ -5,6 +5,8 @@ import "forge-std/Test.sol";
 
 import {MultiOwnable, MultiOwnableStorage} from "../../src/MultiOwnable.sol";
 
+import {LibMultiOwnable} from "../utils/LibMultiOwnable.sol";
+
 contract MultiOwnableTest is Test {
     MultiOwnable private sut;
 
@@ -23,7 +25,7 @@ contract MultiOwnableTest is Test {
     }
 
     modifier withOwner(uint256 ksKey, uint256 ksKeyType) {
-        _cheat_AddOwner({ksKey: ksKey, ksKeyType: _uintToKsKeyType(ksKeyType, false)});
+        LibMultiOwnable.cheat_AddOwner({target: address(sut), ksKey: ksKey, ksKeyType: ksKeyType});
         _;
     }
 
@@ -32,7 +34,7 @@ contract MultiOwnableTest is Test {
         uint256 startKeyType = uint256(keccak256("start-key-type")) - 1;
 
         for (uint256 i; i < ownerCount; i++) {
-            _cheat_AddOwner({ksKey: startKey + i, ksKeyType: _uintToKsKeyType(startKeyType + i, false)});
+            LibMultiOwnable.cheat_AddOwner({target: address(sut), ksKey: startKey + i, ksKeyType: startKeyType + i});
         }
         _;
     }
@@ -48,7 +50,7 @@ contract MultiOwnableTest is Test {
         vm.prank(sender);
 
         vm.expectRevert(MultiOwnable.Unauthorized.selector);
-        sut.addOwner(ksKey, _uintToKsKeyType(ksKeyType, true));
+        sut.addOwner(ksKey, LibMultiOwnable.uintToKsKeyType({value: ksKeyType, withNone: true}));
     }
 
     function test_addOwner_reverts_whenKsKeyTypeIsNone(uint256 ksKey) external withSenderSelf {
@@ -62,11 +64,11 @@ contract MultiOwnableTest is Test {
         uint256 ksKeyTypeRegistered
     ) external withSenderSelf withOwner(ksKey, ksKeyTypeRegistered) {
         vm.expectRevert(abi.encodeWithSelector(MultiOwnable.AlreadyOwner.selector, ksKey));
-        sut.addOwner(ksKey, _uintToKsKeyType(ksKeyType, false));
+        sut.addOwner(ksKey, LibMultiOwnable.uintToKsKeyType({value: ksKeyType, withNone: false}));
     }
 
     function test_addOwner_registersNewKsKey(uint256 ksKey, uint256 ksKeyType) external withSenderSelf withOwners(10) {
-        MultiOwnable.KeyspaceKeyType ksKeyType_ = _uintToKsKeyType(ksKeyType, false);
+        MultiOwnable.KeyspaceKeyType ksKeyType_ = LibMultiOwnable.uintToKsKeyType({value: ksKeyType, withNone: false});
         sut.addOwner(ksKey, ksKeyType_);
 
         assertEq(uint256(sut.keyspaceKeyType(ksKey)), uint256(ksKeyType_));
@@ -79,7 +81,7 @@ contract MultiOwnableTest is Test {
     {
         uint256 ownerCountBefore = sut.ownerCount();
 
-        sut.addOwner(ksKey, _uintToKsKeyType(ksKeyType, false));
+        sut.addOwner(ksKey, LibMultiOwnable.uintToKsKeyType({value: ksKeyType, withNone: false}));
 
         assertEq(sut.ownerCount(), ownerCountBefore + 1);
     }
@@ -88,7 +90,7 @@ contract MultiOwnableTest is Test {
         vm.expectEmit(address(sut));
         emit MultiOwnable.OwnerAdded(ksKey);
 
-        sut.addOwner(ksKey, _uintToKsKeyType(ksKeyType, false));
+        sut.addOwner(ksKey, LibMultiOwnable.uintToKsKeyType({value: ksKeyType, withNone: false}));
     }
 
     /// @custom:test-section removeOwner
@@ -201,36 +203,5 @@ contract MultiOwnableTest is Test {
         emit MultiOwnable.OwnerRemoved(ksKey);
 
         sut.removeLastOwner(ksKey);
-    }
-
-    ////////////////////////////////////////////////////////////////////////////////////////////////////
-    //                                         TESTS HELPERS                                          //
-    ////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    function _uintToKsKeyType(uint256 value, bool withNone) private pure returns (MultiOwnable.KeyspaceKeyType) {
-        if (withNone) {
-            value = value % 3;
-            return MultiOwnable.KeyspaceKeyType(value);
-        }
-
-        value = value % 2;
-        return MultiOwnable.KeyspaceKeyType(value + 1);
-    }
-
-    function _cheat_AddOwner(uint256 ksKey, MultiOwnable.KeyspaceKeyType ksKeyType) private {
-        bytes32 slot = _MUTLI_OWNABLE_STORAGE_LOCATION();
-
-        // Set `ownerCount += 1`;
-        uint256 ownerCount = sut.ownerCount();
-        vm.store(address(sut), slot, bytes32(ownerCount + 1));
-
-        // Set `ksKeyTypes[ksKey] = ksKeyType`;
-        slot = bytes32(uint256(slot) + 1);
-        slot = keccak256(abi.encode(ksKey, slot));
-        vm.store(address(sut), slot, bytes32(uint256(ksKeyType)));
-    }
-
-    function _MUTLI_OWNABLE_STORAGE_LOCATION() private pure returns (bytes32) {
-        return 0x97e2c6aad4ce5d562ebfaa00db6b9e0fb66ea5d8162ed5b243f51a2e03086f00;
     }
 }

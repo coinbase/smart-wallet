@@ -4,10 +4,10 @@ pragma solidity ^0.8.23;
 import "forge-std/Test.sol";
 
 import {CoinbaseSmartWallet} from "../../src/CoinbaseSmartWallet.sol";
-import {ERC1271} from "../../src/ERC1271.sol";
+import {MultiOwnable} from "../../src/MultiOwnable.sol";
 
 contract ERC1271Test is Test {
-    ERC1271 private sut;
+    CoinbaseSmartWallet private sut;
 
     function setUp() public {
         sut = new CoinbaseSmartWallet({keyStore_: makeAddr("KeyStore"), stateVerifier_: makeAddr("StateVerifier")});
@@ -19,7 +19,12 @@ contract ERC1271Test is Test {
 
     /// @custom:test-section isValidSignature
 
-    function test_isValidSignature_returns() external {}
+    function test_isValidSignature_returns0x1626ba7e_whenEOASignatureIsValid(bytes32 h) external {
+        bytes memory signature;
+
+        bytes4 result = sut.isValidSignature({hash: h, signature: signature});
+        assertEq(result, bytes4(0x1626ba7e));
+    }
 
     /// @custom:test-section eip712Domain
 
@@ -92,5 +97,30 @@ contract ERC1271Test is Test {
         bytes memory signature = abi.encodePacked(r, s, v);
 
         assertEq(signature, expectedSignature);
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////
+    //                                         MOCK HELPERS                                           //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    function _addOwner(uint256 ksKey, MultiOwnable.KeyspaceKeyType ksKeyType) private {
+        bytes32 slot = _MUTLI_OWNABLE_STORAGE_LOCATION();
+
+        // Set `ownerCount += 1`;
+        uint256 ownerCount = sut.ownerCount();
+        vm.store(address(sut), slot, bytes32(ownerCount + 1));
+
+        // Set `ksKeyTypes[ksKey] = ksKeyType`;
+        slot = bytes32(uint256(slot) + 1);
+        slot = keccak256(abi.encode(ksKey, slot));
+        vm.store(address(sut), slot, bytes32(uint256(ksKeyType)));
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////
+    //                                         TEST HELPERS                                           //
+    ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    function _MUTLI_OWNABLE_STORAGE_LOCATION() private pure returns (bytes32) {
+        return 0x97e2c6aad4ce5d562ebfaa00db6b9e0fb66ea5d8162ed5b243f51a2e03086f00;
     }
 }
