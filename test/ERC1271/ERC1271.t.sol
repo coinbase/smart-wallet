@@ -4,13 +4,21 @@ pragma solidity ^0.8.23;
 import "forge-std/Test.sol";
 
 import {CoinbaseSmartWallet} from "../../src/CoinbaseSmartWallet.sol";
+import {ERC1271} from "../../src/ERC1271.sol";
 import {MultiOwnable} from "../../src/MultiOwnable.sol";
+import {IKeyStore} from "../../src/ext/IKeyStore.sol";
+import {IVerifier} from "../../src/ext/IVerifier.sol";
+
+import {LibCoinbaseSmartWallet} from "../utils/LibCoinbaseSmartWallet.sol";
+import {LibMultiOwnable} from "../utils/LibMultiOwnable.sol";
 
 contract ERC1271Test is Test {
+    address private keyStore = makeAddr("KeyStore");
+    address private stateVerifier = makeAddr("StateVerifier");
     CoinbaseSmartWallet private sut;
 
     function setUp() public {
-        sut = new CoinbaseSmartWallet({keyStore_: makeAddr("KeyStore"), stateVerifier_: makeAddr("StateVerifier")});
+        sut = new CoinbaseSmartWallet({keyStore_: keyStore, stateVerifier_: stateVerifier});
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -19,8 +27,58 @@ contract ERC1271Test is Test {
 
     /// @custom:test-section isValidSignature
 
-    function test_isValidSignature_returns0x1626ba7e_whenEOASignatureIsValid(bytes32 h) external {
-        bytes memory signature;
+    function test_isValidSignature_returns0xffffffff_whenSignatureIsInvalid(
+        uint248 privateKey,
+        uint256 ksKey,
+        uint256 ksKeyType,
+        bytes32 h
+    ) external {
+        bytes memory signature = _setUpTestWrapper_isValidSignature({
+            privateKey: privateKey,
+            ksKey: ksKey,
+            ksKeyType: ksKeyType,
+            h: h,
+            validSig: false,
+            validStateProof: false
+        });
+
+        bytes4 result = sut.isValidSignature({hash: h, signature: signature});
+        assertEq(result, bytes4(0xffffffff));
+    }
+
+    function test_isValidSignature_returns0xffffffff_whenStateProofIsInvalid(
+        uint248 privateKey,
+        uint256 ksKey,
+        uint256 ksKeyType,
+        bytes32 h
+    ) external {
+        bytes memory signature = _setUpTestWrapper_isValidSignature({
+            privateKey: privateKey,
+            ksKey: ksKey,
+            ksKeyType: ksKeyType,
+            h: h,
+            validSig: true,
+            validStateProof: false
+        });
+
+        bytes4 result = sut.isValidSignature({hash: h, signature: signature});
+        assertEq(result, bytes4(0xffffffff));
+    }
+
+    function test_isValidSignature_returns0x1626ba7e_whenSignatureIsValidAndStateProofIsValid(
+        uint248 privateKey,
+        uint256 ksKey,
+        uint256 ksKeyType,
+        bytes32 h
+    ) external {
+        bytes memory signature = _setUpTestWrapper_isValidSignature({
+            privateKey: privateKey,
+            ksKey: ksKey,
+            ksKeyType: ksKeyType,
+            h: h,
+            validSig: true,
+            validStateProof: true
+        });
 
         bytes4 result = sut.isValidSignature({hash: h, signature: signature});
         assertEq(result, bytes4(0x1626ba7e));
@@ -100,27 +158,90 @@ contract ERC1271Test is Test {
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////
-    //                                         MOCK HELPERS                                           //
-    ////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    function _addOwner(uint256 ksKey, MultiOwnable.KeyspaceKeyType ksKeyType) private {
-        bytes32 slot = _MUTLI_OWNABLE_STORAGE_LOCATION();
-
-        // Set `ownerCount += 1`;
-        uint256 ownerCount = sut.ownerCount();
-        vm.store(address(sut), slot, bytes32(ownerCount + 1));
-
-        // Set `ksKeyTypes[ksKey] = ksKeyType`;
-        slot = bytes32(uint256(slot) + 1);
-        slot = keccak256(abi.encode(ksKey, slot));
-        vm.store(address(sut), slot, bytes32(uint256(ksKeyType)));
-    }
-
-    ////////////////////////////////////////////////////////////////////////////////////////////////////
     //                                         TEST HELPERS                                           //
     ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    function _MUTLI_OWNABLE_STORAGE_LOCATION() private pure returns (bytes32) {
-        return 0x97e2c6aad4ce5d562ebfaa00db6b9e0fb66ea5d8162ed5b243f51a2e03086f00;
+    function _setUpTestWrapper_isValidSignature(
+        uint248 privateKey,
+        uint256 ksKey,
+        uint256 ksKeyType,
+        bytes32 h,
+        bool validSig,
+        bool validStateProof
+    ) private returns (bytes memory signature) {
+        // Setup test:
+        // 1. Pick the correct `sigWrapperDataBuilder` method depending on `ksKeyType`.
+        // 2. Setup the test for `isValidSignature`;
+        // 3. Expect calls if `validSig` is true.
+
+        MultiOwnable.KeyspaceKeyType ksKeyType_ = LibMultiOwnable.uintToKsKeyType({value: ksKeyType, withNone: false});
+
+        function (Vm.Wallet memory , bytes32, bool , bytes memory )  returns(bytes memory) sigWrapperDataBuilder;
+        if (ksKeyType_ == MultiOwnable.KeyspaceKeyType.WebAuthn) {
+            sigWrapperDataBuilder = LibCoinbaseSmartWallet.webAuthnSignatureWrapperData;
+        } else if (ksKeyType_ == MultiOwnable.KeyspaceKeyType.Secp256k1) {
+            sigWrapperDataBuilder = uint256(h) % 2 == 0
+                ? LibCoinbaseSmartWallet.eoaSignatureWrapperData
+                : LibCoinbaseSmartWallet.eip1271SignatureWrapperData;
+        }
+
+        Vm.Wallet memory wallet;
+        (wallet, signature) = _setUpTest_isValidSignature({
+            privateKey: privateKey,
+            ksKey: ksKey,
+            ksKeyType: ksKeyType_,
+            h: h,
+            validSig: validSig,
+            validStateProof: validStateProof,
+            sigWrapperDataBuilder: sigWrapperDataBuilder
+        });
+
+        if (validSig == true) {
+            if (sigWrapperDataBuilder == LibCoinbaseSmartWallet.eip1271SignatureWrapperData) {
+                vm.expectCall({callee: wallet.addr, data: abi.encodeWithSelector(ERC1271.isValidSignature.selector)});
+            }
+
+            vm.expectCall({callee: keyStore, data: abi.encodeWithSelector(IKeyStore.root.selector)});
+            vm.expectCall({callee: stateVerifier, data: abi.encodeWithSelector(IVerifier.Verify.selector)});
+        }
+    }
+
+    function _setUpTest_isValidSignature(
+        uint248 privateKey,
+        uint256 ksKey,
+        MultiOwnable.KeyspaceKeyType ksKeyType,
+        bytes32 h,
+        bool validSig,
+        bool validStateProof,
+        function (Vm.Wallet memory , bytes32, bool , bytes memory )  returns(bytes memory) sigWrapperDataBuilder
+    ) private returns (Vm.Wallet memory wallet, bytes memory signature) {
+        // Setup test:
+        // 1. Create an Secp256k1/Secp256r1 wallet.
+        // 2. Add the owner as `ksKeyType`.
+        // 3. Create a valid or invalid `signature` of `replaySafeHash(h)` depending on `validSig`.
+        //    NOTE: Invalid signatures are still correctly encoded.
+        // 4. Mock `IKeyStore.root` to revert or return 42 depending on `validSig`.
+        //    NOTE: Reverting ensure `isValidSignature` returns before calling `IKeyStore.root`.
+        // 5. If `validSig` is true, mock `IVerifier.Verify` to return `validStateProof`.
+
+        wallet = ksKeyType == MultiOwnable.KeyspaceKeyType.WebAuthn
+            ? LibCoinbaseSmartWallet.passKeyWallet(privateKey)
+            : LibCoinbaseSmartWallet.wallet(privateKey);
+
+        LibMultiOwnable.cheat_AddOwner({target: address(sut), ksKey: ksKey, ksKeyType: ksKeyType});
+
+        CoinbaseSmartWallet.SignatureWrapper memory sigWrapper = CoinbaseSmartWallet.SignatureWrapper({
+            ksKey: ksKey,
+            data: sigWrapperDataBuilder(wallet, sut.replaySafeHash(h), validSig, "STATE PROOF")
+        });
+
+        signature = LibCoinbaseSmartWallet.userOpSignature(sigWrapper);
+
+        if (validSig == false) {
+            LibCoinbaseSmartWallet.mockRevertKeyStore({keyStore: keyStore, revertData: "SHOULD RETURN FALSE BEFORE"});
+        } else {
+            LibCoinbaseSmartWallet.mockKeyStore({keyStore: keyStore, root: 42});
+            LibCoinbaseSmartWallet.mockStateVerifier({stateVerifier: stateVerifier, value: validStateProof});
+        }
     }
 }

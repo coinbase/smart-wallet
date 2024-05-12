@@ -343,7 +343,7 @@ contract CoinbaseSmartWalletTest is Test {
         CoinbaseSmartWallet.SignatureWrapper memory sigWrapper
     ) external withSenderEntryPoint {
         // Setup test:
-        // 1. Create PassKey owner.
+        // 1. Create a PassKey owner.
         // 2. Add the owner as `MultiOwnable.KeyspaceKeyType.WebAuthn`.
         // 3. Set `userOp.nonce` to a valid nonce (with valid key).
         // 4. Set `userOp.signature` to a valid signature.
@@ -486,7 +486,7 @@ contract CoinbaseSmartWalletTest is Test {
         CoinbaseSmartWallet.SignatureWrapper memory sigWrapper
     ) external withSenderEntryPoint {
         // Setup test:
-        // 1. Create PassKey owner.
+        // 1. Create a PassKey owner.
         // 2. Add the owner as `MultiOwnable.KeyspaceKeyType.WebAuthn`.
         // 3. Set `userOp.nonce` to a valid nonce (with valid key).
         // 4. Set `userOp.signature` to a valid signature.
@@ -539,7 +539,7 @@ contract CoinbaseSmartWalletTest is Test {
         uint256 missingAccountFunds
     ) external withSenderEntryPoint {
         // Setup test:
-        // 1. Create PassKey owner.
+        // 1. Create a PassKey owner.
         // 2. Add the owner as `MultiOwnable.KeyspaceKeyType.WebAuthn`.
         // 3. Set `userOp.nonce` to a valid nonce (with valid key).
         // 4. Set `userOp.signature` to a valid signature.
