@@ -212,7 +212,7 @@ library LibCoinbaseSmartWallet {
         sigData = abi.encode(sig, w.publicKeyX, w.publicKeyY, stateProof);
     }
 
-    function publicInputs(Vm.Wallet memory w, CoinbaseSmartWallet.SignatureWrapper memory sigWrapper, uint256 stateRoot)
+    function publicInputs(Vm.Wallet memory w, uint256 ksKey, uint256 stateRoot)
         internal
         pure
         returns (uint256[] memory publicInputs_)
@@ -223,7 +223,7 @@ library LibCoinbaseSmartWallet {
         data[1] = w.publicKeyY;
 
         publicInputs_ = new uint256[](3);
-        publicInputs_[0] = sigWrapper.ksKey;
+        publicInputs_[0] = ksKey;
         publicInputs_[1] = stateRoot;
         publicInputs_[2] = uint256(keccak256(abi.encodePacked(data)) >> 8);
     }

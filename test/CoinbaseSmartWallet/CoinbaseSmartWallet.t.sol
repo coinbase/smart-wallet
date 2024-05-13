@@ -145,430 +145,215 @@ contract CoinbaseSmartWalletTest is Test {
     }
 
     function test_validateUserOp_returnsOne_whenEOASignatureIsInvalid(
+        uint256 ksKey,
         uint248 privateKey,
-        UserOperation memory userOp,
-        CoinbaseSmartWallet.SignatureWrapper memory sigWrapper
+        UserOperation memory userOp
     ) external withSenderEntryPoint {
-        // Setup test:
-        // 1. Create an EOA owner.
-        // 2. Add the owner as `MultiOwnable.KeyspaceKeyType.Secp256k1`.
-        // 3. Set `userOp.nonce` to a valid nonce (with valid key).
-        // 4. Set `userOp.signature` to a correctly formatted but invalid signature.
-        // 5. Mock `IKeyStore.root` to revert if called (as the function should return before).
-        bytes32 userOphash;
-        {
-            Vm.Wallet memory wallet = LibCoinbaseSmartWallet.wallet(privateKey);
-            LibMultiOwnable.cheat_AddOwner({
-                target: address(sut),
-                ksKey: sigWrapper.ksKey,
-                ksKeyType: MultiOwnable.KeyspaceKeyType.Secp256k1
-            });
+        (, bytes32 userOpHash,,) = _setUpTest_validateUserOp({
+            ksKey: ksKey,
+            ksKeyType: MultiOwnable.KeyspaceKeyType.Secp256k1,
+            privateKey: privateKey,
+            userOp: userOp,
+            validSig: false,
+            validStateProof: true,
+            sigWrapperDataBuilder: LibCoinbaseSmartWallet.eoaSignatureWrapperData
+        });
 
-            userOp.nonce = LibCoinbaseSmartWallet.validNonceKey({sut: sut, userOp: userOp});
-            userOphash = LibCoinbaseSmartWallet.hashUserOp({sut: sut, userOp: userOp, forceChainId: false});
-            sigWrapper.data = LibCoinbaseSmartWallet.eoaSignatureWrapperData({
-                w: wallet,
-                userOpHash: userOphash,
-                validSig: false,
-                stateProof: "DON'T CARE"
-            });
-            userOp.signature = LibCoinbaseSmartWallet.userOpSignature(sigWrapper);
-
-            LibCoinbaseSmartWallet.mockRevertKeyStore({keyStore: keyStore, revertData: "SHOULD RETURN FALSE BEFORE"});
-        }
-
-        uint256 validationData = sut.validateUserOp({userOp: userOp, userOpHash: userOphash, missingAccountFunds: 0});
+        uint256 validationData = sut.validateUserOp({userOp: userOp, userOpHash: userOpHash, missingAccountFunds: 0});
         assertEq(validationData, 1);
     }
 
     function test_validateUserOp_returnsOne_whenEip1271SignatureIsInvalid(
+        uint256 ksKey,
         uint248 privateKey,
-        UserOperation memory userOp,
-        CoinbaseSmartWallet.SignatureWrapper memory sigWrapper
+        UserOperation memory userOp
     ) external withSenderEntryPoint {
-        // Setup test:
-        // 1. Create an EIP1271 contract owner.
-        // 2. Add the owner as `MultiOwnable.KeyspaceKeyType.Secp256k1`.
-        // 3. Set `userOp.nonce` to a valid nonce (with valid key).
-        // 4. Set `userOp.signature` to a correctly formatted but invalid signature.
-        // 5. Mock `IKeyStore.root` to revert if called (as the function should return before).
-        Vm.Wallet memory eip1271Contract;
-        bytes32 userOphash;
-        {
-            eip1271Contract = LibCoinbaseSmartWallet.wallet(privateKey);
-            LibMultiOwnable.cheat_AddOwner({
-                target: address(sut),
-                ksKey: sigWrapper.ksKey,
-                ksKeyType: MultiOwnable.KeyspaceKeyType.Secp256k1
-            });
-
-            userOp.nonce = LibCoinbaseSmartWallet.validNonceKey({sut: sut, userOp: userOp});
-            userOphash = LibCoinbaseSmartWallet.hashUserOp({sut: sut, userOp: userOp, forceChainId: false});
-            sigWrapper.data = LibCoinbaseSmartWallet.eip1271SignatureWrapperData({
-                w: eip1271Contract,
-                userOpHash: userOphash,
-                validSig: false,
-                stateProof: "DON'T CARE"
-            });
-            userOp.signature = LibCoinbaseSmartWallet.userOpSignature(sigWrapper);
-
-            LibCoinbaseSmartWallet.mockRevertKeyStore({keyStore: keyStore, revertData: "SHOULD RETURN FALSE BEFORE"});
-        }
+        (Vm.Wallet memory eip1271Contract, bytes32 userOpHash,,) = _setUpTest_validateUserOp({
+            ksKey: ksKey,
+            ksKeyType: MultiOwnable.KeyspaceKeyType.Secp256k1,
+            privateKey: privateKey,
+            userOp: userOp,
+            validSig: false,
+            validStateProof: true,
+            sigWrapperDataBuilder: LibCoinbaseSmartWallet.eip1271SignatureWrapperData
+        });
 
         vm.expectCall({callee: eip1271Contract.addr, data: abi.encodeWithSelector(ERC1271.isValidSignature.selector)});
-        uint256 validationData = sut.validateUserOp({userOp: userOp, userOpHash: userOphash, missingAccountFunds: 0});
+        uint256 validationData = sut.validateUserOp({userOp: userOp, userOpHash: userOpHash, missingAccountFunds: 0});
         assertEq(validationData, 1);
     }
 
     function test_validateUserOp_returnsOne_whenWebAuthnSignatureIsInvalid(
+        uint256 ksKey,
         uint248 privateKey,
-        UserOperation memory userOp,
-        CoinbaseSmartWallet.SignatureWrapper memory sigWrapper
+        UserOperation memory userOp
     ) external withSenderEntryPoint {
-        // Setup test:
-        // 1. Create a PassKey owner.
-        // 2. Add the owner as `MultiOwnable.KeyspaceKeyType.WebAuthn`.
-        // 3. Set `userOp.nonce` to a valid nonce (with valid key).
-        // 4. Set `userOp.signature` to a correctly formatted but invalid signature.
-        // 5. Mock `IKeyStore.root` to revert if called (as the function should return before).
-        bytes32 userOphash;
-        {
-            Vm.Wallet memory passKeyWallet = LibCoinbaseSmartWallet.passKeyWallet(privateKey);
-            LibMultiOwnable.cheat_AddOwner({
-                target: address(sut),
-                ksKey: sigWrapper.ksKey,
-                ksKeyType: MultiOwnable.KeyspaceKeyType.WebAuthn
-            });
+        (, bytes32 userOpHash,,) = _setUpTest_validateUserOp({
+            ksKey: ksKey,
+            ksKeyType: MultiOwnable.KeyspaceKeyType.WebAuthn,
+            privateKey: privateKey,
+            userOp: userOp,
+            validSig: false,
+            validStateProof: true,
+            sigWrapperDataBuilder: LibCoinbaseSmartWallet.webAuthnSignatureWrapperData
+        });
 
-            userOp.nonce = LibCoinbaseSmartWallet.validNonceKey({sut: sut, userOp: userOp});
-            userOphash = LibCoinbaseSmartWallet.hashUserOp({sut: sut, userOp: userOp, forceChainId: false});
-            sigWrapper.data = LibCoinbaseSmartWallet.webAuthnSignatureWrapperData({
-                w: passKeyWallet,
-                userOpHash: userOphash,
-                validSig: false,
-                stateProof: "DON'T CARE"
-            });
-            userOp.signature = LibCoinbaseSmartWallet.userOpSignature(sigWrapper);
-
-            LibCoinbaseSmartWallet.mockRevertKeyStore({keyStore: keyStore, revertData: "SHOULD RETURN FALSE BEFORE"});
-        }
-
-        uint256 validationData = sut.validateUserOp({userOp: userOp, userOpHash: userOphash, missingAccountFunds: 0});
+        uint256 validationData = sut.validateUserOp({userOp: userOp, userOpHash: userOpHash, missingAccountFunds: 0});
         assertEq(validationData, 1);
     }
 
-    function test_validateUserOp_queriesTheStateRoot_whenEOASignatureIsValid(
+    function test_validateUserOp_returnsOne_whenEOASignatureIsValidButStateProofIsInvalid(
+        uint256 ksKey,
         uint248 privateKey,
-        UserOperation memory userOp,
-        CoinbaseSmartWallet.SignatureWrapper memory sigWrapper
+        UserOperation memory userOp
     ) external withSenderEntryPoint {
-        // Setup test:
-        // 1. Create an EOA owner.
-        // 2. Add the owner as `MultiOwnable.KeyspaceKeyType.Secp256k1`.
-        // 3. Set `userOp.nonce` to a valid nonce (with valid key).
-        // 4. Set `userOp.signature` to a valid signature.
-        // 5. Mock `IKeyStore.root` to return 42.
-        // 6. Mock `IVerifier.Verify` to return false.
-        bytes32 userOpHash;
-        {
-            Vm.Wallet memory wallet = LibCoinbaseSmartWallet.wallet(privateKey);
-            LibMultiOwnable.cheat_AddOwner({
-                target: address(sut),
-                ksKey: sigWrapper.ksKey,
-                ksKeyType: MultiOwnable.KeyspaceKeyType.Secp256k1
-            });
-
-            userOp.nonce = LibCoinbaseSmartWallet.validNonceKey({sut: sut, userOp: userOp});
-            userOpHash = LibCoinbaseSmartWallet.hashUserOp({sut: sut, userOp: userOp, forceChainId: false});
-            sigWrapper.data = LibCoinbaseSmartWallet.eoaSignatureWrapperData({
-                w: wallet,
-                userOpHash: userOpHash,
-                validSig: true,
-                stateProof: "DON'T CARE"
-            });
-            userOp.signature = LibCoinbaseSmartWallet.userOpSignature(sigWrapper);
-
-            LibCoinbaseSmartWallet.mockKeyStore({keyStore: keyStore, root: 42});
-            LibCoinbaseSmartWallet.mockStateVerifier({stateVerifier: stateVerifier, value: false});
-        }
+        (, bytes32 userOpHash,,) = _setUpTest_validateUserOp({
+            ksKey: ksKey,
+            ksKeyType: MultiOwnable.KeyspaceKeyType.Secp256k1,
+            privateKey: privateKey,
+            userOp: userOp,
+            validSig: true,
+            validStateProof: false,
+            sigWrapperDataBuilder: LibCoinbaseSmartWallet.eoaSignatureWrapperData
+        });
 
         vm.expectCall({callee: keyStore, data: abi.encodeWithSelector(IKeyStore.root.selector)});
-        sut.validateUserOp({userOp: userOp, userOpHash: userOpHash, missingAccountFunds: 0});
+        uint256 validationData = sut.validateUserOp({userOp: userOp, userOpHash: userOpHash, missingAccountFunds: 0});
+        assertEq(validationData, 1);
     }
 
-    function test_validateUserOp_queriesTheStateRoot_whenEip1271SignatureIsValid(
+    function test_validateUserOp_returnsOne_whenEip1271SignatureIsValidButStateProofIsInvalid(
+        uint256 ksKey,
         uint248 privateKey,
-        UserOperation memory userOp,
-        CoinbaseSmartWallet.SignatureWrapper memory sigWrapper
+        UserOperation memory userOp
     ) external withSenderEntryPoint {
-        // Setup test:
-        // 1. Create an EIP1271 contract owner.
-        // 2. Add the owner as `MultiOwnable.KeyspaceKeyType.Secp256k1`.
-        // 3. Set `userOp.nonce` to a valid nonce (with valid key).
-        // 4. Set `userOp.signature` to a valid signature.
-        // 5. Mock `IKeyStore.root` to return 42.
-        // 6. Mock `IVerifier.Verify` to return false.
-        Vm.Wallet memory eip1271Contract;
-        bytes32 userOpHash;
-        {
-            eip1271Contract = LibCoinbaseSmartWallet.wallet(privateKey);
-            LibMultiOwnable.cheat_AddOwner({
-                target: address(sut),
-                ksKey: sigWrapper.ksKey,
-                ksKeyType: MultiOwnable.KeyspaceKeyType.Secp256k1
-            });
-
-            userOp.nonce = LibCoinbaseSmartWallet.validNonceKey({sut: sut, userOp: userOp});
-            userOpHash = LibCoinbaseSmartWallet.hashUserOp({sut: sut, userOp: userOp, forceChainId: false});
-            sigWrapper.data = LibCoinbaseSmartWallet.eip1271SignatureWrapperData({
-                w: eip1271Contract,
-                userOpHash: userOpHash,
-                validSig: true,
-                stateProof: "DON'T CARE"
-            });
-            userOp.signature = LibCoinbaseSmartWallet.userOpSignature(sigWrapper);
-
-            LibCoinbaseSmartWallet.mockKeyStore({keyStore: keyStore, root: 42});
-            LibCoinbaseSmartWallet.mockStateVerifier({stateVerifier: stateVerifier, value: false});
-        }
+        (Vm.Wallet memory eip1271Contract, bytes32 userOpHash,,) = _setUpTest_validateUserOp({
+            ksKey: ksKey,
+            ksKeyType: MultiOwnable.KeyspaceKeyType.Secp256k1,
+            privateKey: privateKey,
+            userOp: userOp,
+            validSig: true,
+            validStateProof: false,
+            sigWrapperDataBuilder: LibCoinbaseSmartWallet.eip1271SignatureWrapperData
+        });
 
         vm.expectCall({callee: eip1271Contract.addr, data: abi.encodeWithSelector(ERC1271.isValidSignature.selector)});
         vm.expectCall({callee: keyStore, data: abi.encodeWithSelector(IKeyStore.root.selector)});
-        sut.validateUserOp({userOp: userOp, userOpHash: userOpHash, missingAccountFunds: 0});
+        uint256 validationData = sut.validateUserOp({userOp: userOp, userOpHash: userOpHash, missingAccountFunds: 0});
+        assertEq(validationData, 1);
     }
 
-    function test_validateUserOp_queriesTheStateRoot_whenWebAuthnSignatureIsValid(
+    function test_validateUserOp_returnsOne_whenWebAuthnSignatureIsValidButStateProofIsInvalid(
+        uint256 ksKey,
         uint248 privateKey,
-        UserOperation memory userOp,
-        CoinbaseSmartWallet.SignatureWrapper memory sigWrapper
+        UserOperation memory userOp
     ) external withSenderEntryPoint {
-        // Setup test:
-        // 1. Create a PassKey owner.
-        // 2. Add the owner as `MultiOwnable.KeyspaceKeyType.WebAuthn`.
-        // 3. Set `userOp.nonce` to a valid nonce (with valid key).
-        // 4. Set `userOp.signature` to a valid signature.
-        // 5. Mock `IKeyStore.root` to return 42.
-        // 6. Mock `IVerifier.Verify` to return false.
-        bytes32 userOpHash;
-        {
-            Vm.Wallet memory passKeyWallet = LibCoinbaseSmartWallet.passKeyWallet(privateKey);
-            LibMultiOwnable.cheat_AddOwner({
-                target: address(sut),
-                ksKey: sigWrapper.ksKey,
-                ksKeyType: MultiOwnable.KeyspaceKeyType.WebAuthn
-            });
-
-            userOp.nonce = LibCoinbaseSmartWallet.validNonceKey({sut: sut, userOp: userOp});
-            userOpHash = LibCoinbaseSmartWallet.hashUserOp({sut: sut, userOp: userOp, forceChainId: false});
-            sigWrapper.data = LibCoinbaseSmartWallet.webAuthnSignatureWrapperData({
-                w: passKeyWallet,
-                userOpHash: userOpHash,
-                validSig: true,
-                stateProof: "DON'T CARE"
-            });
-            userOp.signature = LibCoinbaseSmartWallet.userOpSignature(sigWrapper);
-
-            LibCoinbaseSmartWallet.mockKeyStore({keyStore: keyStore, root: 42});
-            LibCoinbaseSmartWallet.mockStateVerifier({stateVerifier: stateVerifier, value: false});
-        }
+        (, bytes32 userOpHash,,) = _setUpTest_validateUserOp({
+            ksKey: ksKey,
+            ksKeyType: MultiOwnable.KeyspaceKeyType.WebAuthn,
+            privateKey: privateKey,
+            userOp: userOp,
+            validSig: true,
+            validStateProof: false,
+            sigWrapperDataBuilder: LibCoinbaseSmartWallet.webAuthnSignatureWrapperData
+        });
 
         vm.expectCall({callee: keyStore, data: abi.encodeWithSelector(IKeyStore.root.selector)});
-        sut.validateUserOp({userOp: userOp, userOpHash: userOpHash, missingAccountFunds: 0});
-    }
-
-    function test_validateUserOp_returnsTheStateVerifierResult_whenEOASignatureIsValid(
-        uint248 privateKey,
-        UserOperation memory userOp,
-        CoinbaseSmartWallet.SignatureWrapper memory sigWrapper
-    ) external withSenderEntryPoint {
-        // Setup test:
-        // 1. Create an EOA owner.
-        // 2. Add the owner as `MultiOwnable.KeyspaceKeyType.Secp256k1`.
-        // 3. Set `userOp.nonce` to a valid nonce (with valid key).
-        // 4. Set `userOp.signature` to a valid signature.
-        // 5. Mock `IKeyStore.root` to return 42.
-        Vm.Wallet memory wallet;
-        uint256 stateRoot = 42;
-        bytes memory stateProof = "STATE PROOF";
-        bytes32 userOpHash;
-        {
-            wallet = LibCoinbaseSmartWallet.wallet(privateKey);
-            LibMultiOwnable.cheat_AddOwner({
-                target: address(sut),
-                ksKey: sigWrapper.ksKey,
-                ksKeyType: MultiOwnable.KeyspaceKeyType.Secp256k1
-            });
-
-            userOp.nonce = LibCoinbaseSmartWallet.validNonceKey({sut: sut, userOp: userOp});
-            userOpHash = LibCoinbaseSmartWallet.hashUserOp({sut: sut, userOp: userOp, forceChainId: false});
-            sigWrapper.data = LibCoinbaseSmartWallet.eoaSignatureWrapperData({
-                w: wallet,
-                userOpHash: userOpHash,
-                validSig: true,
-                stateProof: stateProof
-            });
-            userOp.signature = LibCoinbaseSmartWallet.userOpSignature(sigWrapper);
-
-            LibCoinbaseSmartWallet.mockKeyStore({keyStore: keyStore, root: stateRoot});
-        }
-
-        uint256[] memory publicInputs =
-            LibCoinbaseSmartWallet.publicInputs({w: wallet, sigWrapper: sigWrapper, stateRoot: stateRoot});
-
-        // Test case where the Verifier reject the proof.
-        LibCoinbaseSmartWallet.mockStateVerifier({stateVerifier: stateVerifier, value: false});
-        vm.expectCall({callee: stateVerifier, data: abi.encodeCall(IVerifier.Verify, (stateProof, publicInputs))});
         uint256 validationData = sut.validateUserOp({userOp: userOp, userOpHash: userOpHash, missingAccountFunds: 0});
         assertEq(validationData, 1);
+    }
 
-        // Test case where the Verifier accept the proof.
-        LibCoinbaseSmartWallet.mockStateVerifier({stateVerifier: stateVerifier, value: true});
+    function test_validateUserOp_returnsZero_whenEOASignatureIsValidAndStateProofIsValid(
+        uint256 ksKey,
+        uint248 privateKey,
+        UserOperation memory userOp
+    ) external withSenderEntryPoint {
+        (Vm.Wallet memory wallet, bytes32 userOpHash, uint256 stateRoot, bytes memory stateProof) =
+        _setUpTest_validateUserOp({
+            ksKey: ksKey,
+            ksKeyType: MultiOwnable.KeyspaceKeyType.Secp256k1,
+            privateKey: privateKey,
+            userOp: userOp,
+            validSig: true,
+            validStateProof: true,
+            sigWrapperDataBuilder: LibCoinbaseSmartWallet.eoaSignatureWrapperData
+        });
+
+        uint256[] memory publicInputs =
+            LibCoinbaseSmartWallet.publicInputs({w: wallet, ksKey: ksKey, stateRoot: stateRoot});
+
         vm.expectCall({callee: stateVerifier, data: abi.encodeCall(IVerifier.Verify, (stateProof, publicInputs))});
-        validationData = sut.validateUserOp({userOp: userOp, userOpHash: userOpHash, missingAccountFunds: 0});
+        uint256 validationData = sut.validateUserOp({userOp: userOp, userOpHash: userOpHash, missingAccountFunds: 0});
         assertEq(validationData, 0);
     }
 
-    function test_validateUserOp_returnsTheStateVerifierResult_whenEip1271SignatureIsValid(
+    function test_validateUserOp_returnsZero_whenEip1271SignatureIsValidAndStateProofIsValid(
+        uint256 ksKey,
         uint248 privateKey,
-        UserOperation memory userOp,
-        CoinbaseSmartWallet.SignatureWrapper memory sigWrapper
+        UserOperation memory userOp
     ) external withSenderEntryPoint {
-        // Setup test:
-        // 1. Create an EIP1271 contract owner.
-        // 2. Add the owner as `MultiOwnable.KeyspaceKeyType.Secp256k1`.
-        // 3. Set `userOp.nonce` to a valid nonce (with valid key).
-        // 4. Set `userOp.signature` to a valid signature.
-        // 5. Mock `IKeyStore.root` to return 42.
-        Vm.Wallet memory eip1271Contract;
-        uint256 stateRoot = 42;
-        bytes memory stateProof = "STATE PROOF";
-        bytes32 userOpHash;
-        {
-            eip1271Contract = LibCoinbaseSmartWallet.wallet(privateKey);
-            LibMultiOwnable.cheat_AddOwner({
-                target: address(sut),
-                ksKey: sigWrapper.ksKey,
-                ksKeyType: MultiOwnable.KeyspaceKeyType.Secp256k1
-            });
-
-            userOp.nonce = LibCoinbaseSmartWallet.validNonceKey({sut: sut, userOp: userOp});
-            userOpHash = LibCoinbaseSmartWallet.hashUserOp({sut: sut, userOp: userOp, forceChainId: false});
-            sigWrapper.data = LibCoinbaseSmartWallet.eip1271SignatureWrapperData({
-                w: eip1271Contract,
-                userOpHash: userOpHash,
-                validSig: true,
-                stateProof: stateProof
-            });
-            userOp.signature = LibCoinbaseSmartWallet.userOpSignature(sigWrapper);
-
-            LibCoinbaseSmartWallet.mockKeyStore({keyStore: keyStore, root: stateRoot});
-        }
+        (Vm.Wallet memory eip1271Contract, bytes32 userOpHash, uint256 stateRoot, bytes memory stateProof) =
+        _setUpTest_validateUserOp({
+            ksKey: ksKey,
+            ksKeyType: MultiOwnable.KeyspaceKeyType.Secp256k1,
+            privateKey: privateKey,
+            userOp: userOp,
+            validSig: true,
+            validStateProof: true,
+            sigWrapperDataBuilder: LibCoinbaseSmartWallet.eip1271SignatureWrapperData
+        });
 
         uint256[] memory publicInputs =
-            LibCoinbaseSmartWallet.publicInputs({w: eip1271Contract, sigWrapper: sigWrapper, stateRoot: stateRoot});
+            LibCoinbaseSmartWallet.publicInputs({w: eip1271Contract, ksKey: ksKey, stateRoot: stateRoot});
 
-        // Test case where the Verifier reject the proof.
-        LibCoinbaseSmartWallet.mockStateVerifier({stateVerifier: stateVerifier, value: false});
+        vm.expectCall({callee: eip1271Contract.addr, data: abi.encodeWithSelector(ERC1271.isValidSignature.selector)});
         vm.expectCall({callee: stateVerifier, data: abi.encodeCall(IVerifier.Verify, (stateProof, publicInputs))});
         uint256 validationData = sut.validateUserOp({userOp: userOp, userOpHash: userOpHash, missingAccountFunds: 0});
-        assertEq(validationData, 1);
-
-        // Test case where the Verifier accept the proof.
-        LibCoinbaseSmartWallet.mockStateVerifier({stateVerifier: stateVerifier, value: true});
-        vm.expectCall({callee: stateVerifier, data: abi.encodeCall(IVerifier.Verify, (stateProof, publicInputs))});
-        validationData = sut.validateUserOp({userOp: userOp, userOpHash: userOpHash, missingAccountFunds: 0});
         assertEq(validationData, 0);
     }
 
-    function test_validateUserOp_returnsTheStateVerifierResult_whenWebAuthnSignatureIsValid(
+    function test_validateUserOp_returnsZero_whenWebAuthnSignatureIsValidAndStateProofIsValid(
+        uint256 ksKey,
         uint248 privateKey,
-        UserOperation memory userOp,
-        CoinbaseSmartWallet.SignatureWrapper memory sigWrapper
+        UserOperation memory userOp
     ) external withSenderEntryPoint {
-        // Setup test:
-        // 1. Create a PassKey owner.
-        // 2. Add the owner as `MultiOwnable.KeyspaceKeyType.WebAuthn`.
-        // 3. Set `userOp.nonce` to a valid nonce (with valid key).
-        // 4. Set `userOp.signature` to a valid signature.
-        // 5. Mock `IKeyStore.root` to return 42.
-        Vm.Wallet memory passKeyWallet;
-        uint256 stateRoot = 42;
-        bytes memory stateProof = "STATE PROOF";
-        bytes32 userOpHash;
-        {
-            passKeyWallet = LibCoinbaseSmartWallet.passKeyWallet(privateKey);
-            LibMultiOwnable.cheat_AddOwner({
-                target: address(sut),
-                ksKey: sigWrapper.ksKey,
-                ksKeyType: MultiOwnable.KeyspaceKeyType.WebAuthn
-            });
-
-            userOp.nonce = LibCoinbaseSmartWallet.validNonceKey({sut: sut, userOp: userOp});
-            userOpHash = LibCoinbaseSmartWallet.hashUserOp({sut: sut, userOp: userOp, forceChainId: false});
-            sigWrapper.data = LibCoinbaseSmartWallet.webAuthnSignatureWrapperData({
-                w: passKeyWallet,
-                userOpHash: userOpHash,
-                validSig: true,
-                stateProof: stateProof
-            });
-            userOp.signature = LibCoinbaseSmartWallet.userOpSignature(sigWrapper);
-
-            LibCoinbaseSmartWallet.mockKeyStore({keyStore: keyStore, root: stateRoot});
-        }
+        (Vm.Wallet memory wallet, bytes32 userOpHash, uint256 stateRoot, bytes memory stateProof) =
+        _setUpTest_validateUserOp({
+            ksKey: ksKey,
+            ksKeyType: MultiOwnable.KeyspaceKeyType.WebAuthn,
+            privateKey: privateKey,
+            userOp: userOp,
+            validSig: true,
+            validStateProof: true,
+            sigWrapperDataBuilder: LibCoinbaseSmartWallet.webAuthnSignatureWrapperData
+        });
 
         uint256[] memory publicInputs =
-            LibCoinbaseSmartWallet.publicInputs({w: passKeyWallet, sigWrapper: sigWrapper, stateRoot: stateRoot});
+            LibCoinbaseSmartWallet.publicInputs({w: wallet, ksKey: ksKey, stateRoot: stateRoot});
 
-        // Test case where the Verifier reject the proof.
-        LibCoinbaseSmartWallet.mockStateVerifier({stateVerifier: stateVerifier, value: false});
-        vm.expectCall({callee: stateVerifier, data: abi.encodeCall(IVerifier.Verify, (stateProof, publicInputs))});
-        uint256 validationData = sut.validateUserOp({userOp: userOp, userOpHash: userOpHash, missingAccountFunds: 0});
-        assertEq(validationData, 1);
-
-        // Test case where the Verifier accept the proof.
         LibCoinbaseSmartWallet.mockStateVerifier({stateVerifier: stateVerifier, value: true});
         vm.expectCall({callee: stateVerifier, data: abi.encodeCall(IVerifier.Verify, (stateProof, publicInputs))});
-        validationData = sut.validateUserOp({userOp: userOp, userOpHash: userOpHash, missingAccountFunds: 0});
+        uint256 validationData = sut.validateUserOp({userOp: userOp, userOpHash: userOpHash, missingAccountFunds: 0});
         assertEq(validationData, 0);
     }
 
-    function test_validateUserOp_transferMissingdFundsToEntryPoint_whenSignatureIsValid(
+    function test_validateUserOp_transferMissingdFundsToEntryPoint_whenSignatureIsValidAndStateProofIsValid(
+        uint256 ksKey,
         uint248 privateKey,
         UserOperation memory userOp,
-        CoinbaseSmartWallet.SignatureWrapper memory sigWrapper,
         uint256 missingAccountFunds
     ) external withSenderEntryPoint {
-        // Setup test:
-        // 1. Create a PassKey owner.
-        // 2. Add the owner as `MultiOwnable.KeyspaceKeyType.WebAuthn`.
-        // 3. Set `userOp.nonce` to a valid nonce (with valid key).
-        // 4. Set `userOp.signature` to a valid signature.
-        // 5. Mock `IKeyStore.root` to return 42.
-        // 6. Mock `IVerifier.Verify` to return true.
-        bytes32 userOpHash;
-        {
-            Vm.Wallet memory wallet = LibCoinbaseSmartWallet.wallet(privateKey);
-            LibMultiOwnable.cheat_AddOwner({
-                target: address(sut),
-                ksKey: sigWrapper.ksKey,
-                ksKeyType: MultiOwnable.KeyspaceKeyType.Secp256k1
-            });
+        vm.deal({account: address(sut), newBalance: missingAccountFunds});
 
-            userOp.nonce = LibCoinbaseSmartWallet.validNonceKey({sut: sut, userOp: userOp});
-            userOpHash = LibCoinbaseSmartWallet.hashUserOp({sut: sut, userOp: userOp, forceChainId: false});
-            sigWrapper.data = LibCoinbaseSmartWallet.eoaSignatureWrapperData({
-                w: wallet,
-                userOpHash: userOpHash,
-                validSig: true,
-                stateProof: "STATE PROOF"
-            });
-            userOp.signature = LibCoinbaseSmartWallet.userOpSignature(sigWrapper);
-
-            LibCoinbaseSmartWallet.mockKeyStore({keyStore: keyStore, root: 42});
-            LibCoinbaseSmartWallet.mockStateVerifier({stateVerifier: stateVerifier, value: true});
-
-            vm.deal({account: address(sut), newBalance: missingAccountFunds});
-        }
+        (, bytes32 userOpHash,,) = _setUpTest_validateUserOp({
+            ksKey: ksKey,
+            ksKeyType: MultiOwnable.KeyspaceKeyType.Secp256k1,
+            privateKey: privateKey,
+            userOp: userOp,
+            validSig: true,
+            validStateProof: true,
+            sigWrapperDataBuilder: LibCoinbaseSmartWallet.eoaSignatureWrapperData
+        });
 
         sut.validateUserOp({userOp: userOp, userOpHash: userOpHash, missingAccountFunds: missingAccountFunds});
 
@@ -854,5 +639,50 @@ contract CoinbaseSmartWalletTest is Test {
         }
 
         return addr;
+    }
+
+    function _setUpTest_validateUserOp(
+        uint256 ksKey,
+        MultiOwnable.KeyspaceKeyType ksKeyType,
+        uint248 privateKey,
+        UserOperation memory userOp,
+        bool validSig,
+        bool validStateProof,
+        function (Vm.Wallet memory , bytes32, bool , bytes memory )  returns(bytes memory) sigWrapperDataBuilder
+    ) private returns (Vm.Wallet memory wallet, bytes32 userOpHash, uint256 stateRoot, bytes memory stateProof) {
+        // Setup test:
+        // 1. Create an Secp256k1/Secp256r1 wallet.
+        // 2. Add the owner as `ksKeyType`.
+        // 3. Set `userOp.nonce` to a valid nonce (with valid key).
+        // 4. Set `userOp.signature` to a valid or invalid `signature` of `userOpHash` depending on `validSig`.
+        //    NOTE: Invalid signatures are still correctly encoded.
+        // 5. Mock `IKeyStore.root` to revert or return 42 depending on `validSig`.
+        //    NOTE: Reverting ensure `validateUserOp` returns before calling `IKeyStore.root`.
+        // 6. If `validSig` is true, mock `IVerifier.Verify` to return `validStateProof`.
+
+        wallet = ksKeyType == MultiOwnable.KeyspaceKeyType.WebAuthn
+            ? LibCoinbaseSmartWallet.passKeyWallet(privateKey)
+            : LibCoinbaseSmartWallet.wallet(privateKey);
+
+        LibMultiOwnable.cheat_AddOwner({target: address(sut), ksKey: ksKey, ksKeyType: ksKeyType});
+
+        userOp.nonce = LibCoinbaseSmartWallet.validNonceKey({sut: sut, userOp: userOp});
+        userOpHash = LibCoinbaseSmartWallet.hashUserOp({sut: sut, userOp: userOp, forceChainId: false});
+
+        stateProof = "STATE PROOF";
+        CoinbaseSmartWallet.SignatureWrapper memory sigWrapper = CoinbaseSmartWallet.SignatureWrapper({
+            ksKey: ksKey,
+            data: sigWrapperDataBuilder(wallet, userOpHash, validSig, stateProof)
+        });
+
+        userOp.signature = LibCoinbaseSmartWallet.userOpSignature(sigWrapper);
+
+        if (validSig == false) {
+            LibCoinbaseSmartWallet.mockRevertKeyStore({keyStore: keyStore, revertData: "SHOULD RETURN FALSE BEFORE"});
+        } else {
+            stateRoot = 42;
+            LibCoinbaseSmartWallet.mockKeyStore({keyStore: keyStore, root: stateRoot});
+            LibCoinbaseSmartWallet.mockStateVerifier({stateVerifier: stateVerifier, value: validStateProof});
+        }
     }
 }
