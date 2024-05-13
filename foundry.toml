@@ -2,7 +2,10 @@
 src = "src"
 out = "out"
 libs = ["lib"]
-fs_permissions = [{ access = "read-write", path = "test/ERC1271/ERC712.json" }]
+fs_permissions = [
+    { access = "read", path = "test/ERC1271/ERC712.json" },
+    { access = "read-write", path = "/tmp/ERC712-test.json" },
+]
 
 [profile.deploy]
 optimizer = true

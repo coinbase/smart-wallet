@@ -132,7 +132,10 @@ contract ERC1271Test is Test {
         // 3. Create a wallet from the `privateKey`.
         Vm.Wallet memory wallet;
         {
-            vm.writeJson({json: vm.toString(h), path: "test/ERC1271/ERC712.json", valueKey: ".message.hash"});
+            string memory json = vm.readFile("test/ERC1271/ERC712.json");
+            vm.writeJson({json: json, path: "/tmp/ERC712-test.json"});
+
+            vm.writeJson({json: vm.toString(h), path: "/tmp/ERC712-test.json", valueKey: ".message.hash"});
 
             privateKey = bound(privateKey, 1, type(uint248).max);
             wallet = vm.createWallet(privateKey, "Wallet");
@@ -147,7 +150,7 @@ contract ERC1271Test is Test {
         inputs[2] = "sign";
         inputs[3] = "--data";
         inputs[4] = "--from-file";
-        inputs[5] = "test/ERC1271/ERC712.json";
+        inputs[5] = "/tmp/ERC712-test.json";
         inputs[6] = "--private-key";
         inputs[7] = vm.toString(bytes32(privateKey));
 
