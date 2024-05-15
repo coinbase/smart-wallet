@@ -25,7 +25,7 @@ contract CoinbaseSmartWallet1271InputGeneratorTest is Test {
         bytes32 hash = 0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5;
         bytes32 replaySafeHash = deployedAccount.replaySafeHash(hash);
         ERC1271InputGenerator generator = new ERC1271InputGenerator(deployedAccount, hash, address(0), "");
-        assertEq(bytes32(address(generator).code), replaySafeHash);
+        assertEq(_bytes32FromByteCode(address(generator).code), replaySafeHash);
     }
 
     function testGetReplaySafeHashForUndeployedAccount() public {
@@ -42,6 +42,13 @@ contract CoinbaseSmartWallet1271InputGeneratorTest is Test {
         // This is now deployed.
         bytes32 replaySafeHash = undeployedAccount.replaySafeHash(hash);
 
-        assertEq(bytes32(address(generator).code), replaySafeHash);
+        assertEq(_bytes32FromByteCode(address(generator).code), replaySafeHash);
+    }
+
+    function _bytes32FromByteCode(bytes memory bytecode) private pure returns (bytes32) {
+        bytes32 a = abi.decode(bytecode, (bytes32));
+        uint8 b = uint8(bytecode[bytecode.length - 1]);
+
+        return (a << 8) | bytes32(uint256(b));
     }
 }

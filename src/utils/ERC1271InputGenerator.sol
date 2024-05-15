@@ -35,16 +35,18 @@ contract ERC1271InputGenerator {
     /// @param accountFactory  The factory that will be used to deploy the account (if not already deployed).
     /// @param factoryCalldata The calldata that will be used to deploy the account (if not already deployed).
     constructor(CoinbaseSmartWallet account, bytes32 hash, address accountFactory, bytes memory factoryCalldata) {
-        // This allows us to get a replay-safe hash on any deployed or undeployed account
-        // in a single eth_call, i.e. without deploying the contract. We do this by calling replaySafeHash on a deployed
-        // account,
-        // or by simulating the deployment of an undeployed account and then calling replaySafeHash on it.
+        // This allows us to get a replay-safe hash on any deployed or undeployed account in a single eth_call, i.e.
+        // without deploying the contract. We do this by calling replaySafeHash on a deployed account, or by simulating
+        // the deployment of an undeployed account and then calling replaySafeHash on it.
         bytes32 replaySafeHash = _coinbaseSmartWallet1271Input(account, hash, accountFactory, factoryCalldata);
         assembly {
-            // store replay safe hash
-            mstore(0x80, replaySafeHash)
-            // return replay safe hash
-            return(0x80, 0x20)
+            // Ensure the contract code does not start with ef (see https://eips.ethereum.org/EIPS/eip-3541).
+            mstore8(0x80, 0xff)
+            // Store replay safe hash.
+            mstore(0x81, replaySafeHash)
+            // Return 33 bytes corresponding to 0xff | replaySafeHash.
+            // Off-chain caller must skip the first byte (0xff) when interpreting the result.
+            return(0x80, 0x21)
         }
     }
 
