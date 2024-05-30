@@ -5,12 +5,10 @@ import "forge-std/Test.sol";
 
 import {CoinbaseSmartWallet} from "../../src/CoinbaseSmartWallet.sol";
 import {ERC1271} from "../../src/ERC1271.sol";
-import {MultiOwnable} from "../../src/MultiOwnable.sol";
 import {IKeyStore} from "../../src/ext/IKeyStore.sol";
 import {IVerifier} from "../../src/ext/IVerifier.sol";
 
 import {LibCoinbaseSmartWallet} from "../utils/LibCoinbaseSmartWallet.sol";
-import {LibMultiOwnable} from "../utils/LibMultiOwnable.sol";
 
 contract ERC1271Test is Test {
     address private keyStore = makeAddr("KeyStore");
@@ -35,7 +33,7 @@ contract ERC1271Test is Test {
     ) external {
         bytes memory signature = _setUpTestWrapper_isValidSignature({
             ksKey: ksKey,
-            ksKeyType: ksKeyType,
+            ksKeyType: LibCoinbaseSmartWallet.uintToKsKeyType(ksKeyType),
             privateKey: privateKey,
             isValidSig: false,
             isValidProof: false,
@@ -54,7 +52,7 @@ contract ERC1271Test is Test {
     ) external {
         bytes memory signature = _setUpTestWrapper_isValidSignature({
             ksKey: ksKey,
-            ksKeyType: ksKeyType,
+            ksKeyType: LibCoinbaseSmartWallet.uintToKsKeyType(ksKeyType),
             privateKey: privateKey,
             isValidSig: true,
             isValidProof: false,
@@ -73,7 +71,7 @@ contract ERC1271Test is Test {
     ) external {
         bytes memory signature = _setUpTestWrapper_isValidSignature({
             ksKey: ksKey,
-            ksKeyType: ksKeyType,
+            ksKeyType: LibCoinbaseSmartWallet.uintToKsKeyType(ksKeyType),
             privateKey: privateKey,
             isValidSig: true,
             isValidProof: true,
@@ -166,26 +164,23 @@ contract ERC1271Test is Test {
 
     function _setUpTestWrapper_isValidSignature(
         uint256 ksKey,
-        uint256 ksKeyType,
+        CoinbaseSmartWallet.KeyspaceKeyType ksKeyType,
         uint248 privateKey,
         bool isValidSig,
         bool isValidProof,
         bytes32 h
     ) private returns (bytes memory signature) {
         // Setup test:
-        // 1. Pick the correct `sigWrapperDataBuilder` method depending on `ksKeyType`.
+        // 1. Pick the correct `sigBuilder` method depending on `ksKeyType`.
         // 2. Setup the test for `isValidSignature`;
         // 3. Expect calls if `isValidSig` is true.
 
-        MultiOwnable.KeyspaceKeyType ksKeyType_ = LibMultiOwnable.uintToKsKeyType({value: ksKeyType, withNone: false});
-
-        function (Vm.Wallet memory , bytes32, bool , bytes memory )  returns(bytes memory) sigWrapperDataBuilder;
-        if (ksKeyType_ == MultiOwnable.KeyspaceKeyType.WebAuthn) {
-            sigWrapperDataBuilder = LibCoinbaseSmartWallet.webAuthnSignatureWrapperData;
-        } else if (ksKeyType_ == MultiOwnable.KeyspaceKeyType.Secp256k1) {
-            sigWrapperDataBuilder = uint256(ksKey) % 2 == 0
-                ? LibCoinbaseSmartWallet.eoaSignatureWrapperData
-                : LibCoinbaseSmartWallet.eip1271SignatureWrapperData;
+        function (Vm.Wallet memory , bytes32, bool , bytes memory )  returns(bytes memory) sigBuilder;
+        if (ksKeyType == CoinbaseSmartWallet.KeyspaceKeyType.WebAuthn) {
+            sigBuilder = LibCoinbaseSmartWallet.webAuthnSignature;
+        } else if (ksKeyType == CoinbaseSmartWallet.KeyspaceKeyType.Secp256k1) {
+            sigBuilder =
+                uint256(ksKey) % 2 == 0 ? LibCoinbaseSmartWallet.eoaSignature : LibCoinbaseSmartWallet.eip1271Signature;
         }
 
         Vm.Wallet memory wallet;
@@ -195,14 +190,14 @@ contract ERC1271Test is Test {
         (wallet, stateRoot, proof, signature) = _setUpTest_isValidSignature({
             privateKey: privateKey,
             ksKey: ksKey,
-            ksKeyType: ksKeyType_,
+            ksKeyType: ksKeyType,
             h: h,
             isValidSig: isValidSig,
             isValidProof: isValidProof,
-            sigWrapperDataBuilder: sigWrapperDataBuilder
+            sigBuilder: sigBuilder
         });
 
-        if (sigWrapperDataBuilder == LibCoinbaseSmartWallet.eip1271SignatureWrapperData) {
+        if (sigBuilder == LibCoinbaseSmartWallet.eip1271Signature) {
             vm.expectCall({callee: wallet.addr, data: abi.encodeWithSelector(ERC1271.isValidSignature.selector)});
         }
 
@@ -217,11 +212,11 @@ contract ERC1271Test is Test {
 
     function _setUpTest_isValidSignature(
         uint256 ksKey,
-        MultiOwnable.KeyspaceKeyType ksKeyType,
+        CoinbaseSmartWallet.KeyspaceKeyType ksKeyType,
         uint248 privateKey,
         bool isValidSig,
         bool isValidProof,
-        function (Vm.Wallet memory , bytes32, bool , bytes memory )  returns(bytes memory) sigWrapperDataBuilder,
+        function (Vm.Wallet memory , bytes32, bool , bytes memory )  returns(bytes memory) sigBuilder,
         bytes32 h
     ) private returns (Vm.Wallet memory wallet, uint256 stateRoot, bytes memory proof, bytes memory signature) {
         // Setup test:
@@ -233,19 +228,14 @@ contract ERC1271Test is Test {
         //    NOTE: Reverting ensure `isValidSignature` returns before calling `IKeyStore.root`.
         // 5. If `isValidSig` is true, mock `IVerifier.Verify` to return `isValidProof`.
 
-        wallet = ksKeyType == MultiOwnable.KeyspaceKeyType.WebAuthn
+        wallet = ksKeyType == CoinbaseSmartWallet.KeyspaceKeyType.WebAuthn
             ? LibCoinbaseSmartWallet.passKeyWallet(privateKey)
             : LibCoinbaseSmartWallet.wallet(privateKey);
 
-        LibMultiOwnable.cheat_AddOwner({target: address(sut), ksKey: ksKey, ksKeyType: ksKeyType});
+        LibCoinbaseSmartWallet.initialize({target: address(sut), ksKey: ksKey, ksKeyType: ksKeyType});
 
         proof = "STATE PROOF";
-        CoinbaseSmartWallet.SignatureWrapper memory sigWrapper = CoinbaseSmartWallet.SignatureWrapper({
-            ksKey: ksKey,
-            data: sigWrapperDataBuilder(wallet, sut.replaySafeHash(h), isValidSig, "STATE PROOF")
-        });
-
-        signature = LibCoinbaseSmartWallet.userOpSignature(sigWrapper);
+        signature = sigBuilder(wallet, sut.replaySafeHash(h), isValidSig, proof);
 
         if (isValidSig == false) {
             LibCoinbaseSmartWallet.mockRevertKeyStore({keyStore: keyStore, revertData: "SHOULD RETURN FALSE BEFORE"});

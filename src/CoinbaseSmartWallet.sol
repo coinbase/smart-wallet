@@ -13,7 +13,14 @@ import {IKeyStore} from "./ext/IKeyStore.sol";
 import {IVerifier} from "./ext/IVerifier.sol";
 
 import {ERC1271} from "./ERC1271.sol";
-import {MultiOwnable} from "./MultiOwnable.sol";
+
+/// @notice Storage layout used by this contract.
+///
+/// @custom:storage-location erc7201:coinbase.storage.CoinbaseSmartWalletStorage
+struct CoinbaseSmartWalletStorage {
+    uint256 ksKey;
+    CoinbaseSmartWallet.KeyspaceKeyType ksKeyType;
+}
 
 /// @title Coinbase Smart Wallet
 ///
@@ -22,18 +29,15 @@ import {MultiOwnable} from "./MultiOwnable.sol";
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
 /// @author Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC4337.sol)
-contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable, Receiver {
-    /// @notice A wrapper struct used for signature validation.
-    struct SignatureWrapper {
-        /// @dev The Keyspace key.
-        uint256 ksKey;
-        /// @dev The general encoding of this field should be:
-        ///      `abi.encode(sig, publicKeyX, publicKeyY, stateProof)`
-        ///
-        ///      The content of `sig` depends on the Keyspace key type:
-        ///         - For Secp256k1 key type `sig` should be `abi.encodePacked(r, s, v)`
-        ///         - For WebAuthn key type `sig` should be `abi.encode(WebAuthnAuth)`
-        bytes data;
+contract CoinbaseSmartWallet is ERC1271, IAccount, UUPSUpgradeable, Receiver {
+    /// @notice The supported Keyspace key types.
+    ///
+    /// @dev `None` is intentionnaly placed first so that it equals the default unset value.
+    ///      It is never allowed to register a Keyspace key with type `None`.
+    enum KeyspaceKeyType {
+        None,
+        Secp256k1,
+        WebAuthn
     }
 
     /// @notice Represents a call to make.
@@ -45,6 +49,17 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
         /// @dev The data of the call.
         bytes data;
     }
+
+    /// @dev Slot for the `CoinbaseSmartWalletStorage` struct in storage.
+    ///      Computed from:
+    ///
+    ///      keccak256(abi.encode(uint256(keccak256("coinbase.storage.CoinbaseSmartWallet")) - 1))
+    ///         &
+    ///      ~bytes32(uint256(0xff))
+    ///
+    ///      Follows ERC-7201 (see https://eips.ethereum.org/EIPS/eip-7201).
+    bytes32 private constant COINBASE_SMART_WALLET_LOCATION =
+        0x99a34bffa68409ea583717aeb46691b092950ed596c79c2fc789604435b66c00;
 
     /// @notice Reserved nonce key (upper 192 bits of `UserOperation.nonce`) for cross-chain replayable
     ///         transactions.
@@ -62,8 +77,11 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
     /// @notice The StateVerifier contract used to verify state proofs.
     IVerifier public immutable stateVerifier;
 
-    /// @notice Thrown when `initialize` is called but the account already has had at least one owner.
+    /// @notice Thrown when `initialize` is called but the account has already been initialized.
     error Initialized();
+
+    /// @notice Thrown when the `msg.sender` is not authorized to call a privileged function.
+    error Unauthorized();
 
     /// @notice Thrown when a call is passed to `executeWithoutChainIdValidation` that is not allowed by
     ///         `canSkipChainIdValidation`
@@ -79,8 +97,8 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
     /// @param key The invalid `UserOperation.nonce` key.
     error InvalidNonceKey(uint256 key);
 
-    /// @notice Thrown in `_isValidSignature` if the Keyspace key is not registered as an owner for this account.
-    error InvalidKeySpaceKey(uint256 ksKey);
+    /// @notice Thrown when trying to register a Keyspace with with type `KeyspaceKeyType.None` type.
+    error KeyspaceKeyTypeCantBeNone();
 
     /// @notice Reverts if the caller is not the EntryPoint.
     modifier onlyEntryPoint() virtual {
@@ -97,6 +115,12 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
             _ensureIsSelf();
         }
 
+        _;
+    }
+
+    /// @notice Access control modifier ensuring the call is originating from the contract itself.
+    modifier onlySelf() virtual {
+        _ensureIsSelf();
         _;
     }
 
@@ -126,21 +150,27 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
         stateVerifier = IVerifier(stateVerifier_);
 
         // Implementation should not be initializable (does not affect proxies which use their own storage).
-        KeyAndType[] memory ksKeyAndTypes = new KeyAndType[](1);
-        _initializeOwners(ksKeyAndTypes);
+        _getCoinbaseSmartWalletStorage().ksKey = 1;
+        _getCoinbaseSmartWalletStorage().ksKeyType = KeyspaceKeyType.Secp256k1;
     }
 
-    /// @notice Initializes the account with the `owners`.
+    /// @notice Initializes the account.
     ///
-    /// @dev Reverts if the account has had at least one owner, i.e. has been initialized.
+    /// @dev Reverts if the account has already been initialized.
     ///
-    /// @param ksKeyAndTypes Array of initial Keyspace keys and their types.
-    function initialize(KeyAndType[] memory ksKeyAndTypes) external payable virtual {
-        if (ownerCount() != 0) {
+    /// @param ksKey     The Keyspace key.
+    /// @param ksKeyType The Keyspace key type.
+    function initialize(uint256 ksKey, KeyspaceKeyType ksKeyType) external payable virtual {
+        if (_getCoinbaseSmartWalletStorage().ksKey != 0) {
             revert Initialized();
         }
 
-        _initializeOwners(ksKeyAndTypes);
+        if (ksKeyType == KeyspaceKeyType.None) {
+            revert KeyspaceKeyTypeCantBeNone();
+        }
+
+        _getCoinbaseSmartWalletStorage().ksKey = ksKey;
+        _getCoinbaseSmartWalletStorage().ksKeyType = ksKeyType;
     }
 
     /// @inheritdoc IAccount
@@ -153,7 +183,6 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
     ///      allows making a "simulation call" without a valid signature. Other failures (e.g. invalid signature format)
     ///      should still revert to signal failure.
     /// @dev Reverts if the `UserOperation.nonce` key is invalid for `UserOperation.calldata`.
-    /// @dev Reverts if the signature format is incorrect or invalid for owner type.
     ///
     /// @param userOp              The `UserOperation` to validate.
     /// @param userOpHash          The `UserOperation` hash, as computed by `EntryPoint.getUserOpHash(UserOperation)`.
@@ -182,7 +211,7 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
             }
         }
 
-        // Return 0 if the recovered address matches the owner.
+        // Return 0 if signature is valid.
         if (_isValidSignature(userOpHash, userOp.signature)) {
             return 0;
         }
@@ -274,11 +303,7 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
     ////
     /// @return `true` is the function selector is allowed to skip the chain ID validation, else `false`.
     function canSkipChainIdValidation(bytes4 functionSelector) public pure returns (bool) {
-        if (
-            functionSelector == MultiOwnable.addOwner.selector || functionSelector == MultiOwnable.removeOwner.selector
-                || functionSelector == MultiOwnable.removeLastOwner.selector
-                || functionSelector == UUPSUpgradeable.upgradeToAndCall.selector
-        ) {
+        if (functionSelector == UUPSUpgradeable.upgradeToAndCall.selector) {
             return true;
         }
         return false;
@@ -305,24 +330,19 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
     /// @inheritdoc ERC1271
     ///
     /// @dev Used by both `ERC1271.isValidSignature` AND `IAccount.validateUserOp` signature validation.
-    /// @dev Reverts if owner at `ownerIndex` is not compatible with `signature` format.
+    /// @dev `signature` should be the resutlf of: `abi.encode(sig, publicKeyX, publicKeyY, stateProof)`
+    //       The content of `sig` depends on the Keyspace key type:
+    ///         - For Secp256k1 key type `sig` should be `abi.encodePacked(r, s, v)`
+    ///         - For WebAuthn key type `sig` should be `abi.encode(WebAuthnAuth)`
     ///
     /// @param signature ABI encoded `SignatureWrapper`.
     function _isValidSignature(bytes32 h, bytes calldata signature) internal view virtual override returns (bool) {
-        SignatureWrapper memory sigWrapper = abi.decode(signature, (SignatureWrapper));
-
-        // Get the signer type and revert if it's None.
-        MultiOwnable.KeyspaceKeyType ksKeyType = keyspaceKeyType(sigWrapper.ksKey);
-        if (ksKeyType == KeyspaceKeyType.None) {
-            revert InvalidKeySpaceKey(sigWrapper.ksKey);
-        }
-
         // Decode the raw `signature`.
         (bytes memory sig, uint256 publicKeyX, uint256 publicKeyY, bytes memory stateProof) =
-            abi.decode(sigWrapper.data, (bytes, uint256, uint256, bytes));
+            abi.decode(signature, (bytes, uint256, uint256, bytes));
 
         // Handle the Secp256k1 signature type.
-        if (ksKeyType == KeyspaceKeyType.Secp256k1) {
+        if (_getCoinbaseSmartWalletStorage().ksKeyType == KeyspaceKeyType.Secp256k1) {
             bytes memory publicKeyBytes = abi.encode(publicKeyX, publicKeyY);
             address signer = address(bytes20(keccak256(publicKeyBytes) << 96));
 
@@ -354,7 +374,7 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
         data[1] = publicKeyY;
 
         uint256[] memory publicInputs = new uint256[](3);
-        publicInputs[0] = sigWrapper.ksKey;
+        publicInputs[0] = _getCoinbaseSmartWalletStorage().ksKey;
         publicInputs[1] = keyStore.root();
         publicInputs[2] = uint256(keccak256(abi.encodePacked(data)) >> 8);
         return stateVerifier.Verify(stateProof, publicInputs);
@@ -368,5 +388,23 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
     /// @inheritdoc ERC1271
     function _domainNameAndVersion() internal pure override(ERC1271) returns (string memory, string memory) {
         return ("Coinbase Smart Wallet", "1");
+    }
+
+    /// @notice Checks if the sender is the account itself.
+    ///
+    /// @dev Reverts if the sender is not the contract itself.
+    function _ensureIsSelf() internal view virtual {
+        if (msg.sender != address(this)) {
+            revert Unauthorized();
+        }
+    }
+
+    /// @notice Helper function to get a storage reference to the `CoinbaseSmartWalletStorage` struct.
+    ///
+    /// @return $ A storage reference to the `CoinbaseSmartWalletStorage` struct.
+    function _getCoinbaseSmartWalletStorage() internal pure returns (CoinbaseSmartWalletStorage storage $) {
+        assembly ("memory-safe") {
+            $.slot := COINBASE_SMART_WALLET_LOCATION
+        }
     }
 }

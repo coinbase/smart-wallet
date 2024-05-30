@@ -3,7 +3,6 @@ pragma solidity ^0.8.4;
 
 import {CoinbaseSmartWallet} from "./CoinbaseSmartWallet.sol";
 
-import {MultiOwnable} from "./MultiOwnable.sol";
 import {LibClone} from "solady/utils/LibClone.sol";
 
 /// @title Coinbase Smart Wallet Factory
@@ -27,49 +26,47 @@ contract CoinbaseSmartWalletFactory {
         implementation = implementation_;
     }
 
-    /// @notice Returns the deterministic address for a CoinbaseSmartWallet created with `ksKeyAndTypes` and `nonce`
+    /// @notice Returns the deterministic address for a CoinbaseSmartWallet created with `ksKeyAndType` and `nonce`
     ///         deploys and initializes contract if it has not yet been created.
     ///
     /// @dev Deployed as a ERC-1967 proxy that's implementation is `this.implementation`.
     ///
-    /// @param ksKeyAndTypes Array of initial Keyspace keys and their types.
-    /// @param nonce         The nonce of the account, a caller defined value which allows multiple accounts
-    ///                      with the same `ksKeyAndTypes` to exist at different addresses.
+    /// @param ksKey     The The Keyspace key.
+    /// @param ksKeyType The Keyspace key type.
+    /// @param nonce     The nonce of the account, a caller defined value which allows multiple accounts
+    ///                  with the same `ksKeyAndType` to exist at different addresses.
     ///
-    /// @return account The address of the ERC-1967 proxy created with inputs `ksKeyAndTypes`, `nonce`, and
+    /// @return account The address of the ERC-1967 proxy created with inputs `ksKeyAndType`, `nonce`, and
     ///                 `this.implementation`.
-    function createAccount(MultiOwnable.KeyAndType[] memory ksKeyAndTypes, uint256 nonce)
+    function createAccount(uint256 ksKey, CoinbaseSmartWallet.KeyspaceKeyType ksKeyType, uint256 nonce)
         external
         payable
         virtual
         returns (CoinbaseSmartWallet account)
     {
-        if (ksKeyAndTypes.length == 0) {
-            revert KeyRequired();
-        }
-
         (bool alreadyDeployed, address accountAddress) =
-            LibClone.createDeterministicERC1967(msg.value, implementation, _getSalt(ksKeyAndTypes, nonce));
+            LibClone.createDeterministicERC1967(msg.value, implementation, _getSalt(ksKey, ksKeyType, nonce));
 
         account = CoinbaseSmartWallet(payable(accountAddress));
 
         if (!alreadyDeployed) {
-            account.initialize(ksKeyAndTypes);
+            account.initialize(ksKey, ksKeyType);
         }
     }
 
     /// @notice Returns the deterministic address of the account that would be created by `createAccount`.
     ///
-    /// @param ksKeyAndTypes Array of initial Keyspace keys and their types.
-    /// @param nonce         The nonce provided to `createAccount()`.
+    /// @param ksKey     The The Keyspace key.
+    /// @param ksKeyType The Keyspace key type.
+    /// @param nonce     The nonce provided to `createAccount()`.
     ///
     /// @return The predicted account deployment address.
-    function getAddress(MultiOwnable.KeyAndType[] memory ksKeyAndTypes, uint256 nonce)
+    function getAddress(uint256 ksKey, CoinbaseSmartWallet.KeyspaceKeyType ksKeyType, uint256 nonce)
         external
         view
         returns (address)
     {
-        return LibClone.predictDeterministicAddress(initCodeHash(), _getSalt(ksKeyAndTypes, nonce), address(this));
+        return LibClone.predictDeterministicAddress(initCodeHash(), _getSalt(ksKey, ksKeyType, nonce), address(this));
     }
 
     /// @notice Returns the initialization code hash of the account:
@@ -82,11 +79,16 @@ contract CoinbaseSmartWalletFactory {
 
     /// @notice Returns the create2 salt for `LibClone.predictDeterministicAddress`
     ///
-    /// @param ksKeyAndTypes Array of initial Keyspace keys and their types.
-    /// @param nonce         The nonce provided to `createAccount()`.
+    /// @param ksKey     The Keyspace key.
+    /// @param ksKeyType The Keyspace key type.
+    /// @param nonce     The nonce provided to `createAccount()`.
     ///
     /// @return The computed salt.
-    function _getSalt(MultiOwnable.KeyAndType[] memory ksKeyAndTypes, uint256 nonce) internal pure returns (bytes32) {
-        return keccak256(abi.encode(ksKeyAndTypes, nonce));
+    function _getSalt(uint256 ksKey, CoinbaseSmartWallet.KeyspaceKeyType ksKeyType, uint256 nonce)
+        internal
+        pure
+        returns (bytes32)
+    {
+        return keccak256(abi.encode(ksKey, ksKeyType, nonce));
     }
 }

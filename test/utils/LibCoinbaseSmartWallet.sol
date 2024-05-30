@@ -11,21 +11,27 @@ import {WebAuthn} from "webauthn-sol/WebAuthn.sol";
 
 import {CoinbaseSmartWallet} from "../../src/CoinbaseSmartWallet.sol";
 import {ERC1271} from "../../src/ERC1271.sol";
-import {MultiOwnable} from "../../src/MultiOwnable.sol";
 import {IKeyStore} from "../../src/ext/IKeyStore.sol";
 import {IVerifier} from "../../src/ext/IVerifier.sol";
 
-import {LibMultiOwnable} from "./LibMultiOwnable.sol";
-
 library LibCoinbaseSmartWallet {
+    bytes32 private constant COINBASE_SMART_WALLET_LOCATION =
+        0x99a34bffa68409ea583717aeb46691b092950ed596c79c2fc789604435b66c00;
+
     Vm internal constant vm = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////
     //                                         MOCK HELPERS                                           //
     ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    function uninitialized(address target) internal {
-        vm.store(target, LibMultiOwnable.MUTLI_OWNABLE_STORAGE_LOCATION(), bytes32(0));
+    function uninitialize(address target) internal {
+        vm.store(target, COINBASE_SMART_WALLET_LOCATION, bytes32(0));
+        vm.store(target, bytes32(uint256(COINBASE_SMART_WALLET_LOCATION) + 1), bytes32(0));
+    }
+
+    function initialize(address target, uint256 ksKey, CoinbaseSmartWallet.KeyspaceKeyType ksKeyType) internal {
+        vm.store(target, COINBASE_SMART_WALLET_LOCATION, bytes32(ksKey));
+        vm.store(target, bytes32(uint256(COINBASE_SMART_WALLET_LOCATION) + 1), bytes32(uint256(ksKeyType)));
     }
 
     function readEip1967ImplementationSlot(address target) internal view returns (address) {
@@ -70,6 +76,12 @@ library LibCoinbaseSmartWallet {
     ////////////////////////////////////////////////////////////////////////////////////////////////////
     //                                         TEST HELPERS                                           //
     ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    function uintToKsKeyType(uint256 value) internal pure returns (CoinbaseSmartWallet.KeyspaceKeyType) {
+        // Prevent generting 0 (None) value.
+        value = value % 2;
+        return CoinbaseSmartWallet.KeyspaceKeyType(value + 1);
+    }
 
     function hashUserOp(CoinbaseSmartWallet sut, UserOperation memory userOp, bool forceChainId)
         internal
@@ -139,15 +151,7 @@ library LibCoinbaseSmartWallet {
         }
     }
 
-    function userOpSignature(CoinbaseSmartWallet.SignatureWrapper memory sigWrapper)
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return abi.encode(sigWrapper);
-    }
-
-    function eoaSignatureWrapperData(Vm.Wallet memory w, bytes32 userOpHash, bool validSig, bytes memory stateProof)
+    function eoaSignature(Vm.Wallet memory w, bytes32 userOpHash, bool validSig, bytes memory stateProof)
         internal
         returns (bytes memory sigData)
     {
@@ -163,7 +167,7 @@ library LibCoinbaseSmartWallet {
         sigData = abi.encode(sig, w.publicKeyX, w.publicKeyY, stateProof);
     }
 
-    function eip1271SignatureWrapperData(Vm.Wallet memory w, bytes32 userOpHash, bool validSig, bytes memory stateProof)
+    function eip1271Signature(Vm.Wallet memory w, bytes32 userOpHash, bool validSig, bytes memory stateProof)
         internal
         returns (bytes memory sigData)
     {
@@ -173,12 +177,11 @@ library LibCoinbaseSmartWallet {
         mockEip1271({signer: w.addr, isValid: validSig});
     }
 
-    function webAuthnSignatureWrapperData(
-        Vm.Wallet memory w,
-        bytes32 userOpHash,
-        bool validSig,
-        bytes memory stateProof
-    ) internal pure returns (bytes memory sigData) {
+    function webAuthnSignature(Vm.Wallet memory w, bytes32 userOpHash, bool validSig, bytes memory stateProof)
+        internal
+        pure
+        returns (bytes memory sigData)
+    {
         string memory challengeb64url = Base64.encodeURL(abi.encode(userOpHash));
         string memory clientDataJSON = string(
             abi.encodePacked(
@@ -229,16 +232,12 @@ library LibCoinbaseSmartWallet {
     }
 
     function isApprovedSelector(bytes4 selector) internal pure returns (bool) {
-        return selector == MultiOwnable.addOwner.selector || selector == MultiOwnable.removeOwner.selector
-            || selector == MultiOwnable.removeLastOwner.selector || selector == UUPSUpgradeable.upgradeToAndCall.selector;
+        return selector == UUPSUpgradeable.upgradeToAndCall.selector;
     }
 
     function approvedSelectors() internal pure returns (bytes4[] memory selectors) {
-        selectors = new bytes4[](4);
-        selectors[0] = MultiOwnable.addOwner.selector;
-        selectors[1] = MultiOwnable.removeOwner.selector;
-        selectors[2] = MultiOwnable.removeLastOwner.selector;
-        selectors[3] = UUPSUpgradeable.upgradeToAndCall.selector;
+        selectors = new bytes4[](1);
+        selectors[0] = UUPSUpgradeable.upgradeToAndCall.selector;
     }
 
     function notApprovedSelectors() internal pure returns (bytes4[] memory selectors) {
