@@ -123,7 +123,7 @@ contract CoinbaseSmartWalletTest is Test {
         sut.validateUserOp({userOp: userOp, userOpHash: userOpHash, missingAccountFunds: 0});
     }
 
-    function test_validateUserOp_returnsOne_whenSignatureIsInvalid(
+    function test_validateUserOp_returnsOne_whenStateProofIsInvalid(
         uint256 ksKey,
         uint256 ksKeyType,
         uint248 privateKey,
@@ -133,27 +133,8 @@ contract CoinbaseSmartWalletTest is Test {
             ksKey: ksKey,
             ksKeyType: LibCoinbaseSmartWallet.uintToKsKeyType(ksKeyType),
             privateKey: privateKey,
-            isValidSig: false,
-            isValidProof: true,
-            userOp: userOp
-        });
-
-        uint256 validationData = sut.validateUserOp({userOp: userOp, userOpHash: userOpHash, missingAccountFunds: 0});
-        assertEq(validationData, 1);
-    }
-
-    function test_validateUserOp_returnsOne_whenSignatureIsInvalidButStateProofIsInvalid(
-        uint256 ksKey,
-        uint256 ksKeyType,
-        uint248 privateKey,
-        UserOperation memory userOp
-    ) external withSenderEntryPoint {
-        bytes32 userOpHash = _setUpTestWrapper_validateUserOp({
-            ksKey: ksKey,
-            ksKeyType: LibCoinbaseSmartWallet.uintToKsKeyType(ksKeyType),
-            privateKey: privateKey,
-            isValidSig: true,
             isValidProof: false,
+            isValidSig: true,
             userOp: userOp
         });
 
@@ -161,7 +142,7 @@ contract CoinbaseSmartWalletTest is Test {
         assertEq(validationData, 1);
     }
 
-    function test_validateUserOp_returnsZero_whenSignatureIsValidAndStateProofIsValid(
+    function test_validateUserOp_returnsOne_whenStateProofIsValidButSignatureIsInvalid(
         uint256 ksKey,
         uint256 ksKeyType,
         uint248 privateKey,
@@ -171,8 +152,27 @@ contract CoinbaseSmartWalletTest is Test {
             ksKey: ksKey,
             ksKeyType: LibCoinbaseSmartWallet.uintToKsKeyType(ksKeyType),
             privateKey: privateKey,
-            isValidSig: true,
             isValidProof: true,
+            isValidSig: false,
+            userOp: userOp
+        });
+
+        uint256 validationData = sut.validateUserOp({userOp: userOp, userOpHash: userOpHash, missingAccountFunds: 0});
+        assertEq(validationData, 1);
+    }
+
+    function test_validateUserOp_returnsZero_whenStateProofIsValidAndSignatureIsValid(
+        uint256 ksKey,
+        uint256 ksKeyType,
+        uint248 privateKey,
+        UserOperation memory userOp
+    ) external withSenderEntryPoint {
+        bytes32 userOpHash = _setUpTestWrapper_validateUserOp({
+            ksKey: ksKey,
+            ksKeyType: LibCoinbaseSmartWallet.uintToKsKeyType(ksKeyType),
+            privateKey: privateKey,
+            isValidProof: true,
+            isValidSig: true,
             userOp: userOp
         });
 
@@ -180,7 +180,7 @@ contract CoinbaseSmartWalletTest is Test {
         assertEq(validationData, 0);
     }
 
-    function test_validateUserOp_transferMissingdFundsToEntryPoint_whenSignatureIsValidAndStateProofIsValid(
+    function test_validateUserOp_transferMissingdFundsToEntryPoint_whenStateProofIsValidAndSignatureIsValid(
         uint256 ksKey,
         uint256 ksKeyType,
         uint248 privateKey,
@@ -191,8 +191,8 @@ contract CoinbaseSmartWalletTest is Test {
             ksKey: ksKey,
             ksKeyType: LibCoinbaseSmartWallet.uintToKsKeyType(ksKeyType),
             privateKey: privateKey,
-            isValidSig: true,
             isValidProof: true,
+            isValidSig: true,
             userOp: userOp
         });
 
@@ -485,14 +485,15 @@ contract CoinbaseSmartWalletTest is Test {
         uint256 ksKey,
         CoinbaseSmartWallet.KeyspaceKeyType ksKeyType,
         uint248 privateKey,
-        bool isValidSig,
         bool isValidProof,
+        bool isValidSig,
         UserOperation memory userOp
     ) private returns (bytes32 userOpHash) {
         // Setup test:
         // 1. Pick the correct `sigBuilder` method depending on `ksKeyType`.
-        // 2. Setup the test for `validateUserOp`;
-        // 3. Expect calls if `isValidSig` is true.
+        // 2. Setup the test for `validateUserOp`.
+        // 3. Expect calls to the KeyStore and StateVerifier contracts.
+        // 4. If `isValidProof`and using ERC1271 signature expect calls to `ERC1271.isValidSignature`.
 
         function (Vm.Wallet memory , bytes32, bool , bytes memory )  returns(bytes memory) sigBuilder;
         if (ksKeyType == CoinbaseSmartWallet.KeyspaceKeyType.WebAuthn) {
@@ -510,22 +511,20 @@ contract CoinbaseSmartWalletTest is Test {
             ksKey: ksKey,
             ksKeyType: ksKeyType,
             privateKey: privateKey,
-            isValidSig: isValidSig,
             isValidProof: isValidProof,
+            isValidSig: isValidSig,
             sigBuilder: sigBuilder,
             userOp: userOp
         });
 
-        if (sigBuilder == LibCoinbaseSmartWallet.eip1271Signature) {
+        uint256[] memory publicInputs =
+            LibCoinbaseSmartWallet.publicInputs({w: wallet, ksKey: ksKey, stateRoot: stateRoot});
+
+        vm.expectCall({callee: keyStore, data: abi.encodeWithSelector(IKeyStore.root.selector)});
+        vm.expectCall({callee: stateVerifier, data: abi.encodeCall(IVerifier.Verify, (proof, publicInputs))});
+
+        if (isValidProof == true && sigBuilder == LibCoinbaseSmartWallet.eip1271Signature) {
             vm.expectCall({callee: wallet.addr, data: abi.encodeWithSelector(ERC1271.isValidSignature.selector)});
-        }
-
-        if (isValidSig == true) {
-            uint256[] memory publicInputs =
-                LibCoinbaseSmartWallet.publicInputs({w: wallet, ksKey: ksKey, stateRoot: stateRoot});
-
-            vm.expectCall({callee: keyStore, data: abi.encodeWithSelector(IKeyStore.root.selector)});
-            vm.expectCall({callee: stateVerifier, data: abi.encodeCall(IVerifier.Verify, (proof, publicInputs))});
         }
     }
 
@@ -533,20 +532,25 @@ contract CoinbaseSmartWalletTest is Test {
         uint256 ksKey,
         CoinbaseSmartWallet.KeyspaceKeyType ksKeyType,
         uint248 privateKey,
-        bool isValidSig,
         bool isValidProof,
+        bool isValidSig,
         function (Vm.Wallet memory , bytes32, bool , bytes memory )  returns(bytes memory) sigBuilder,
         UserOperation memory userOp
     ) private returns (Vm.Wallet memory wallet, bytes32 userOpHash, uint256 stateRoot, bytes memory proof) {
         // Setup test:
-        // 1. Create an Secp256k1/Secp256r1 wallet.
-        // 2. Add the owner as `ksKeyType`.
-        // 3. Set `userOp.nonce` to a valid nonce (with valid key).
-        // 4. Set `userOp.signature` to a valid or invalid `signature` of `userOpHash` depending on `isValidSig`.
+        // 1. Mock `IKeyStore.root` to return 42.
+        // 2. Mock `IVerifier.Verify` to return `isValidProof`.
+        // 3. Create a Secp256k1 or Secp256r1 wallet depending on `ksKeyType`.
+        // 4. Add the `ksKey` as owner of type `ksKeyType`.
+        // 5. Set `userOp.nonce` to a valid nonce (with valid key).
+        // 6. Set `userOp.signature` to a valid or invalid `signature` of `userOpHash` depending on `isValidSig`.
         //    NOTE: Invalid signatures are still correctly encoded.
-        // 5. Mock `IKeyStore.root` to revert or return 42 depending on `isValidSig`.
-        //    NOTE: Reverting ensure `validateUserOp` returns before calling `IKeyStore.root`.
-        // 6. If `isValidSig` is true, mock `IVerifier.Verify` to return `isValidProof`.
+
+        proof = "STATE PROOF";
+        stateRoot = 42;
+
+        LibCoinbaseSmartWallet.mockKeyStore({keyStore: keyStore, root: stateRoot});
+        LibCoinbaseSmartWallet.mockStateVerifier({stateVerifier: stateVerifier, value: isValidProof});
 
         wallet = ksKeyType == CoinbaseSmartWallet.KeyspaceKeyType.WebAuthn
             ? LibCoinbaseSmartWallet.passKeyWallet(privateKey)
@@ -556,16 +560,6 @@ contract CoinbaseSmartWalletTest is Test {
 
         userOp.nonce = LibCoinbaseSmartWallet.validNonceKey({sut: sut, userOp: userOp});
         userOpHash = LibCoinbaseSmartWallet.hashUserOp({sut: sut, userOp: userOp, forceChainId: false});
-
-        proof = "STATE PROOF";
         userOp.signature = sigBuilder(wallet, userOpHash, isValidSig, proof);
-
-        if (isValidSig == false) {
-            LibCoinbaseSmartWallet.mockRevertKeyStore({keyStore: keyStore, revertData: "SHOULD RETURN FALSE BEFORE"});
-        } else {
-            stateRoot = 42;
-            LibCoinbaseSmartWallet.mockKeyStore({keyStore: keyStore, root: stateRoot});
-            LibCoinbaseSmartWallet.mockStateVerifier({stateVerifier: stateVerifier, value: isValidProof});
-        }
     }
 }

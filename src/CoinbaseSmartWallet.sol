@@ -341,33 +341,6 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, UUPSUpgradeable, Receiver {
         (bytes memory sig, uint256 publicKeyX, uint256 publicKeyY, bytes memory stateProof) =
             abi.decode(signature, (bytes, uint256, uint256, bytes));
 
-        // Handle the Secp256k1 signature type.
-        if (_getCoinbaseSmartWalletStorage().ksKeyType == KeyspaceKeyType.Secp256k1) {
-            bytes memory publicKeyBytes = abi.encode(publicKeyX, publicKeyY);
-            address signer = address(bytes20(keccak256(publicKeyBytes) << 96));
-
-            bool isValidSignature = SignatureCheckerLib.isValidSignatureNow(signer, h, sig);
-            if (!isValidSignature) {
-                return false;
-            }
-        }
-        // Handle the WebAuthn signature type.
-        else {
-            WebAuthn.WebAuthnAuth memory auth = abi.decode(sig, (WebAuthn.WebAuthnAuth));
-
-            bool isValidSignature = WebAuthn.verify({
-                challenge: abi.encode(h),
-                requireUV: false,
-                webAuthnAuth: auth,
-                x: publicKeyX,
-                y: publicKeyY
-            });
-
-            if (!isValidSignature) {
-                return false;
-            }
-        }
-
         // Verify the state proof.
         uint256[] memory data = new uint256[](8);
         data[0] = publicKeyX;
@@ -377,7 +350,30 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, UUPSUpgradeable, Receiver {
         publicInputs[0] = _getCoinbaseSmartWalletStorage().ksKey;
         publicInputs[1] = keyStore.root();
         publicInputs[2] = uint256(keccak256(abi.encodePacked(data)) >> 8);
-        return stateVerifier.Verify(stateProof, publicInputs);
+        bool isValid = stateVerifier.Verify(stateProof, publicInputs);
+
+        // Handle the Secp256k1 signature type.
+        if (_getCoinbaseSmartWalletStorage().ksKeyType == KeyspaceKeyType.Secp256k1) {
+            bytes memory publicKeyBytes = abi.encode(publicKeyX, publicKeyY);
+            address signer = address(bytes20(keccak256(publicKeyBytes) << 96));
+
+            isValid = isValid && SignatureCheckerLib.isValidSignatureNow(signer, h, sig);
+        }
+        // Handle the WebAuthn signature type.
+        else {
+            WebAuthn.WebAuthnAuth memory auth = abi.decode(sig, (WebAuthn.WebAuthnAuth));
+
+            isValid = isValid
+                && WebAuthn.verify({
+                    challenge: abi.encode(h),
+                    requireUV: false,
+                    webAuthnAuth: auth,
+                    x: publicKeyX,
+                    y: publicKeyY
+                });
+        }
+
+        return isValid;
     }
 
     /// @inheritdoc UUPSUpgradeable
