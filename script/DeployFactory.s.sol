@@ -7,8 +7,8 @@ import {SafeSingletonDeployer} from "safe-singleton-deployer-sol/src/SafeSinglet
 import {CoinbaseSmartWallet, CoinbaseSmartWalletFactory} from "../src/CoinbaseSmartWalletFactory.sol";
 
 contract DeployFactoryScript is Script {
-    address constant EXPECTED_IMPLEMENTATION = 0x00010089CD648bBEB2Ed58b62599695c1cb05E8d;
-    address constant EXPECTED_FACTORY = 0x0BA5ED0676E8DE77C118B1C7718246184BAB1b8E;
+    address constant EXPECTED_IMPLEMENTATION = 0x000100Bf1DcF5C38Fe873f76B565d948ad12822E;
+    address constant EXPECTED_FACTORY = 0x0BA5ED01C67936AfbEB2022E93dB179c24116976;
 
     function run() public {
         console2.log("Deploying on chain ID", block.chainid);
@@ -19,7 +19,7 @@ contract DeployFactoryScript is Script {
         address implementation = SafeSingletonDeployer.broadcastDeploy({
             creationCode: type(CoinbaseSmartWallet).creationCode,
             args: abi.encode(keyStore, stateVerifier),
-            salt: 0x97e862b928e37871994e143c9fe474739d207728adeadc83c9a63c32b4edd149
+            salt: 0xb4820a6446c87247f5c5f3bbabedea31e82b3e2f6b938e6c1a247beca70e1ef4
         });
         console2.log("implementation", implementation);
         assert(implementation == EXPECTED_IMPLEMENTATION);
@@ -27,7 +27,7 @@ contract DeployFactoryScript is Script {
         address factory = SafeSingletonDeployer.broadcastDeploy({
             creationCode: type(CoinbaseSmartWalletFactory).creationCode,
             args: abi.encode(EXPECTED_IMPLEMENTATION),
-            salt: 0x40272f9ad1c3d8b9b6b818526c5454ba5d7c3b7a40657e1b06bb359b18ef78eb
+            salt: 0x40dcb98f297dc3a74c637cfbc07933a3fd4f525ccc2eaf17793da40291af6d57
         });
         console2.log("factory", factory);
         assert(factory == EXPECTED_FACTORY);
