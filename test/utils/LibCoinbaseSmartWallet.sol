@@ -14,6 +14,12 @@ import {ERC1271} from "../../src/ERC1271.sol";
 import {IKeyStore} from "../../src/ext/IKeyStore.sol";
 import {IVerifier} from "../../src/ext/IVerifier.sol";
 
+enum ProofVerificationOutput {
+    Reverts,
+    Fails,
+    Succeeds
+}
+
 library LibCoinbaseSmartWallet {
     bytes32 private constant COINBASE_SMART_WALLET_LOCATION =
         0x99a34bffa68409ea583717aeb46691b092950ed596c79c2fc789604435b66c00;
@@ -70,6 +76,14 @@ library LibCoinbaseSmartWallet {
             callee: stateVerifier,
             data: abi.encodeWithSelector(IVerifier.Verify.selector),
             returnData: abi.encode(value)
+        });
+    }
+
+    function mockRevertKeyStateVerifier(address stateVerifier, bytes memory revertData) internal {
+        vm.mockCallRevert({
+            callee: stateVerifier,
+            data: abi.encodeWithSelector(IVerifier.Verify.selector),
+            revertData: revertData
         });
     }
 

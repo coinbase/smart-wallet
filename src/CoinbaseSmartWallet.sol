@@ -350,30 +350,34 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, UUPSUpgradeable, Receiver {
         publicInputs[0] = _getCoinbaseSmartWalletStorage().ksKey;
         publicInputs[1] = keyStore.root();
         publicInputs[2] = uint256(keccak256(abi.encodePacked(data)) >> 8);
-        bool isValid = stateVerifier.Verify(stateProof, publicInputs);
+
+        bool isValidProof;
+        try stateVerifier.Verify(stateProof, publicInputs) returns (bool isValid) {
+            isValidProof = isValid;
+        } catch {}
 
         // Handle the Secp256k1 signature type.
+        bool isValidSig;
         if (_getCoinbaseSmartWalletStorage().ksKeyType == KeyspaceKeyType.Secp256k1) {
             bytes memory publicKeyBytes = abi.encode(publicKeyX, publicKeyY);
             address signer = address(bytes20(keccak256(publicKeyBytes) << 96));
 
-            isValid = isValid && SignatureCheckerLib.isValidSignatureNow(signer, h, sig);
+            isValidSig = SignatureCheckerLib.isValidSignatureNow(signer, h, sig);
         }
         // Handle the WebAuthn signature type.
         else {
             WebAuthn.WebAuthnAuth memory auth = abi.decode(sig, (WebAuthn.WebAuthnAuth));
 
-            isValid = isValid
-                && WebAuthn.verify({
-                    challenge: abi.encode(h),
-                    requireUV: false,
-                    webAuthnAuth: auth,
-                    x: publicKeyX,
-                    y: publicKeyY
-                });
+            isValidSig = WebAuthn.verify({
+                challenge: abi.encode(h),
+                requireUV: false,
+                webAuthnAuth: auth,
+                x: publicKeyX,
+                y: publicKeyY
+            });
         }
 
-        return isValid;
+        return isValidProof && isValidSig;
     }
 
     /// @inheritdoc UUPSUpgradeable
