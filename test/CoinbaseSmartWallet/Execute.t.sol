@@ -6,7 +6,7 @@ import "./SmartWalletTestBase.sol";
 
 contract TestExecuteWithoutChainIdValidation is SmartWalletTestBase {
     function setUp() public override {
-        userOpCalldata = abi.encodeWithSelector(CoinbaseSmartWallet.execute.selector);
+        userOpCalldata = abi.encodeWithSelector(OnitSmartWallet.execute.selector);
         super.setUp();
     }
 

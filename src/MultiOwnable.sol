@@ -3,7 +3,7 @@ pragma solidity ^0.8.18;
 
 /// @notice Storage layout used by this contract.
 ///
-/// @custom:storage-location erc7201:coinbase.storage.MultiOwnable
+/// @custom:storage-location erc7201:onit.storage.MultiOwnable
 struct MultiOwnableStorage {
     /// @dev Tracks the index of the next owner to add.
     uint256 nextOwnerIndex;
@@ -29,14 +29,15 @@ struct MultiOwnableStorage {
 ///
 /// @notice Auth contract allowing multiple owners, each identified as bytes.
 ///
+/// @author Onit Labs (https://github.com/onit-labs/smart-wallet/tree/onit-smart-wallet)
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
 contract MultiOwnable {
     /// @dev Slot for the `MultiOwnableStorage` struct in storage.
     ///      Computed from
-    ///      keccak256(abi.encode(uint256(keccak256("coinbase.storage.MultiOwnable")) - 1)) & ~bytes32(uint256(0xff))
+    ///      keccak256(abi.encode(uint256(keccak256("onit.storage.MultiOwnable")) - 1)) & ~bytes32(uint256(0xff))
     ///      Follows ERC-7201 (see https://eips.ethereum.org/EIPS/eip-7201).
     bytes32 private constant MUTLI_OWNABLE_STORAGE_LOCATION =
-        0x97e2c6aad4ce5d562ebfaa00db6b9e0fb66ea5d8162ed5b243f51a2e03086f00;
+        0x5a702fe329e7898f700f6387059e71fe00d6e65adeec23d2a5d5f15a48b4f900;
 
     /// @notice Thrown when the `msg.sender` is not an owner and is trying to call a privileged function.
     error Unauthorized();

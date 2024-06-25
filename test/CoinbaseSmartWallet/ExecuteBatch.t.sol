@@ -12,7 +12,7 @@ contract TestExecuteWithoutChainIdValidation is SmartWalletTestBase, TestPlus {
         vm.prank(signer);
         account.addOwnerAddress(address(this));
 
-        CoinbaseSmartWallet.Call[] memory calls = new CoinbaseSmartWallet.Call[](2);
+        OnitSmartWallet.Call[] memory calls = new OnitSmartWallet.Call[](2);
         calls[0].target = address(new MockTarget());
         calls[1].target = address(new MockTarget());
         calls[0].value = 123;
@@ -32,7 +32,7 @@ contract TestExecuteWithoutChainIdValidation is SmartWalletTestBase, TestPlus {
     }
 
     function testExecuteBatch(uint256 r) public {
-        account = new MockCoinbaseSmartWallet();
+        account = new MockOnitSmartWallet();
         account.initialize(owners);
         vm.prank(signer);
         account.addOwnerAddress(address(this));
@@ -40,7 +40,7 @@ contract TestExecuteWithoutChainIdValidation is SmartWalletTestBase, TestPlus {
 
         unchecked {
             uint256 n = r & 3;
-            CoinbaseSmartWallet.Call[] memory calls = new CoinbaseSmartWallet.Call[](n);
+            OnitSmartWallet.Call[] memory calls = new OnitSmartWallet.Call[](n);
 
             for (uint256 i; i != n; ++i) {
                 uint256 v = _random() & 0xff;
@@ -50,7 +50,7 @@ contract TestExecuteWithoutChainIdValidation is SmartWalletTestBase, TestPlus {
             }
 
             if (_random() & 1 == 0) {
-                MockCoinbaseSmartWallet(payable(address(account))).executeBatch(_random(), calls);
+                MockOnitSmartWallet(payable(address(account))).executeBatch(_random(), calls);
             } else {
                 account.executeBatch(calls);
             }

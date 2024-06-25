@@ -1,31 +1,31 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import {CoinbaseSmartWallet} from "./CoinbaseSmartWallet.sol";
+import {OnitSmartWallet} from "./CoinbaseSmartWallet.sol";
 import {LibClone} from "solady/utils/LibClone.sol";
 
-/// @title Coinbase Smart Wallet Factory
+/// @title Onit Smart Wallet Factory
 ///
-/// @notice CoinbaseSmartWallet factory, based on Solady's ERC4337Factory.
+/// @notice OnitSmartWallet factory, based on Coinbases CoinbaseSmartWalletFactory.
 ///
+/// @author Onit Labs (https://github.com/onit-labs/smart-wallet/tree/onit-smart-wallet)
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
-/// @author Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC4337Factory.sol)
-contract CoinbaseSmartWalletFactory {
+contract OnitSmartWalletFactory {
     /// @notice Address of the ERC-4337 implementation used as implementation for new accounts.
     address public immutable implementation;
 
-    /// @notice Thrown when trying to create a new `CoinbaseSmartWallet` account without any owner.
+    /// @notice Thrown when trying to create a new `OnitSmartWallet` account without any owner.
     error OwnerRequired();
 
     /// @notice Factory constructor used to initialize the implementation address to use for future
-    ///         CoinbaseSmartWallet deployments.
+    ///         OnitSmartWallet deployments.
     ///
-    /// @param implementation_ The address of the CoinbaseSmartWallet implementation which new accounts will proxy to.
+    /// @param implementation_ The address of the OnitSmartWallet implementation which new accounts will proxy to.
     constructor(address implementation_) payable {
         implementation = implementation_;
     }
 
-    /// @notice Returns the deterministic address for a CoinbaseSmartWallet created with `owners` and `nonce`
+    /// @notice Returns the deterministic address for a OnitSmartWallet created with `owners` and `nonce`
     ///         deploys and initializes contract if it has not yet been created.
     ///
     /// @dev Deployed as a ERC-1967 proxy that's implementation is `this.implementation`.
@@ -40,7 +40,7 @@ contract CoinbaseSmartWalletFactory {
         external
         payable
         virtual
-        returns (CoinbaseSmartWallet account)
+        returns (OnitSmartWallet account)
     {
         if (owners.length == 0) {
             revert OwnerRequired();
@@ -49,7 +49,7 @@ contract CoinbaseSmartWalletFactory {
         (bool alreadyDeployed, address accountAddress) =
             LibClone.createDeterministicERC1967(msg.value, implementation, _getSalt(owners, nonce));
 
-        account = CoinbaseSmartWallet(payable(accountAddress));
+        account = OnitSmartWallet(payable(accountAddress));
 
         if (!alreadyDeployed) {
             account.initialize(owners);

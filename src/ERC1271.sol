@@ -11,8 +11,8 @@ pragma solidity ^0.8.4;
 ///      hash. The domain separator of this outer hash contains the chain id and address of this contract, so that
 ///      it cannot be used on two accounts (see `replaySafeHash()` for the implementation details).
 ///
+/// @author Onit Labs (https://github.com/onit-labs/smart-wallet/tree/onit-smart-wallet)
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
-/// @author Solady (https://github.com/vectorized/solady/blob/main/src/accounts/ERC1271.sol)
 abstract contract ERC1271 {
     /// @dev Precomputed `typeHash` used to produce EIP-712 compliant hash when applying the anti
     ///      cross-account-replay layer.
@@ -20,7 +20,7 @@ abstract contract ERC1271 {
     ///      The original hash must either be:
     ///         - An EIP-191 hash: keccak256("\x19Ethereum Signed Message:\n" || len(someMessage) || someMessage)
     ///         - An EIP-712 hash: keccak256("\x19\x01" || someDomainSeparator || hashStruct(someStruct))
-    bytes32 private constant _MESSAGE_TYPEHASH = keccak256("CoinbaseSmartWalletMessage(bytes32 hash)");
+    bytes32 private constant _MESSAGE_TYPEHASH = keccak256("OnitSmartWalletMessage(bytes32 hash)");
 
     /// @notice Returns information about the `EIP712Domain` used to create EIP-712 compliant hashes.
     ///
@@ -75,13 +75,13 @@ abstract contract ERC1271 {
         return 0xffffffff;
     }
 
-    /// @notice Wrapper around `_eip712Hash()` to produce a replay-safe hash fron the given `hash`.
+    /// @notice Wrapper around `_eip712Hash()` to produce a replay-safe hash from the given `hash`.
     ///
     /// @dev The returned EIP-712 compliant replay-safe hash is the result of:
     ///      keccak256(
     ///         \x19\x01 ||
     ///         this.domainSeparator ||
-    ///         hashStruct(CoinbaseSmartWalletMessage({ hash: `hash`}))
+    ///         hashStruct(OnitSmartWalletMessage({ hash: `hash`}))
     ///      )
     ///
     /// @param hash The original hash.
@@ -110,26 +110,26 @@ abstract contract ERC1271 {
         );
     }
 
-    /// @notice Returns the EIP-712 typed hash of the `CoinbaseSmartWalletMessage(bytes32 hash)` data structure.
+    /// @notice Returns the EIP-712 typed hash of the `OnitSmartWalletMessage(bytes32 hash)` data structure.
     ///
     /// @dev Implements encode(domainSeparator : 𝔹²⁵⁶, message : 𝕊) = "\x19\x01" || domainSeparator ||
     ///      hashStruct(message).
     /// @dev See https://eips.ethereum.org/EIPS/eip-712#specification.
     ///
-    /// @param hash The `CoinbaseSmartWalletMessage.hash` field to hash.
+    /// @param hash The `OnitSmartWalletMessage.hash` field to hash.
     ////
     /// @return The resulting EIP-712 hash.
     function _eip712Hash(bytes32 hash) internal view virtual returns (bytes32) {
         return keccak256(abi.encodePacked("\x19\x01", domainSeparator(), _hashStruct(hash)));
     }
 
-    /// @notice Returns the EIP-712 `hashStruct` result of the `CoinbaseSmartWalletMessage(bytes32 hash)` data
+    /// @notice Returns the EIP-712 `hashStruct` result of the `OnitSmartWalletMessage(bytes32 hash)` data
     ///         structure.
     ///
     /// @dev Implements hashStruct(s : 𝕊) = keccak256(typeHash || encodeData(s)).
     /// @dev See https://eips.ethereum.org/EIPS/eip-712#definition-of-hashstruct.
     ///
-    /// @param hash The `CoinbaseSmartWalletMessage.hash` field.
+    /// @param hash The `OnitSmartWalletMessage.hash` field.
     ///
     /// @return The EIP-712 `hashStruct` result.
     function _hashStruct(bytes32 hash) internal view virtual returns (bytes32) {

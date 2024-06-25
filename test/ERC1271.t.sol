@@ -6,15 +6,15 @@ import {Test, console2} from "forge-std/Test.sol";
 import "../src/CoinbaseSmartWalletFactory.sol";
 import "../src/ERC1271.sol";
 
-import {MockCoinbaseSmartWallet} from "./mocks/MockCoinbaseSmartWallet.sol";
+import {MockOnitSmartWallet} from "./mocks/MockCoinbaseSmartWallet.sol";
 
 contract ERC1271Test is Test {
-    CoinbaseSmartWalletFactory factory;
-    CoinbaseSmartWallet account;
+    OnitSmartWalletFactory factory;
+    OnitSmartWallet account;
     bytes[] owners;
 
     function setUp() public {
-        factory = new CoinbaseSmartWalletFactory(address(new CoinbaseSmartWallet()));
+        factory = new OnitSmartWalletFactory(address(new OnitSmartWallet()));
         owners.push(abi.encode(address(1)));
         owners.push(abi.encode(address(2)));
         account = factory.createAccount(owners, 0);
@@ -46,17 +46,18 @@ contract ERC1271Test is Test {
     }
 
     /// @dev a test for a static output, for reference with a javascript test out of this repo
+    /// ! TODO UPDATE THIS WITH RELEVANT VALUES
     function test_static() public {
         vm.chainId(84532);
 
         owners.push(
             hex"66efa90a7c6a9fe2f4472dc80307116577be940f06f4b81b3cce9207d0d35ebdd420af05337a40c253b6a37144c30ba22bbd54c71af9e4457774d790b34c8227"
         );
-        CoinbaseSmartWallet a = new MockCoinbaseSmartWallet();
+        OnitSmartWallet a = new MockOnitSmartWallet();
         vm.etch(0x2Af621c1B01466256393EBA6BF183Ac2962fd98C, address(a).code);
         a.initialize(owners);
         bytes32 expected = 0x1b03b7e3bddbb2f9b5080f154cf33fcbed9b9cd42c98409fb0730369426a0a69;
-        bytes32 actual = CoinbaseSmartWallet(payable(0x2Af621c1B01466256393EBA6BF183Ac2962fd98C)).replaySafeHash(
+        bytes32 actual = OnitSmartWallet(payable(0x2Af621c1B01466256393EBA6BF183Ac2962fd98C)).replaySafeHash(
             0x9ef3f7124243b092c883252302a74d4ed968efc9f612396f1a82bbeef8931328
         );
         assertEq(expected, actual);

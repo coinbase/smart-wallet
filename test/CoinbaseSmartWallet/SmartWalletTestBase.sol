@@ -5,11 +5,11 @@ import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
 import {Test, console2, stdError} from "forge-std/Test.sol";
 
 import "../../src/CoinbaseSmartWallet.sol";
-import {MockCoinbaseSmartWallet} from "../mocks/MockCoinbaseSmartWallet.sol";
+import {MockOnitSmartWallet} from "../mocks/MockCoinbaseSmartWallet.sol";
 import {Static} from "./Static.sol";
 
 contract SmartWalletTestBase is Test {
-    CoinbaseSmartWallet public account;
+    OnitSmartWallet public account;
     uint256 signerPrivateKey = 0xa11ce;
     address signer = vm.addr(signerPrivateKey);
     bytes[] owners;
@@ -25,7 +25,7 @@ contract SmartWalletTestBase is Test {
 
     function setUp() public virtual {
         vm.etch(0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789, Static.ENTRY_POINT_BYTES);
-        account = new MockCoinbaseSmartWallet();
+        account = new MockOnitSmartWallet();
         owners.push(abi.encode(signer));
         owners.push(passkeyOwner);
         account.initialize(owners);

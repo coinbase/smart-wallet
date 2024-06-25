@@ -2,11 +2,11 @@
 // Adapted from Solady https://github.com/Vectorized/solady/blob/main/test/utils/mocks/MockERC4337.sol
 pragma solidity ^0.8.4;
 
-import {CoinbaseSmartWallet} from "../../src/CoinbaseSmartWallet.sol";
+import {OnitSmartWallet} from "../../src/CoinbaseSmartWallet.sol";
 
 /// @dev WARNING! This mock is strictly intended for testing purposes only.
 /// Do NOT copy anything here into production code unless you really know what you are doing.
-contract MockCoinbaseSmartWallet is CoinbaseSmartWallet {
+contract MockOnitSmartWallet is OnitSmartWallet {
     constructor() {
         // allow for easier testing
         _getMultiOwnableStorage().nextOwnerIndex = 0;

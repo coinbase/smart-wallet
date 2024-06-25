@@ -1,17 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {CoinbaseSmartWallet} from "../CoinbaseSmartWallet.sol";
+import {OnitSmartWallet} from "../CoinbaseSmartWallet.sol";
 
 /// @title ERC1271 Input Generator
 ///
 /// @notice Helper contract for generating an ERC-1271 input hash to sign for deployed and undeployed
-///         CoinbaseSmartWallet. May be useful for generating ERC-6492 compliant signatures.
+///         OnitSmartWallet. May be useful for generating ERC-6492 compliant signatures.
 ///         Inspired by Ambire's DeploylessUniversalSigValidator
 ///         https://github.com/AmbireTech/signature-validator/blob/d5f84f5fc00bfdf79b80205b983a8258b6d1b3ea/contracts/DeploylessUniversalSigValidator.sol.
 ///
 /// @dev This contract is not meant to ever actually be deployed, only mock deployed and used via a static eth_call.
 ///
+/// @author Onit Labs (https://github.com/onit-labs/smart-wallet/tree/onit-smart-wallet)
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
 contract ERC1271InputGenerator {
     /// @notice Thrown when call to `accountFactory` with `factoryCalldata` fails.
@@ -24,7 +25,7 @@ contract ERC1271InputGenerator {
     /// @param returned The returned account
     error ReturnedAddressDoesNotMatchAccount(address account, address returned);
 
-    /// @notice Computes and returns the expected ERC-1271 replay-safe hash for a CoinbaseSmartWallet.
+    /// @notice Computes and returns the expected ERC-1271 replay-safe hash for a OnitSmartWallet.
     ///
     /// @dev `accountFactory` can be any address if the account is already deployed.
     /// @dev `factoryCalldata` can be 0x if the account is already deployed.
@@ -34,12 +35,12 @@ contract ERC1271InputGenerator {
     /// @param hash            The hash the wallet was asked to sign.
     /// @param accountFactory  The factory that will be used to deploy the account (if not already deployed).
     /// @param factoryCalldata The calldata that will be used to deploy the account (if not already deployed).
-    constructor(CoinbaseSmartWallet account, bytes32 hash, address accountFactory, bytes memory factoryCalldata) {
+    constructor(OnitSmartWallet account, bytes32 hash, address accountFactory, bytes memory factoryCalldata) {
         // This allows us to get a replay-safe hash on any deployed or undeployed account
         // in a single eth_call, i.e. without deploying the contract. We do this by calling replaySafeHash on a deployed
         // account,
         // or by simulating the deployment of an undeployed account and then calling replaySafeHash on it.
-        bytes32 replaySafeHash = _coinbaseSmartWallet1271Input(account, hash, accountFactory, factoryCalldata);
+        bytes32 replaySafeHash = _onitSmartWallet1271Input(account, hash, accountFactory, factoryCalldata);
         assembly {
             // store replay safe hash
             mstore(0x80, replaySafeHash)
@@ -61,8 +62,8 @@ contract ERC1271InputGenerator {
     /// @param factoryCalldata The calldata that will be used to deploy the account (if not already deployed).
     ///
     /// @return The replay-safe hash.
-    function _coinbaseSmartWallet1271Input(
-        CoinbaseSmartWallet account,
+    function _onitSmartWallet1271Input(
+        OnitSmartWallet account,
         bytes32 hash,
         address accountFactory,
         bytes memory factoryCalldata
