@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import {OnitSmartWallet} from "./CoinbaseSmartWallet.sol";
+import {OnitSmartWallet} from "./OnitSmartWallet.sol";
 import {LibClone} from "solady/utils/LibClone.sol";
 
 /// @title Onit Smart Wallet Factory

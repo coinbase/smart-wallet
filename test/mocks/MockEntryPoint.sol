@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import {OnitSmartWallet, UserOperation} from "../../src/CoinbaseSmartWallet.sol";
+import {OnitSmartWallet, UserOperation} from "../../src/OnitSmartWallet.sol";
 
 contract MockEntryPoint {
     mapping(address => uint256) public balanceOf;

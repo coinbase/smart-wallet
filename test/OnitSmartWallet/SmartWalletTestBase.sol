@@ -4,8 +4,8 @@ pragma solidity ^0.8.0;
 import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
 import {Test, console2, stdError} from "forge-std/Test.sol";
 
-import "../../src/CoinbaseSmartWallet.sol";
-import {MockOnitSmartWallet} from "../mocks/MockCoinbaseSmartWallet.sol";
+import "../../src/OnitSmartWallet.sol";
+import {MockOnitSmartWallet} from "../mocks/MockOnitSmartWallet.sol";
 import {Static} from "./Static.sol";
 
 contract SmartWalletTestBase is Test {

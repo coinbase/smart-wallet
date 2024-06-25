@@ -3,10 +3,10 @@ pragma solidity ^0.8.0;
 
 import {Test, console2} from "forge-std/Test.sol";
 
-import "../src/CoinbaseSmartWalletFactory.sol";
 import "../src/ERC1271.sol";
+import "../src/OnitSmartWalletFactory.sol";
 
-import {MockOnitSmartWallet} from "./mocks/MockCoinbaseSmartWallet.sol";
+import {MockOnitSmartWallet} from "./mocks/MockOnitSmartWallet.sol";
 
 contract ERC1271Test is Test {
     OnitSmartWalletFactory factory;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {OnitSmartWallet} from "../CoinbaseSmartWallet.sol";
+import {OnitSmartWallet} from "../OnitSmartWallet.sol";
 
 /// @title ERC1271 Input Generator
 ///

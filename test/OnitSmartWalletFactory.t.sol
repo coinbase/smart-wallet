@@ -4,8 +4,8 @@ pragma solidity ^0.8.0;
 import {Test, console2} from "forge-std/Test.sol";
 import {LibClone} from "solady/utils/LibClone.sol";
 
-import {MultiOwnable, OnitSmartWallet} from "../src/CoinbaseSmartWallet.sol";
-import {OnitSmartWalletFactory} from "../src/CoinbaseSmartWalletFactory.sol";
+import {MultiOwnable, OnitSmartWallet} from "../src/OnitSmartWallet.sol";
+import {OnitSmartWalletFactory} from "../src/OnitSmartWalletFactory.sol";
 
 contract OnitSmartWalletFactoryTest is Test {
     OnitSmartWalletFactory factory;

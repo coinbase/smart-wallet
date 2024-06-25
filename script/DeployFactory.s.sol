@@ -4,7 +4,7 @@ pragma solidity ^0.8.13;
 import {Script, console2} from "forge-std/Script.sol";
 import {SafeSingletonDeployer} from "safe-singleton-deployer-sol/src/SafeSingletonDeployer.sol";
 
-import {OnitSmartWallet, OnitSmartWalletFactory} from "../src/CoinbaseSmartWalletFactory.sol";
+import {OnitSmartWallet, OnitSmartWalletFactory} from "../src/OnitSmartWalletFactory.sol";
 
 contract DeployFactoryScript is Script {
     address constant EXPECTED_IMPLEMENTATION = 0x000100abaad02f1cfC8Bbe32bD5a564817339E72;
