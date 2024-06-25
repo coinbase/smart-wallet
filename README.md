@@ -1,6 +1,6 @@
 # Smart Wallet
 
-This repository contains code for a new, [ERC-4337](https://eips.ethereum.org/EIPS/eip-4337) compliant smart contract wallet from Coinbase. 
+This repository contains code for an, [ERC-4337](https://eips.ethereum.org/EIPS/eip-4337) compliant smart contract wallet from [Onit](https://onit.fun). It is a fork of Base's [Smart Wallet](https://github.com/coinbase/smart-wallet).
 
 It supports 
 - Multiple owners
@@ -109,4 +109,4 @@ make deploy
 ```
 
 ## Influences
-Much of the code in this repository started from Solady's [ERC4337](https://github.com/Vectorized/solady/blob/main/src/accounts/ERC4337.sol) implementation. We were also influenced by [DaimoAccount](https://github.com/daimo-eth/daimo/blob/master/packages/contract/src/DaimoAccount.sol), which pioneered using passkey signers on ERC-4337 accounts, and [LightAccount](https://github.com/alchemyplatform/light-account).
+This is a fork of Base's [Smart Wallet](https://github.com/coinbase/smart-wallet). We did not just import the Base code as a library so we could update some domain specific variables to match our setup at Onit, and to maintain flexibility to make larger changes in future. Much of the code in this repository started from Solady's [ERC4337](https://github.com/Vectorized/solady/blob/main/src/accounts/ERC4337.sol) implementation. We were also influenced by [DaimoAccount](https://github.com/daimo-eth/daimo/blob/master/packages/contract/src/DaimoAccount.sol), which pioneered using passkey signers on ERC-4337 accounts, and [LightAccount](https://github.com/alchemyplatform/light-account).
