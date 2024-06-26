@@ -95,7 +95,7 @@ abstract contract ERC1271 {
         return 0xffffffff;
     }
 
-    /// @notice Wrapper around `_eip712Hash()` to produce a replay-safe hash fron the given `hash`.
+    /// @notice Wrapper around `_eip712Hash()` to produce a replay-safe hash from the given `hash`.
     ///
     /// @dev The returned EIP-712 compliant replay-safe hash is the result of:
     ///      keccak256(
