@@ -188,4 +188,15 @@ contract TestIsValidSignature is SmartWalletTestBase {
         );
         account.isValidSignature(hash, abi.encode(CoinbaseSmartWallet.SignatureWrapper(0, signature)));
     }
+
+    function testValidateSignatureWithLegacyERC1271() public {
+        bytes memory data =
+            hex"15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec515fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5";
+        bytes32 hashedData = keccak256(data);
+        bytes32 toSign = account.replaySafeHash(hashedData);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, toSign);
+        bytes memory signature = abi.encodePacked(r, s, v);
+        bytes4 ret = account.isValidSignature(data, abi.encode(CoinbaseSmartWallet.SignatureWrapper(0, signature)));
+        assertEq(ret, bytes4(0x20c13b0b));
+    }
 }

@@ -75,6 +75,26 @@ abstract contract ERC1271 {
         return 0xffffffff;
     }
 
+    /// @notice Legacy EIP-1271 signature validation method.
+    ///
+    /// @dev Implementation the legacy `isValidSignature(bytes,bytes)` method.
+    /// @dev IMPORTANT: Signature verification is performed on the hash produced AFTER applying the anti
+    ///      cross-account-replay layer on keccak256(data).
+    ///
+    /// @param data      Arbitrary length data.
+    /// @param signature The signature of the replay-safe hash of keccak256(data) to validate.
+    ///
+    /// @return result `0x20c13b0b` if validation succeeded, else `0xffffffff`.
+    function isValidSignature(bytes memory data, bytes calldata signature) public view returns (bytes4 result) {
+        bytes32 dataHash = replaySafeHash(keccak256(data));
+        if (_isValidSignature({hash: dataHash, signature: signature})) {
+            // bytes4(keccak256("isValidSignature(bytes,bytes)"))
+            return 0x20c13b0b;
+        }
+
+        return 0xffffffff;
+    }
+
     /// @notice Wrapper around `_eip712Hash()` to produce a replay-safe hash fron the given `hash`.
     ///
     /// @dev The returned EIP-712 compliant replay-safe hash is the result of:
