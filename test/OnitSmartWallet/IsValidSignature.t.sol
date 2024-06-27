@@ -24,7 +24,7 @@ contract TestIsValidSignature is SmartWalletTestBase {
                         r: uint256(r),
                         s: uint256(s)
                     })
-                    )
+                )
             })
         );
 
@@ -77,7 +77,7 @@ contract TestIsValidSignature is SmartWalletTestBase {
                         r: uint256(r),
                         s: uint256(s)
                     })
-                    )
+                )
             })
         );
 
@@ -105,7 +105,7 @@ contract TestIsValidSignature is SmartWalletTestBase {
                         r: uint256(r) - 1,
                         s: uint256(s)
                     })
-                    )
+                )
             })
         );
 
@@ -152,7 +152,7 @@ contract TestIsValidSignature is SmartWalletTestBase {
                         r: uint256(r) - 1,
                         s: uint256(s)
                     })
-                    )
+                )
             })
         );
 
@@ -196,7 +196,7 @@ contract TestIsValidSignature is SmartWalletTestBase {
         bytes32 toSign = account.replaySafeHash(hashedData);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, toSign);
         bytes memory signature = abi.encodePacked(r, s, v);
-        bytes4 ret = account.isValidSignature(data, abi.encode(CoinbaseSmartWallet.SignatureWrapper(0, signature)));
+        bytes4 ret = account.isValidSignature(data, abi.encode(OnitSmartWallet.SignatureWrapper(0, signature)));
         assertEq(ret, bytes4(0x20c13b0b));
     }
 }
