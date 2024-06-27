@@ -85,7 +85,12 @@ abstract contract ERC1271 {
     /// @param signature The signature of the replay-safe hash of keccak256(data) to validate.
     ///
     /// @return result `0x20c13b0b` if validation succeeded, else `0xffffffff`.
-    function isValidSignature(bytes memory data, bytes calldata signature) public view returns (bytes4 result) {
+    function isValidSignature(bytes memory data, bytes calldata signature)
+        public
+        view
+        virtual
+        returns (bytes4 result)
+    {
         bytes32 dataHash = replaySafeHash(keccak256(data));
         if (_isValidSignature({hash: dataHash, signature: signature})) {
             // bytes4(keccak256("isValidSignature(bytes,bytes)"))
