@@ -332,6 +332,6 @@ contract OnitSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable, Re
 
     /// @inheritdoc ERC1271
     function _domainNameAndVersion() internal pure override(ERC1271) returns (string memory, string memory) {
-        return ("Onit Smart Wallet", "1");
+        return ("Onit Smart Wallet", "0.0.3");
     }
 }
