@@ -267,7 +267,7 @@ contract MultiOwnable {
 
     /// @notice Checks if the sender is an owner of this contract or the contract itself.
     ///
-    /// @dev Revert if the sender is not an owner fo the contract itself.
+    /// @dev Revert if the sender is not an owner of the contract itself.
     function _checkOwner() internal view virtual {
         if (isOwnerAddress(msg.sender) || (msg.sender == address(this))) {
             return;
