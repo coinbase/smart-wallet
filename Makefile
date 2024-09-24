@@ -5,4 +5,4 @@ deploy :; \
 		--rpc-url $${RPC_URL} \
 		--account $${ACCOUNT} \
 		--broadcast \
-		--verify
+		$(if $(ETHERSCAN_API_KEY),--verify)
