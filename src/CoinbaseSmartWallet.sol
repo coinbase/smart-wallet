@@ -46,7 +46,7 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
     ///
     /// @dev MUST BE the `PackedUserOperation.nonce` key when `PackedUserOperation.calldata` is calling
     ///      `executeWithoutChainIdValidation`and MUST NOT BE `PackedUserOperation.nonce` key when
-    /// `PackedUserOperation.calldata` is
+    ///      `PackedUserOperation.calldata` is
     ///      NOT calling `executeWithoutChainIdValidation`.
     ///
     /// @dev Helps enforce sequential sequencing of replayable transactions.
@@ -133,8 +133,7 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
     ///
     /// @notice ERC-4337 `validateUserOp` method. The EntryPoint will
     ///         call `PackedUserOperation.sender.call(PackedUserOperation.callData)` only if this validation call
-    /// returns
-    ///         successfully.
+    ///         returns successfully.
     ///
     /// @dev Signature failure should be reported by returning 1 (see: `this._isValidSignature`). This
     ///      allows making a "simulation call" without a valid signature. Other failures (e.g. invalid signature format)
@@ -144,7 +143,7 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
     ///
     /// @param userOp              The `PackedUserOperation` to validate.
     /// @param userOpHash          The `PackedUserOperation` hash, as computed by
-    /// `EntryPoint.getUserOpHash(PackedUserOperation)`.
+    ///                            `EntryPoint.getUserOpHash(PackedUserOperation)`.
     /// @param missingAccountFunds The missing account funds that must be deposited on the Entrypoint.
     ///
     /// @return validationData The encoded `ValidationData` structure:
