@@ -73,7 +73,7 @@ contract TestExecuteWithoutChainIdValidation is SmartWalletTestBase {
         account.executeWithoutChainIdValidation(calls);
     }
 
-    function _sign(UserOperation memory userOp) internal view override returns (bytes memory signature) {
+    function _sign(PackedUserOperation memory userOp) internal view override returns (bytes memory signature) {
         bytes32 toSign = account.getUserOpHashWithoutChainId(userOp);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, toSign);
         signature = abi.encode(CoinbaseSmartWallet.SignatureWrapper(0, abi.encodePacked(r, s, v)));
