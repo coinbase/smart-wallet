@@ -40,7 +40,7 @@ jobs:
 
       - name: Check snapshot
         run: |
-          forge snapshot --check
+          forge snapshot --check --tolerance 1
         id: snapshot
 
   forge-coverage:

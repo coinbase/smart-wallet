@@ -1,6 +1,3 @@
-> [!IMPORTANT]  
-> The code in this repository and its dependencies are still under audit. It is not yet recommended for production use.
-
 # Smart Wallet
 
 This repository contains code for a new, [ERC-4337](https://eips.ethereum.org/EIPS/eip-4337) compliant smart contract wallet from Coinbase. 
@@ -82,16 +79,33 @@ Today, allowed are
 - UUPSUpgradeable.upgradeToAndCall
 
 ## Deployments
-
-| Network   | CoinbaseSmartWalletFactory Address                        |
+Factory and implementation are deployed via [Safe Singleton Factory](https://github.com/safe-global/safe-singleton-factory), which today will give the same address across 248 chains. See "Deploying" below for instructions on how to deploy to new chains. 
+| Version   | Factory Address                        |
 |-----------|-----------------------------------------|
-| Base Sepolia | [0xeD4EAeBDBBA52DBB37259a2b75AbB87abF3a19E8](https://sepolia.basescan.org/address/0xeD4EAeBDBBA52DBB37259a2b75AbB87abF3a19E8) |
+| 1 | [0x0BA5ED0c6AA8c49038F819E587E2633c4A9F428a](https://basescan.org/address/0x0BA5ED0c6AA8c49038F819E587E2633c4A9F428a) |
 
 
 ## Developing 
 After cloning the repo, run the tests using Forge, from [Foundry](https://github.com/foundry-rs/foundry?tab=readme-ov-file)
 ```bash
 forge test
+```
+
+## Deploying
+To deploy on a new chain, in your `.env` set
+```bash
+#`cast wallet` name
+ACCOUNT=
+# Node RPC URL
+RPC_URL=
+# Optional Etherscan API key for contract verification
+ETHERSCAN_API_KEY=
+```
+See [here](https://book.getfoundry.sh/reference/cast/cast-wallet-import) for more details on `cast wallet`.
+
+Then run 
+```
+make deploy
 ```
 
 ## Influences
