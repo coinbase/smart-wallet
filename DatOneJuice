@@ -17,7 +17,7 @@ Ethereum address owners can call directly to the smart contract wallet to transa
 
 In the ERC-4337 context, we expect `UserOperation.signature` to be the ABI encoding of a `SignatureWrapper` struct 
 ```solidity
-struct SignatureWrapper {
+struct SignatureWrapper {DatOneJuice
     uint8 ownerIndex;
     bytes signatureData;
 }
