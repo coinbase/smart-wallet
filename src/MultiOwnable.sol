@@ -1,29 +1,7 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.18;
+pragma solidity ^0.8.23;
 
-/// @notice Storage layout used by this contract.
-///
-/// @custom:storage-location erc7201:coinbase.storage.MultiOwnable
-struct MultiOwnableStorage {
-    /// @dev Tracks the index of the next owner to add.
-    uint256 nextOwnerIndex;
-    /// @dev Tracks number of owners that have been removed.
-    uint256 removedOwnersCount;
-    /// @dev Maps index to owner bytes, used to idenfitied owners via a uint256 index.
-    ///
-    ///      Some uses—-such as signature validation for secp256r1 public key owners—-
-    ///      requires the caller to assert the public key of the caller. To economize calldata,
-    ///      we allow an index to identify an owner, so that the full owner bytes do
-    ///      not need to be passed.
-    ///
-    ///      The `owner` bytes should either be
-    ///         - An ABI encoded Ethereum address
-    ///         - An ABI encoded public key
-    mapping(uint256 index => bytes owner) ownerAtIndex;
-    /// @dev Mapping of bytes to booleans indicating whether or not
-    ///      bytes_ is an owner of this contract.
-    mapping(bytes bytes_ => bool isOwner_) isOwner;
-}
+import {ExternalWalletStorage} from "./ExternalWalletStorage.sol";
 
 /// @title Multi Ownable
 ///
@@ -31,12 +9,16 @@ struct MultiOwnableStorage {
 ///
 /// @author Coinbase (https://github.com/coinbase/smart-wallet)
 contract MultiOwnable {
-    /// @dev Slot for the `MultiOwnableStorage` struct in storage.
-    ///      Computed from
-    ///      keccak256(abi.encode(uint256(keccak256("coinbase.storage.MultiOwnable")) - 1)) & ~bytes32(uint256(0xff))
-    ///      Follows ERC-7201 (see https://eips.ethereum.org/EIPS/eip-7201).
-    bytes32 private constant MUTLI_OWNABLE_STORAGE_LOCATION =
-        0x97e2c6aad4ce5d562ebfaa00db6b9e0fb66ea5d8162ed5b243f51a2e03086f00;
+    /// @notice The external storage contract
+    ExternalWalletStorage public immutable STORAGE_CONTRACT;
+
+    /// @notice The expected code hash for authorization
+    bytes32 public immutable EXPECTED_CODE_HASH;
+
+    constructor(address storageContract, bytes32 expectedCodeHash) {
+        STORAGE_CONTRACT = ExternalWalletStorage(storageContract);
+        EXPECTED_CODE_HASH = expectedCodeHash;
+    }
 
     /// @notice Thrown when the `msg.sender` is not an owner and is trying to call a privileged function.
     error Unauthorized();
@@ -99,7 +81,9 @@ contract MultiOwnable {
     ///
     /// @param owner The owner address.
     function addOwnerAddress(address owner) external virtual onlyOwner {
-        _addOwnerAtIndex(abi.encode(owner), _getMultiOwnableStorage().nextOwnerIndex++);
+        uint256 nextIndex = nextOwnerIndex();
+        _addOwnerAtIndex(abi.encode(owner), nextIndex);
+        STORAGE_CONTRACT.setNextOwnerIndex(EXPECTED_CODE_HASH, nextIndex + 1);
     }
 
     /// @notice Adds a new public-key owner.
@@ -107,7 +91,9 @@ contract MultiOwnable {
     /// @param x The owner public key x coordinate.
     /// @param y The owner public key y coordinate.
     function addOwnerPublicKey(bytes32 x, bytes32 y) external virtual onlyOwner {
-        _addOwnerAtIndex(abi.encode(x, y), _getMultiOwnableStorage().nextOwnerIndex++);
+        uint256 nextIndex = nextOwnerIndex();
+        _addOwnerAtIndex(abi.encode(x, y), nextIndex);
+        STORAGE_CONTRACT.setNextOwnerIndex(EXPECTED_CODE_HASH, nextIndex + 1);
     }
 
     /// @notice Removes owner at the given `index`.
@@ -149,7 +135,7 @@ contract MultiOwnable {
     ///
     /// @return `true` if the account is an owner else `false`.
     function isOwnerAddress(address account) public view virtual returns (bool) {
-        return _getMultiOwnableStorage().isOwner[abi.encode(account)];
+        return STORAGE_CONTRACT.isOwner(EXPECTED_CODE_HASH, abi.encode(account));
     }
 
     /// @notice Checks if the given `x`, `y` public key is registered as owner.
@@ -159,7 +145,7 @@ contract MultiOwnable {
     ///
     /// @return `true` if the account is an owner else `false`.
     function isOwnerPublicKey(bytes32 x, bytes32 y) public view virtual returns (bool) {
-        return _getMultiOwnableStorage().isOwner[abi.encode(x, y)];
+        return STORAGE_CONTRACT.isOwner(EXPECTED_CODE_HASH, abi.encode(x, y));
     }
 
     /// @notice Checks if the given `account` bytes is registered as owner.
@@ -168,7 +154,7 @@ contract MultiOwnable {
     ///
     /// @return `true` if the account is an owner else `false`.
     function isOwnerBytes(bytes memory account) public view virtual returns (bool) {
-        return _getMultiOwnableStorage().isOwner[account];
+        return STORAGE_CONTRACT.isOwner(EXPECTED_CODE_HASH, account);
     }
 
     /// @notice Returns the owner bytes at the given `index`.
@@ -177,22 +163,21 @@ contract MultiOwnable {
     ///
     /// @return The owner bytes (empty if no owner is registered at this `index`).
     function ownerAtIndex(uint256 index) public view virtual returns (bytes memory) {
-        return _getMultiOwnableStorage().ownerAtIndex[index];
+        return STORAGE_CONTRACT.getOwnerAtIndex(EXPECTED_CODE_HASH, index);
     }
 
     /// @notice Returns the next index that will be used to add a new owner.
     ///
     /// @return The next index that will be used to add a new owner.
     function nextOwnerIndex() public view virtual returns (uint256) {
-        return _getMultiOwnableStorage().nextOwnerIndex;
+        return STORAGE_CONTRACT.getNextOwnerIndex(EXPECTED_CODE_HASH);
     }
 
     /// @notice Returns the current number of owners
     ///
     /// @return The current owner count
     function ownerCount() public view virtual returns (uint256) {
-        MultiOwnableStorage storage $ = _getMultiOwnableStorage();
-        return $.nextOwnerIndex - $.removedOwnersCount;
+        return nextOwnerIndex() - STORAGE_CONTRACT.getRemovedOwnersCount(EXPECTED_CODE_HASH);
     }
 
     /// @notice Tracks the number of owners removed
@@ -201,7 +186,7 @@ contract MultiOwnable {
     ///
     /// @return The number of owners that have been removed.
     function removedOwnersCount() public view virtual returns (uint256) {
-        return _getMultiOwnableStorage().removedOwnersCount;
+        return STORAGE_CONTRACT.getRemovedOwnersCount(EXPECTED_CODE_HASH);
     }
 
     /// @notice Initialize the owners of this contract.
@@ -211,8 +196,7 @@ contract MultiOwnable {
     ///
     /// @param owners The initial set of owners.
     function _initializeOwners(bytes[] memory owners) internal virtual {
-        MultiOwnableStorage storage $ = _getMultiOwnableStorage();
-        uint256 nextOwnerIndex_ = $.nextOwnerIndex;
+        uint256 nextIndex = nextOwnerIndex();
         for (uint256 i; i < owners.length; i++) {
             if (owners[i].length != 32 && owners[i].length != 64) {
                 revert InvalidOwnerBytesLength(owners[i]);
@@ -222,9 +206,10 @@ contract MultiOwnable {
                 revert InvalidEthereumAddressOwner(owners[i]);
             }
 
-            _addOwnerAtIndex(owners[i], nextOwnerIndex_++);
+            _addOwnerAtIndex(owners[i], nextIndex);
+            nextIndex++;
         }
-        $.nextOwnerIndex = nextOwnerIndex_;
+        STORAGE_CONTRACT.setNextOwnerIndex(EXPECTED_CODE_HASH, nextIndex);
     }
 
     /// @notice Adds an owner at the given `index`.
@@ -236,9 +221,8 @@ contract MultiOwnable {
     function _addOwnerAtIndex(bytes memory owner, uint256 index) internal virtual {
         if (isOwnerBytes(owner)) revert AlreadyOwner(owner);
 
-        MultiOwnableStorage storage $ = _getMultiOwnableStorage();
-        $.isOwner[owner] = true;
-        $.ownerAtIndex[index] = owner;
+        STORAGE_CONTRACT.setOwnerAtIndex(EXPECTED_CODE_HASH, index, owner);
+        STORAGE_CONTRACT.setIsOwner(EXPECTED_CODE_HASH, owner, true);
 
         emit AddOwner(index, owner);
     }
@@ -257,10 +241,9 @@ contract MultiOwnable {
             revert WrongOwnerAtIndex({index: index, expectedOwner: owner, actualOwner: owner_});
         }
 
-        MultiOwnableStorage storage $ = _getMultiOwnableStorage();
-        delete $.isOwner[owner];
-        delete $.ownerAtIndex[index];
-        $.removedOwnersCount++;
+        STORAGE_CONTRACT.setOwnerAtIndex(EXPECTED_CODE_HASH, index, "");
+        STORAGE_CONTRACT.setIsOwner(EXPECTED_CODE_HASH, owner, false);
+        STORAGE_CONTRACT.setRemovedOwnersCount(EXPECTED_CODE_HASH, removedOwnersCount() + 1);
 
         emit RemoveOwner(index, owner);
     }
@@ -274,14 +257,5 @@ contract MultiOwnable {
         }
 
         revert Unauthorized();
-    }
-
-    /// @notice Helper function to get a storage reference to the `MultiOwnableStorage` struct.
-    ///
-    /// @return $ A storage reference to the `MultiOwnableStorage` struct.
-    function _getMultiOwnableStorage() internal pure returns (MultiOwnableStorage storage $) {
-        assembly ("memory-safe") {
-            $.slot := MUTLI_OWNABLE_STORAGE_LOCATION
-        }
     }
 }
