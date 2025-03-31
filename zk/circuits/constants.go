@@ -1,15 +1,23 @@
 package circuits
 
 const (
-	MaxJwtBase64Len    = 2048
-	MaxJwtHeaderKidLen = 128
+	MaxJwtHeaderLen = 260
+	MaxJwtLen       = MaxJwtHeaderLen + 1400
+
+	MaxJwtHeaderKidValueLen = 64 // Google uses thumbprint which is ~40 chars
+
+	MaxJwtPayloadIssLen = 64 // Likely too small for Microsoft.
+	MaxJwtPayloadAudLen = 64
+	MaxJwtPayloadSubLen = 64
 )
 
-const expectedTypJson = `"typ":"JWT"`
-const expectedAlgJson = `"alg":"ES256"`
-const expectedCrvJson = `"crv":"P-256"`
-const expectedKidPrefixJson = `"kid":`
+const (
+	ExpectedTypJson = `"typ":"JWT"`
+	ExpectedAlgJson = `"alg":"RSA"`
 
-const expectedSubPrefixJson = `"sub":"`
-const expectedIssPrefixJson = `"iss":"`
-const expectedAudPrefixJson = `"aud":"`
+	ExpectedKidPrefixJson = `"kid":`
+
+	ExpectedIssPrefixJson = `"iss":`
+	ExpectedAudPrefixJson = `"aud":`
+	ExpectedSubPrefixJson = `"sub":`
+)

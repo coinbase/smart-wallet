@@ -5,39 +5,39 @@ import (
 	"github.com/consensys/gnark/std/math/uints"
 )
 
-var expectedTypU8 [len(expectedTypJson)]uints.U8
-var expectedAlgU8 [len(expectedAlgJson)]uints.U8
-var expectedCrvU8 [len(expectedCrvJson)]uints.U8
-var expectedKidPrefixU8 [len(expectedKidPrefixJson)]uints.U8
+var expectedTypU8 [len(ExpectedTypJson)]uints.U8
+var expectedAlgU8 [len(ExpectedAlgJson)]uints.U8
+var expectedKidPrefixU8 [len(ExpectedKidPrefixJson)]uints.U8
+
+var expectedIssPrefixU8 [len(ExpectedIssPrefixJson)]uints.U8
+var expectedAudPrefixU8 [len(ExpectedAudPrefixJson)]uints.U8
+var expectedSubPrefixU8 [len(ExpectedSubPrefixJson)]uints.U8
 
 var commaU8 uints.U8
 var closeBraceU8 uints.U8
 
 func init() {
-	for i, b := range expectedTypJson {
-		expectedTypU8[i] = uints.NewU8(uint8(b))
+	for i := range ExpectedTypJson {
+		expectedTypU8[i] = uints.NewU8(uint8(ExpectedTypJson[i]))
+		expectedAlgU8[i] = uints.NewU8(uint8(ExpectedAlgJson[i]))
 	}
 
-	for i, b := range expectedAlgJson {
-		expectedAlgU8[i] = uints.NewU8(uint8(b))
-	}
-
-	for i, b := range expectedCrvJson {
-		expectedCrvU8[i] = uints.NewU8(uint8(b))
-	}
-
-	for i, b := range expectedKidPrefixJson {
-		expectedKidPrefixU8[i] = uints.NewU8(uint8(b))
+	for i := range ExpectedKidPrefixJson {
+		expectedKidPrefixU8[i] = uints.NewU8(uint8(ExpectedKidPrefixJson[i]))
+		expectedIssPrefixU8[i] = uints.NewU8(uint8(ExpectedIssPrefixJson[i]))
+		expectedAudPrefixU8[i] = uints.NewU8(uint8(ExpectedAudPrefixJson[i]))
+		expectedSubPrefixU8[i] = uints.NewU8(uint8(ExpectedSubPrefixJson[i]))
 	}
 
 	commaU8 = uints.NewU8(',')
 	closeBraceU8 = uints.NewU8('}')
 }
 
-func ProcessHeader(
-	api frontend.API, field *uints.BinaryField[uints.U32], json []uints.U8,
-	typeOffset, algOffset, crvOffset frontend.Variable,
+func ProcessJwtHeader(
+	api frontend.API, json []uints.U8,
+	typeOffset, algOffset frontend.Variable,
 	kidOffset, kidValueLen frontend.Variable,
+	expectedKidValue []uints.U8,
 ) {
 	byteLenTyp := len(expectedTypU8)
 	endTyp := api.Add(typeOffset, byteLenTyp)
@@ -45,16 +45,9 @@ func ProcessHeader(
 	byteLenAlg := len(expectedAlgU8)
 	endAlg := api.Add(algOffset, byteLenAlg)
 
-	byteLenCrv := len(expectedCrvU8)
-	endCrv := api.Add(crvOffset, byteLenCrv)
-
 	byteLenKidPrefix := len(expectedKidPrefixU8)
 	endKidPrefix := api.Add(kidOffset, byteLenKidPrefix)
 	endKid := api.Add(endKidPrefix, kidValueLen)
-	api.Println("endKid", endKid)
-
-	// extractedKidValue := make([]uints.U8, MaxJwtHeaderKidLen)
-	// api.Println("extractedKidValue", extractedKidValue)
 
 	for i := range json {
 		// Check the `"typ":"JWT"`
@@ -65,17 +58,70 @@ func ProcessHeader(
 		checkByte(api, json, expectedAlgU8[:], i, algOffset, endAlg)
 		checkSeparator(api, json, i, endAlg)
 
-		// Check the `"crv":"P-256"`
-		checkByte(api, json, expectedCrvU8[:], i, crvOffset, endCrv)
-		checkSeparator(api, json, i, endCrv)
-
 		// Check the `"kid":`
 		checkByte(api, json, expectedKidPrefixU8[:], i, kidOffset, endKidPrefix)
+		checkSeparator(api, json, i, endKid)
 
-		// // Check the "kid" value.
-		// extractByte(api, field, json, extractedKidValue, i, endKidPrefix, endKid)
-		// checkSeparator(api, json, i, endKid)
+		// Check the "kid" value.
+		checkByte(api, json, expectedKidValue[:], i, endKidPrefix, endKid)
 	}
+}
+
+func ProcessJwtPayload(
+	api frontend.API, field *uints.BinaryField[uints.U32], json []uints.U8,
+	issOffset, issValueLen frontend.Variable,
+	audOffset, audValueLen frontend.Variable,
+	subOffset, subValueLen frontend.Variable,
+) (iss [MaxJwtPayloadIssLen]uints.U8, aud [MaxJwtPayloadAudLen]uints.U8, sub [MaxJwtPayloadSubLen]uints.U8) {
+
+	byteLenIssPrefix := len(expectedIssPrefixU8)
+	endIssPrefix := api.Add(issOffset, byteLenIssPrefix)
+	endIss := api.Add(endIssPrefix, issValueLen)
+	api.Println("issOffset", issOffset)
+	api.Println("issValueLen", issValueLen)
+	api.Println("endIssPrefix", endIssPrefix)
+	api.Println("endIss", endIss)
+
+	byteLenAudPrefix := len(expectedAudPrefixU8)
+	endAudPrefix := api.Add(audOffset, byteLenAudPrefix)
+	endAud := api.Add(endAudPrefix, audValueLen)
+	api.Println("endAud", endAud)
+
+	byteLenSubPrefix := len(expectedSubPrefixU8)
+	endSubPrefix := api.Add(subOffset, byteLenSubPrefix)
+	endSub := api.Add(endSubPrefix, subValueLen)
+	api.Println("endSub", endSub)
+
+	for i := range iss {
+		iss[i] = uints.NewU8(0)
+	}
+
+	for i := range aud {
+		aud[i] = uints.NewU8(0)
+	}
+
+	for i := range sub {
+		sub[i] = uints.NewU8(0)
+	}
+
+	for i := range json {
+		// Check and extract the "iss" value.
+		checkByte(api, json, expectedIssPrefixU8[:], i, issOffset, endIssPrefix)
+		checkSeparator(api, json, i, endIss)
+		extractByte(api, field, json, iss[:], i, endIssPrefix, endIss)
+
+		// Check and extract the "aud" value.
+		checkByte(api, json, expectedAudPrefixU8[:], i, audOffset, endAudPrefix)
+		extractByte(api, field, json, aud[:], i, endAudPrefix, endAud)
+		checkSeparator(api, json, i, endAud)
+
+		// Check and extract the "sub" value.
+		checkByte(api, json, expectedSubPrefixU8[:], i, subOffset, endSubPrefix)
+		extractByte(api, field, json, sub[:], i, endSubPrefix, endSub)
+		checkSeparator(api, json, i, endSub)
+	}
+
+	return sub, iss, aud
 }
 
 func checkByte(
@@ -97,7 +143,7 @@ func checkByte(
 	// Get the corresponding expected byte from the `expected` bytes.
 	expectedByte := byteAt(
 		api,
-		expectedBytes[:],
+		expectedBytes,
 		api.Sub(i, rangeStart), // NOTE: It is fine to underflow here.
 	)
 
@@ -109,7 +155,6 @@ func checkByte(
 			equal(api, b, expectedByte),
 		),
 	)
-
 }
 
 func checkSeparator(
@@ -120,9 +165,11 @@ func checkSeparator(
 ) {
 	// Get the byte from the JWT JSON.
 	b := json[i].Val
+	api.Println("b", b)
 
 	// i == end
 	shouldBeSeparator := equal(api, i, end)
+	api.Println("shouldBeSeparator", shouldBeSeparator)
 
 	// assert(isSeparator == 0 || (b == commaU8 || b == closeBraceU8))
 	api.AssertIsDifferent(
@@ -160,7 +207,7 @@ func extractByte(
 	for i := range dst {
 		dst[i] = field.ByteValueOf(
 			api.Add(
-				dst[i],
+				dst[i].Val,
 				api.Mul(
 					shouldExtract,
 					api.Mul(
@@ -180,10 +227,11 @@ func byteAt(
 	atIndex frontend.Variable,
 ) frontend.Variable {
 
-	expected := frontend.Variable(0)
+	b := frontend.Variable(0)
+
 	for i := range bytes {
-		expected = api.Add(
-			expected,
+		b = api.Add(
+			b,
 			api.Mul(
 				equal(api, atIndex, i),
 				bytes[i].Val,
@@ -191,5 +239,5 @@ func byteAt(
 		)
 	}
 
-	return expected
+	return b
 }

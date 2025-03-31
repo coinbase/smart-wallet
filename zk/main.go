@@ -10,7 +10,7 @@ import (
 
 func main() {
 	zkCircuit := circuits.ZkLoginCircuit{
-		JwtBase64: make([]uints.U8, circuits.MaxJwtBase64Len),
+		JwtBase64: make([]uints.U8, circuits.MaxJwtLen),
 	}
 	_, err := frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &zkCircuit)
 	if err != nil {
