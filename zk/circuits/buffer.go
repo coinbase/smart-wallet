@@ -57,11 +57,15 @@ func (b *Buffer) AppendFixed(v []uints.U8) {
 	}
 }
 
-func (b *Buffer) AppendVariable(v []uints.U8, l frontend.Variable) {
+func (b *Buffer) AppendVariable(v []uints.U8, minLength int, l frontend.Variable) {
 	cond := frontend.Variable(1)
 	for i, e := range v {
-		cond = b.api.Mul(cond, b.api.Sub(1, b.api.IsZero(b.api.Sub(l, i))))
-		b.maybeAppendByte(e, cond)
+		if i < minLength {
+			b.AppendByte(e)
+		} else {
+			cond = b.api.Mul(cond, b.api.Sub(1, b.api.IsZero(b.api.Sub(l, i))))
+			b.maybeAppendByte(e, cond)
+		}
 	}
 }
 

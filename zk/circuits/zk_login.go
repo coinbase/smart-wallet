@@ -34,7 +34,7 @@ func (c *ZkLoginCircuit) Define(api frontend.API) error {
 
 	encodedJwtHeader := EncodeBase64URL(api, field, c.JwtHeader)
 	encodedJwtPayload := EncodeBase64URL(api, field, c.JwtPayload)
-	packedJwt := PackJwt(api, field, encodedJwtHeader, encodedJwtPayload, c.JwtHeaderBase64Len)
+	packedJwt := PackJwt(api, field, encodedJwtHeader, encodedJwtPayload, c.JwtHeaderBase64Len, c.JwtPayloadBase64Len)
 
 	// // 1. Decode the JWT base64 encoded string.
 	// decodedJwt := decodeBase64URL(api, field, c.JwtBase64[:])
