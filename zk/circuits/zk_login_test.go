@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"math/big"
-	"strings"
 	"testing"
 
 	"github.com/consensys/gnark-crypto/ecc"
@@ -21,8 +20,11 @@ func TestZkLogin(t *testing.T) {
 		`{"typ":"JWT","alg":"RSA","kid":%s}`,
 		jwtHeaderKidValue,
 	)
+	fmt.Printf("jwtHeader: %s\n", jwtHeader)
+	// jwtHeader = "Ma"
+	jwtHeaderBase64 := base64.RawURLEncoding.EncodeToString([]byte(jwtHeader))
+	fmt.Printf("jwtHeaderBase64: %s\n", jwtHeaderBase64)
 
-	//{"iss":"xenoliss","aud":"google.com","sub":"csw.com"}
 	jwtPayloadIssValue := `"google.com"`
 	jwtPayloadAudValue := `"csw.com"`
 	jwtPayloadSubValue := `"xenoliss"`
@@ -32,61 +34,57 @@ func TestZkLogin(t *testing.T) {
 		jwtPayloadAudValue,
 		jwtPayloadSubValue,
 	)
+	fmt.Printf("jwtPayload: %s\n", jwtPayload)
+	// jwtPayload = "toto"
+	jwtPayloadBase64 := base64.RawURLEncoding.EncodeToString([]byte(jwtPayload))
+	fmt.Printf("jwtPayloadBase64: %s\n", jwtPayloadBase64)
 
-	jwt := fmt.Sprintf("%s.%s", jwtHeader, jwtPayload)
-
-	witnessJwtHeaderKidValue := make([]uints.U8, MaxJwtHeaderKidValueLen)
-	for i := range jwtHeaderKidValue {
-		witnessJwtHeaderKidValue[i] = uints.NewU8(jwtHeaderKidValue[i])
+	witnessJwtHeader := make([]uints.U8, MaxJwtHeaderLen)
+	for i := range jwtHeader {
+		witnessJwtHeader[i] = uints.NewU8(jwtHeader[i])
 	}
 
-	buf := make([]uint8, MaxJwtPayloadIssLen+MaxJwtPayloadAudLen+MaxJwtPayloadSubLen)
-	copy(buf[:], jwtPayloadIssValue)
-	copy(buf[MaxJwtPayloadIssLen:], jwtPayloadAudValue)
-	copy(buf[MaxJwtPayloadIssLen+MaxJwtPayloadAudLen:], jwtPayloadSubValue)
-	hashBytes := sha256.Sum256(buf)
-	derivedHash := new(big.Int).SetBytes(hashBytes[1:]) // Skip the first byte (big endian) to fit the BN254 scalar field.
+	witnessJwtPayload := make([]uints.U8, MaxJwtPayloadLen)
+	for i := range jwtPayload {
+		witnessJwtPayload[i] = uints.NewU8(jwtPayload[i])
+	}
 
-	jwtHeaderBase64 := base64.URLEncoding.EncodeToString([]byte(jwtHeader))
-	jwtPayloadBase64 := base64.URLEncoding.EncodeToString([]byte(jwtPayload))
 	jwtBase64 := fmt.Sprintf("%s.%s", jwtHeaderBase64, jwtPayloadBase64)
-
-	witnessJwtBase64 := make([]uints.U8, MaxJwtLen)
-	for i := range jwtBase64 {
-		witnessJwtBase64[i] = uints.NewU8(jwtBase64[i])
-	}
 	jwtHashBytes := sha256.Sum256([]byte(jwtBase64))
 	jwtHash := new(big.Int).SetBytes(jwtHashBytes[1:]) // Skip the first byte (big endian) to fit the BN254 scalar field.
 
 	assert.ProverSucceeded(
 		&ZkLoginCircuit{
-			// Set public inputs values.
-			JwtHeaderKidValue: make([]uints.U8, MaxJwtHeaderKidValueLen),
+			// // Set public inputs values.
+			// JwtHeaderKidValue: make([]uints.U8, MaxJwtHeaderKidValueLen),
 
 			// Set private inputs sizes.
-			JwtBase64: make([]uints.U8, MaxJwtLen),
+			JwtHeader:  make([]uints.U8, MaxJwtHeaderLen),
+			JwtPayload: make([]uints.U8, MaxJwtPayloadLen),
 		},
 		&ZkLoginCircuit{
-			// Public inputs.
-			JwtHeaderKidValue: witnessJwtHeaderKidValue,
-			JwtHash:           jwtHash,
-			DerivedHash:       derivedHash,
+			// // Public inputs.
+			// JwtHeaderKidValue: witnessJwtHeaderKidValue,
+			JwtHash: jwtHash,
+			// DerivedHash:       derivedHash,
 
 			// Private inputs.
-			JwtBase64:    witnessJwtBase64,
-			JwtBase64Len: len(jwtBase64),
+			JwtHeader:           witnessJwtHeader,
+			JwtHeaderBase64Len:  len(jwtHeaderBase64),
+			JwtPayload:          witnessJwtPayload,
+			JwtPayloadBase64Len: len(jwtPayloadBase64),
 
-			TypOffset:   strings.Index(jwt, `"typ"`),
-			AlgOffset:   strings.Index(jwt, `"alg"`),
-			KidOffset:   strings.Index(jwt, `"kid"`),
-			KidValueLen: len(jwtHeaderKidValue),
+			// TypOffset:   strings.Index(jwt, `"typ"`),
+			// AlgOffset:   strings.Index(jwt, `"alg"`),
+			// KidOffset:   strings.Index(jwt, `"kid"`),
+			// KidValueLen: len(jwtHeaderKidValue),
 
-			IssOffset:   strings.Index(jwt, `"iss"`),
-			IssValueLen: len(jwtPayloadIssValue),
-			AudOffset:   strings.Index(jwt, `"aud"`),
-			AudValueLen: len(jwtPayloadAudValue),
-			SubOffset:   strings.Index(jwt, `"sub"`),
-			SubValueLen: len(jwtPayloadSubValue),
+			// IssOffset:   strings.Index(jwt, `"iss"`),
+			// IssValueLen: len(jwtPayloadIssValue),
+			// AudOffset:   strings.Index(jwt, `"aud"`),
+			// AudValueLen: len(jwtPayloadAudValue),
+			// SubOffset:   strings.Index(jwt, `"sub"`),
+			// SubValueLen: len(jwtPayloadSubValue),
 		},
 		test.WithCurves(ecc.BN254),
 	)

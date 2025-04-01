@@ -124,6 +124,37 @@ func ProcessJwtPayload(
 	return sub, iss, aud
 }
 
+func PackJwt(
+	api frontend.API,
+	field *uints.BinaryField[uints.U32],
+	header []uints.U8,
+	payload []uints.U8,
+	jwtHeaderBase64Len frontend.Variable,
+) (res []uints.U8) {
+	res = make([]uints.U8, MaxJwtBase64Len)
+	for i := range res {
+		isHeader := lessThan(api, 16, i, jwtHeaderBase64Len)
+		isDot := equal(api, i, jwtHeaderBase64Len)
+		isPayload := api.Mul(
+			not(api, isHeader),
+			not(api, isDot),
+		)
+
+		headerIndex := i
+		payloadIndex := api.Sub(i, api.Add(jwtHeaderBase64Len, 1)) // +1 for the dot.
+
+		v := api.Add(
+			api.Mul(isHeader, byteAt(api, header, headerIndex)),
+			api.Mul(isDot, '.'),
+			api.Mul(isPayload, byteAt(api, payload, payloadIndex)),
+		)
+
+		res[i] = field.ByteValueOf(v)
+	}
+
+	return res
+}
+
 func checkByte(
 	api frontend.API,
 	json []uints.U8,

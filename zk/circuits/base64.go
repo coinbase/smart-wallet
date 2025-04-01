@@ -8,7 +8,7 @@ import (
 // decodeBase64URL decodes a base64url encoded string into a slice of uint8.
 // The input is assumed to be properly base64url encoded and thus MUST be a 4-bytes aligned.
 // This function does not error on invalid characters and will simply set the corresponding byte to 0.
-func decodeBase64URL(
+func DecodeBase64URL(
 	api frontend.API,
 	field *uints.BinaryField[uints.U32],
 	values []uints.U8,
@@ -86,5 +86,68 @@ func decodeValue(api frontend.API, n frontend.Variable) (res frontend.Variable) 
 		decodedUpper,
 		decodedLower,
 		decodedUnderscore,
+	)
+}
+
+func EncodeBase64URL(
+	api frontend.API,
+	field *uints.BinaryField[uints.U32],
+	bytes []uints.U8,
+) (res []uints.U8) {
+	bitLen := len(bytes) * 8
+
+	// Loop over the input bytes and store them in big endian (msb first)
+	bins := make([]frontend.Variable, 0, bitLen)
+	for _, value := range bytes {
+		bin := api.ToBinary(value.Val, 8)
+		for i := range 8 {
+			bins = append(bins, bin[7-i])
+		}
+	}
+
+	// Consume the bin values by chunk of 6 and decode them to base64
+	for i := 0; i < bitLen; i += 6 {
+		var bitsForValue []frontend.Variable
+		for j := range 6 {
+			bitsForValue = append(bitsForValue, bins[i+(5-j)])
+		}
+		v := api.FromBinary(bitsForValue...)
+		encoded := encodeValue(api, v)
+		res = append(res, field.ByteValueOf(encoded))
+	}
+
+	return res
+}
+
+func encodeValue(api frontend.API, v frontend.Variable) (res frontend.Variable) {
+	//  0->25  =>  65->90  (A-Z)
+	// 26->51  =>  97->122 (a-z)
+	// 52->61  =>  48->57  (0-9)
+	//   62    =>    45     (-)
+	//   63    =>    95     (_)
+	isUpper := lessThan(api, 8, v, 26)
+	isLower := api.Mul(
+		not(api, lessThan(api, 8, v, 26)), // not below 26
+		lessThan(api, 8, v, 52),           // not above 51
+	)
+	isDigit := api.Mul(
+		not(api, lessThan(api, 8, v, 52)), // not below 52
+		lessThan(api, 8, v, 62),           // not above 61
+	)
+	isDash := equal(api, v, 62)
+	isUnderscore := equal(api, v, 63)
+
+	encodedUpper := api.Mul(isUpper, api.Add(v, 65))
+	encodedLower := api.Mul(isLower, api.Add(v, 71))
+	encodedDigit := api.Mul(isDigit, api.Sub(v, 4))
+	encodedDash := api.Mul(isDash, 45)
+	encodedUnderscore := api.Mul(isUnderscore, 95)
+
+	return api.Add(
+		encodedUpper,
+		encodedLower,
+		encodedDigit,
+		encodedDash,
+		encodedUnderscore,
 	)
 }
