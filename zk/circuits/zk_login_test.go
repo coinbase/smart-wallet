@@ -16,10 +16,10 @@ import (
 func TestZkLogin(t *testing.T) {
 	assert := test.NewAssert(t)
 
-	// {"typ":"JWT","alg":"RSA","kid":"1234567890"}
+	// {"typ":"JWT","alg":"RS256","kid":"1234567890"}
 	jwtHeaderKidValue := `"1234567890"`
 	jwtHeader := fmt.Sprintf(
-		`{"typ":"JWT","alg":"RSA","kid":%s}`,
+		`{"typ":"JWT","alg":"RS256","kid":%s}`,
 		jwtHeaderKidValue,
 	)
 	jwtHeaderBase64 := base64.RawURLEncoding.EncodeToString([]byte(jwtHeader))
@@ -72,7 +72,7 @@ func TestZkLogin(t *testing.T) {
 			JwtPayload: make([]uints.U8, MaxJwtPayloadLen),
 		},
 		&ZkLoginCircuit{
-			// // Public inputs.
+			// Public inputs.
 			JwtHeaderKidValue: witnessJwtHeaderKidValue,
 			JwtHash:           jwtHash,
 			DerivedHash:       derivedHash,

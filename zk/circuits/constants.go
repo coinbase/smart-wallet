@@ -19,7 +19,7 @@ const (
 
 const (
 	ExpectedTypJson = `"typ":"JWT"`
-	ExpectedAlgJson = `"alg":"RSA"`
+	ExpectedAlgJson = `"alg":"RS256"`
 
 	ExpectedKidPrefixJson = `"kid":`
 

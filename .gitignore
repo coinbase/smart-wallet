@@ -17,3 +17,6 @@ docs/
 .VSCodeCounter/
 
 .certora_internal/
+
+# Circuit artifacts
+artifacts/
