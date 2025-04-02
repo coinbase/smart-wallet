@@ -9,9 +9,10 @@ import (
 
 type ZkLoginCircuit struct {
 	// Public inputs
-	JwtHeaderKidValue []uints.U8        `gnark:",public"`
-	DerivedHash       frontend.Variable `gnark:",public"`
-	JwtHash           frontend.Variable `gnark:",public"`
+	JwtHeaderKidValue    []uints.U8        `gnark:",public"`
+	DerivedHash          frontend.Variable `gnark:",public"`
+	JwtHash              frontend.Variable `gnark:",public"`
+	JwtPayloadNonceValue []uints.U8        `gnark:",public"`
 
 	// Private inputs
 	JwtHeader           []uints.U8
@@ -22,9 +23,10 @@ type ZkLoginCircuit struct {
 	TypOffset, AlgOffset   frontend.Variable
 	KidOffset, KidValueLen frontend.Variable
 
-	IssOffset, IssValueLen frontend.Variable
-	AudOffset, AudValueLen frontend.Variable
-	SubOffset, SubValueLen frontend.Variable
+	IssOffset, IssValueLen     frontend.Variable
+	AudOffset, AudValueLen     frontend.Variable
+	SubOffset, SubValueLen     frontend.Variable
+	NonceOffset, NonceValueLen frontend.Variable
 }
 
 func (c *ZkLoginCircuit) Define(api frontend.API) error {
@@ -33,34 +35,37 @@ func (c *ZkLoginCircuit) Define(api frontend.API) error {
 		return err
 	}
 
-	// 1. Verify the JWT content and extract the "iss", "aud" and "sub" fields.
-	jwtVerifier := NewJwtVerifier(api, field)
-	jwtVerifier.ProcessJwtHeader(
-		c.JwtHeader,
-		c.TypOffset, c.AlgOffset,
-		c.KidOffset, c.KidValueLen, c.JwtHeaderKidValue,
-	)
-
-	iss, aud, sub := jwtVerifier.ProcessJwtPayload(
-		c.JwtPayload,
-		c.IssOffset, c.IssValueLen,
-		c.AudOffset, c.AudValueLen,
-		c.SubOffset, c.SubValueLen,
-	)
-
-	// 2. Recompute the derived hash and compare it with the expected `DerivedHash`.
-	derivedHash := c.deriveHash(api, iss[:], aud[:], sub[:])
-	api.AssertIsEqual(derivedHash, c.DerivedHash)
-
-	// 3. Encode the JWT header and payload to base64.
+	// 1. Encode the JWT header and payload to base64.
 	base64Encoder := NewBase64Encoder(api, field)
 	encodedJwtHeader := base64Encoder.EncodeBase64URL(c.JwtHeader)
 	encodedJwtPayload := base64Encoder.EncodeBase64URL(c.JwtPayload)
 
-	// 4. Recompute the JWT hash and compare it with the expected `JwtHash`.
+	// 2. Recompute the JWT hash and compare it with the expected `JwtHash`.
 	packedJwt := c.packJwt(api, field, encodedJwtHeader, encodedJwtPayload)
 	jwtHash := c.jwtHash(api, packedJwt)
 	api.AssertIsEqual(jwtHash, c.JwtHash)
+
+	// 3. Verify the JWT content and extract the "iss", "aud" and "sub" fields.
+	jwtVerifier := NewJwtVerifier(api, field)
+	jwtVerifier.ProcessJwtHeader(
+		c.JwtHeader,
+		c.JwtHeaderKidValue,
+		c.TypOffset, c.AlgOffset,
+		c.KidOffset, c.KidValueLen,
+	)
+
+	iss, aud, sub := jwtVerifier.ProcessJwtPayload(
+		c.JwtPayload,
+		c.JwtPayloadNonceValue,
+		c.IssOffset, c.IssValueLen,
+		c.AudOffset, c.AudValueLen,
+		c.SubOffset, c.SubValueLen,
+		c.NonceOffset, c.NonceValueLen,
+	)
+
+	// 4. Recompute the derived hash and compare it with the expected `DerivedHash`.
+	derivedHash := c.deriveHash(api, iss[:], aud[:], sub[:])
+	api.AssertIsEqual(derivedHash, c.DerivedHash)
 
 	return nil
 }

@@ -16,6 +16,8 @@ import (
 func TestZkLogin(t *testing.T) {
 	assert := test.NewAssert(t)
 
+	newOwner := []byte("some_ethereum_address")
+
 	// {"typ":"JWT","alg":"RS256","kid":"1234567890"}
 	jwtHeaderKidValue := `"1234567890"`
 	jwtHeader := fmt.Sprintf(
@@ -24,17 +26,25 @@ func TestZkLogin(t *testing.T) {
 	)
 	jwtHeaderBase64 := base64.RawURLEncoding.EncodeToString([]byte(jwtHeader))
 
-	// {"iss":"google.com","aud":"csw.com","sub":"xenoliss"}
+	// {"iss":"google.com","aud":"csw.com","sub":"xenoliss","nonce":"c29tZV9ldGhlcmV1bV9hZGRyZXNz"}
 	jwtPayloadIssValue := `"google.com"`
 	jwtPayloadAudValue := `"csw.com"`
 	jwtPayloadSubValue := `"xenoliss"`
+	jwtPayloadNonceValue := fmt.Sprintf(`"%s"`, base64.RawURLEncoding.EncodeToString(newOwner))
 	jwtPayload := fmt.Sprintf(
-		`{"iss":%s,"aud":%s,"sub":%s}`,
+		`{"iss":%s,"aud":%s,"sub":%s,"nonce":%s}`,
 		jwtPayloadIssValue,
 		jwtPayloadAudValue,
 		jwtPayloadSubValue,
+		jwtPayloadNonceValue,
 	)
+	fmt.Println("JWT payload:", jwtPayload)
 	jwtPayloadBase64 := base64.RawURLEncoding.EncodeToString([]byte(jwtPayload))
+
+	witnessJwtPayloadNonceValue := make([]uints.U8, MaxJwtPayloadNonceLen)
+	for i := range jwtPayloadNonceValue {
+		witnessJwtPayloadNonceValue[i] = uints.NewU8(jwtPayloadNonceValue[i])
+	}
 
 	witnessJwtHeader := make([]uints.U8, MaxJwtHeaderLen)
 	for i := range jwtHeader {
@@ -65,7 +75,8 @@ func TestZkLogin(t *testing.T) {
 	assert.ProverSucceeded(
 		&ZkLoginCircuit{
 			// Set public inputs values.
-			JwtHeaderKidValue: make([]uints.U8, MaxJwtHeaderKidValueLen),
+			JwtHeaderKidValue:    make([]uints.U8, MaxJwtHeaderKidValueLen),
+			JwtPayloadNonceValue: make([]uints.U8, MaxJwtPayloadNonceLen),
 
 			// Set private inputs sizes.
 			JwtHeader:  make([]uints.U8, MaxJwtHeaderLen),
@@ -73,9 +84,10 @@ func TestZkLogin(t *testing.T) {
 		},
 		&ZkLoginCircuit{
 			// Public inputs.
-			JwtHeaderKidValue: witnessJwtHeaderKidValue,
-			JwtHash:           jwtHash,
-			DerivedHash:       derivedHash,
+			JwtHeaderKidValue:    witnessJwtHeaderKidValue,
+			JwtHash:              jwtHash,
+			DerivedHash:          derivedHash,
+			JwtPayloadNonceValue: witnessJwtPayloadNonceValue,
 
 			// Private inputs.
 			JwtHeader:           witnessJwtHeader,
@@ -88,12 +100,14 @@ func TestZkLogin(t *testing.T) {
 			KidOffset:   strings.Index(jwtHeader, `"kid"`),
 			KidValueLen: len(jwtHeaderKidValue),
 
-			IssOffset:   strings.Index(jwtPayload, `"iss"`),
-			IssValueLen: len(jwtPayloadIssValue),
-			AudOffset:   strings.Index(jwtPayload, `"aud"`),
-			AudValueLen: len(jwtPayloadAudValue),
-			SubOffset:   strings.Index(jwtPayload, `"sub"`),
-			SubValueLen: len(jwtPayloadSubValue),
+			IssOffset:     strings.Index(jwtPayload, `"iss"`),
+			IssValueLen:   len(jwtPayloadIssValue),
+			AudOffset:     strings.Index(jwtPayload, `"aud"`),
+			AudValueLen:   len(jwtPayloadAudValue),
+			SubOffset:     strings.Index(jwtPayload, `"sub"`),
+			SubValueLen:   len(jwtPayloadSubValue),
+			NonceOffset:   strings.Index(jwtPayload, `"nonce"`),
+			NonceValueLen: len(jwtPayloadNonceValue),
 		},
 		test.WithCurves(ecc.BN254),
 	)

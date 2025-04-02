@@ -19,9 +19,10 @@ type JwtVerifier struct {
 	kidPrefixLookup *logderivlookup.Table
 
 	// Payload lookup tables.
-	issPrefixLookup *logderivlookup.Table
-	audPrefixLookup *logderivlookup.Table
-	subPrefixLookup *logderivlookup.Table
+	issPrefixLookup   *logderivlookup.Table
+	audPrefixLookup   *logderivlookup.Table
+	subPrefixLookup   *logderivlookup.Table
+	noncePrefixLookup *logderivlookup.Table
 }
 
 func NewJwtVerifier(api frontend.API, field *uints.BinaryField[uints.U32]) *JwtVerifier {
@@ -55,6 +56,11 @@ func NewJwtVerifier(api frontend.API, field *uints.BinaryField[uints.U32]) *JwtV
 		subPrefixLookup.Insert(v)
 	}
 
+	noncePrefixLookup := logderivlookup.New(api)
+	for _, v := range ExpectedNoncePrefixJson {
+		noncePrefixLookup.Insert(v)
+	}
+
 	return &JwtVerifier{
 		api:   api,
 		field: field,
@@ -68,17 +74,18 @@ func NewJwtVerifier(api frontend.API, field *uints.BinaryField[uints.U32]) *JwtV
 		kidPrefixLookup: kidPrefixLookup,
 
 		// Payload lookup tables.
-		issPrefixLookup: issPrefixLookup,
-		audPrefixLookup: audPrefixLookup,
-		subPrefixLookup: subPrefixLookup,
+		issPrefixLookup:   issPrefixLookup,
+		audPrefixLookup:   audPrefixLookup,
+		subPrefixLookup:   subPrefixLookup,
+		noncePrefixLookup: noncePrefixLookup,
 	}
 }
 
 func (v *JwtVerifier) ProcessJwtHeader(
 	json []uints.U8,
+	expectedKidValue []uints.U8,
 	typeOffset, algOffset frontend.Variable,
 	kidOffset, kidValueLen frontend.Variable,
-	expectedKidValue []uints.U8,
 ) {
 	byteLenTyp := len(ExpectedTypJson)
 	endTyp := v.api.Add(typeOffset, byteLenTyp)
@@ -96,29 +103,30 @@ func (v *JwtVerifier) ProcessJwtHeader(
 	}
 
 	for i := range json {
-		// Check the `"typ":"JWT"`
+		// Check the `"typ":"JWT"`.
 		v.checkByte(json, v.typLookup, i, typeOffset, endTyp)
 		v.checkSeparator(json, i, endTyp)
 
-		// Check the `"alg":"ES256"`
+		// Check the `"alg":"ES256"`.
 		v.checkByte(json, v.algLookup, i, algOffset, endAlg)
 		v.checkSeparator(json, i, endAlg)
 
-		// Check the `"kid":`
+		// Check the `"kid":` prefix, value and separator.
 		v.checkByte(json, v.kidPrefixLookup, i, kidOffset, endKidPrefix)
-		v.checkSeparator(json, i, endKid)
-
-		// Check the "kid" value.
 		v.checkByte(json, kidValueLookup, i, endKidPrefix, endKid)
+		v.checkSeparator(json, i, endKid)
 	}
 }
 
 func (v *JwtVerifier) ProcessJwtPayload(
 	json []uints.U8,
+	expectedNonceValue []uints.U8,
 	issOffset, issValueLen frontend.Variable,
 	audOffset, audValueLen frontend.Variable,
 	subOffset, subValueLen frontend.Variable,
+	nonceOffset, nonceValueLen frontend.Variable,
 ) (iss []uints.U8, aud []uints.U8, sub []uints.U8) {
+
 	byteLenIssPrefix := len(ExpectedIssPrefixJson)
 	endIssPrefix := v.api.Add(issOffset, byteLenIssPrefix)
 	endIss := v.api.Add(endIssPrefix, issValueLen)
@@ -131,18 +139,32 @@ func (v *JwtVerifier) ProcessJwtPayload(
 	endSubPrefix := v.api.Add(subOffset, byteLenSubPrefix)
 	endSub := v.api.Add(endSubPrefix, subValueLen)
 
+	byteLenNoncePrefix := len(ExpectedNoncePrefixJson)
+	endNoncePrefix := v.api.Add(nonceOffset, byteLenNoncePrefix)
+	endNonce := v.api.Add(endNoncePrefix, nonceValueLen)
+
+	nonceValueLookup := logderivlookup.New(v.api)
+	for _, v := range expectedNonceValue {
+		nonceValueLookup.Insert(v.Val)
+	}
+
 	for i := range json {
-		// Check and extract the "iss" value.
+		// Check the "iss" prefix and separator.
 		v.checkByte(json, v.issPrefixLookup, i, issOffset, endIssPrefix)
 		v.checkSeparator(json, i, endIss)
 
-		// Check and extract the "aud" value.
+		// Check the "aud" prefix and separator.
 		v.checkByte(json, v.audPrefixLookup, i, audOffset, endAudPrefix)
 		v.checkSeparator(json, i, endAud)
 
-		// Check and extract the "sub" value.
+		// Check the "sub" prefix and separator.
 		v.checkByte(json, v.subPrefixLookup, i, subOffset, endSubPrefix)
 		v.checkSeparator(json, i, endSub)
+
+		// Check the "nonce" prefix, value and separator.
+		v.checkByte(json, v.noncePrefixLookup, i, nonceOffset, endNoncePrefix)
+		v.checkByte(json, nonceValueLookup, i, endNoncePrefix, endNonce)
+		v.checkSeparator(json, i, endNonce)
 	}
 
 	return v.extractValues(

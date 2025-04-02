@@ -21,6 +21,9 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+// {"typ":"JWT","alg":"RS256","kid":"1234567890"}
+// {"iss":"google.com","aud":"csw.com","sub":"xenoliss","nonce":"c29tZV9ldGhlcmV1bV9hZGRyZXNz"}
+
 var commands = []*cli.Command{
 	{
 		Name:  "compile",
@@ -128,7 +131,8 @@ func main() {
 func CompileCircuit(cCtx *cli.Context) error {
 	zkCircuit := circuits.ZkLoginCircuit{
 		// Set public inputs values.
-		JwtHeaderKidValue: make([]uints.U8, circuits.MaxJwtHeaderKidValueLen),
+		JwtHeaderKidValue:    make([]uints.U8, circuits.MaxJwtHeaderKidValueLen),
+		JwtPayloadNonceValue: make([]uints.U8, circuits.MaxJwtPayloadNonceLen),
 
 		// Set private inputs sizes.
 		JwtHeader:  make([]uints.U8, circuits.MaxJwtHeaderLen),
@@ -232,7 +236,7 @@ func GenerateProof(cCtx *cli.Context) error {
 
 	// Process the payload.
 	payloadB64 := sections[1]
-	payloadJSON, issOffset, issValueLen, audOffset, audValueLen, subOffset, subValueLen, issValue, audValue, subValue, err := processJwtPayload(payloadB64)
+	payloadJSON, issOffset, issValueLen, audOffset, audValueLen, subOffset, subValueLen, nonceOffset, nonceValueLen, issValue, audValue, subValue, nonceValue, err := processJwtPayload(payloadB64)
 	if err != nil {
 		return fmt.Errorf("failed to process JWT payload: %w", err)
 	}
@@ -254,10 +258,10 @@ func GenerateProof(cCtx *cli.Context) error {
 	witness, err := generateWitness(
 		headerJSON, payloadJSON,
 		len(headerB64), len(payloadB64),
-		kidValue,
+		kidValue, nonceValue,
 		jwtHash, derivedHash,
 		typOffset, algOffset, kidOffset, kidValueLen,
-		issOffset, issValueLen, audOffset, audValueLen, subOffset, subValueLen,
+		issOffset, issValueLen, audOffset, audValueLen, subOffset, subValueLen, nonceOffset, nonceValueLen,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to generate witness: %w", err)
@@ -334,27 +338,34 @@ func processJwtHeader(headerB64 string) (headerJSON []byte, typOffset, algOffset
 	return headerJSON, typOffset, algOffset, kidOffset, kidValueLen, kid, nil
 }
 
-func processJwtPayload(payloadB64 string) (payloadJSON []byte, issOffset, issValueLen, audOffset, audValueLen, subOffset, subValueLen int, issValue, audValue, subValue []byte, err error) {
+func processJwtPayload(payloadB64 string) (payloadJSON []byte, issOffset, issValueLen, audOffset, audValueLen, subOffset, subValueLen, nonceOffset, nonceValueLen int, issValue, audValue, subValue, nonceValue []byte, err error) {
 	payloadJSON, err = base64.RawURLEncoding.DecodeString(payloadB64)
 	if err != nil {
-		return nil, 0, 0, 0, 0, 0, 0, nil, nil, nil, fmt.Errorf("failed to decode payload: %w", err)
+		return nil, 0, 0, 0, 0, 0, 0, 0, 0, nil, nil, nil, nil, fmt.Errorf("failed to decode payload: %w", err)
 	}
 
 	var payload map[string]json.RawMessage
 	if err := json.Unmarshal(payloadJSON, &payload); err != nil {
-		return nil, 0, 0, 0, 0, 0, 0, nil, nil, nil, fmt.Errorf("failed to parse JWT payload: %w", err)
+		return nil, 0, 0, 0, 0, 0, 0, 0, 0, nil, nil, nil, nil, fmt.Errorf("failed to parse JWT payload: %w", err)
 	}
 
 	issOffset = strings.Index(string(payloadJSON), `"iss"`)
-	issValueLen = len(payload["iss"])
+	issValue = payload["iss"]
+	issValueLen = len(issValue)
 
 	audOffset = strings.Index(string(payloadJSON), `"aud"`)
-	audValueLen = len(payload["aud"])
+	audValue = payload["aud"]
+	audValueLen = len(audValue)
 
 	subOffset = strings.Index(string(payloadJSON), `"sub"`)
-	subValueLen = len(payload["sub"])
+	subValue = payload["sub"]
+	subValueLen = len(subValue)
 
-	return payloadJSON, issOffset, issValueLen, audOffset, audValueLen, subOffset, subValueLen, payload["iss"], payload["aud"], payload["sub"], nil
+	nonceOffset = strings.Index(string(payloadJSON), `"nonce"`)
+	nonceValue = payload["nonce"]
+	nonceValueLen = len(nonceValue)
+
+	return payloadJSON, issOffset, issValueLen, audOffset, audValueLen, subOffset, subValueLen, nonceOffset, nonceValueLen, issValue, audValue, subValue, nonceValue, nil
 }
 
 func generateWitness(
@@ -362,13 +373,23 @@ func generateWitness(
 	lenJwtHeaderBase64, lenJwtPayloadBase64 int,
 
 	// Public inputs.
-	kidValue []byte,
+	kidValue, nonceValue []byte,
 	jwtHash, derivedHash *big.Int,
 
 	// Private inputs.
 	typOffset, algOffset, kidOffset, kidValueLen int,
-	issOffset, issValueLen, audOffset, audValueLen, subOffset, subValueLen int,
+	issOffset, issValueLen, audOffset, audValueLen, subOffset, subValueLen, nonceOffset, nonceValueLen int,
 ) (witness.Witness, error) {
+
+	witnessJwtHeaderKidValue := make([]uints.U8, circuits.MaxJwtHeaderKidValueLen)
+	for i := range kidValue {
+		witnessJwtHeaderKidValue[i] = uints.NewU8(kidValue[i])
+	}
+
+	witnessJwtPayloadNonceValue := make([]uints.U8, circuits.MaxJwtPayloadNonceLen)
+	for i := range nonceValue {
+		witnessJwtPayloadNonceValue[i] = uints.NewU8(nonceValue[i])
+	}
 
 	witnessJwtHeader := make([]uints.U8, circuits.MaxJwtHeaderLen)
 	for i := range jwtHeaderJson {
@@ -380,16 +401,12 @@ func generateWitness(
 		witnessJwtPayload[i] = uints.NewU8(jwtPayloadJson[i])
 	}
 
-	witnessJwtHeaderKidValue := make([]uints.U8, circuits.MaxJwtHeaderKidValueLen)
-	for i := range kidValue {
-		witnessJwtHeaderKidValue[i] = uints.NewU8(kidValue[i])
-	}
-
 	assignment := &circuits.ZkLoginCircuit{
 		// // Public inputs.
-		JwtHeaderKidValue: witnessJwtHeaderKidValue,
-		JwtHash:           jwtHash,
-		DerivedHash:       derivedHash,
+		JwtHeaderKidValue:    witnessJwtHeaderKidValue,
+		JwtHash:              jwtHash,
+		DerivedHash:          derivedHash,
+		JwtPayloadNonceValue: witnessJwtPayloadNonceValue,
 
 		// Private inputs.
 		JwtHeader:           witnessJwtHeader,
@@ -402,12 +419,14 @@ func generateWitness(
 		KidOffset:   kidOffset,
 		KidValueLen: kidValueLen,
 
-		IssOffset:   issOffset,
-		IssValueLen: issValueLen,
-		AudOffset:   audOffset,
-		AudValueLen: audValueLen,
-		SubOffset:   subOffset,
-		SubValueLen: subValueLen,
+		IssOffset:     issOffset,
+		IssValueLen:   issValueLen,
+		AudOffset:     audOffset,
+		AudValueLen:   audValueLen,
+		SubOffset:     subOffset,
+		SubValueLen:   subValueLen,
+		NonceOffset:   nonceOffset,
+		NonceValueLen: nonceValueLen,
 	}
 
 	witness, err := frontend.NewWitness(assignment, ecc.BN254.ScalarField())
