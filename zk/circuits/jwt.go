@@ -2,273 +2,256 @@ package circuits
 
 import (
 	"github.com/consensys/gnark/frontend"
+	"github.com/consensys/gnark/std/lookup/logderivlookup"
 	"github.com/consensys/gnark/std/math/uints"
 )
 
-var expectedTypU8 [len(ExpectedTypJson)]uints.U8
-var expectedAlgU8 [len(ExpectedAlgJson)]uints.U8
-var expectedKidPrefixU8 [len(ExpectedKidPrefixJson)]uints.U8
+type JwtVerifier struct {
+	api   frontend.API
+	field *uints.BinaryField[uints.U32]
 
-var expectedIssPrefixU8 [len(ExpectedIssPrefixJson)]uints.U8
-var expectedAudPrefixU8 [len(ExpectedAudPrefixJson)]uints.U8
-var expectedSubPrefixU8 [len(ExpectedSubPrefixJson)]uints.U8
+	commaU8      uints.U8
+	closeBraceU8 uints.U8
 
-var commaU8 uints.U8
-var closeBraceU8 uints.U8
+	// Header lookup tables.
+	typLookup       *logderivlookup.Table
+	algLookup       *logderivlookup.Table
+	kidPrefixLookup *logderivlookup.Table
 
-func init() {
-	for i := range ExpectedTypJson {
-		expectedTypU8[i] = uints.NewU8(uint8(ExpectedTypJson[i]))
-		expectedAlgU8[i] = uints.NewU8(uint8(ExpectedAlgJson[i]))
-	}
-
-	for i := range ExpectedKidPrefixJson {
-		expectedKidPrefixU8[i] = uints.NewU8(uint8(ExpectedKidPrefixJson[i]))
-		expectedIssPrefixU8[i] = uints.NewU8(uint8(ExpectedIssPrefixJson[i]))
-		expectedAudPrefixU8[i] = uints.NewU8(uint8(ExpectedAudPrefixJson[i]))
-		expectedSubPrefixU8[i] = uints.NewU8(uint8(ExpectedSubPrefixJson[i]))
-	}
-
-	commaU8 = uints.NewU8(',')
-	closeBraceU8 = uints.NewU8('}')
+	// Payload lookup tables.
+	issPrefixLookup *logderivlookup.Table
+	audPrefixLookup *logderivlookup.Table
+	subPrefixLookup *logderivlookup.Table
 }
 
-func ProcessJwtHeader(
-	api frontend.API, json []uints.U8,
+func NewJwtVerifier(api frontend.API, field *uints.BinaryField[uints.U32]) *JwtVerifier {
+	typLookup := logderivlookup.New(api)
+	for _, v := range ExpectedTypJson {
+		typLookup.Insert(v)
+	}
+
+	algLookup := logderivlookup.New(api)
+	for _, v := range ExpectedAlgJson {
+		algLookup.Insert(v)
+	}
+
+	kidPrefixLookup := logderivlookup.New(api)
+	for _, v := range ExpectedKidPrefixJson {
+		kidPrefixLookup.Insert(v)
+	}
+
+	issPrefixLookup := logderivlookup.New(api)
+	for _, v := range ExpectedIssPrefixJson {
+		issPrefixLookup.Insert(v)
+	}
+
+	audPrefixLookup := logderivlookup.New(api)
+	for _, v := range ExpectedAudPrefixJson {
+		audPrefixLookup.Insert(v)
+	}
+
+	subPrefixLookup := logderivlookup.New(api)
+	for _, v := range ExpectedSubPrefixJson {
+		subPrefixLookup.Insert(v)
+	}
+
+	return &JwtVerifier{
+		api:   api,
+		field: field,
+
+		commaU8:      uints.NewU8(','),
+		closeBraceU8: uints.NewU8('}'),
+
+		// Header lookup tables.
+		typLookup:       typLookup,
+		algLookup:       algLookup,
+		kidPrefixLookup: kidPrefixLookup,
+
+		// Payload lookup tables.
+		issPrefixLookup: issPrefixLookup,
+		audPrefixLookup: audPrefixLookup,
+		subPrefixLookup: subPrefixLookup,
+	}
+}
+
+func (v *JwtVerifier) ProcessJwtHeader(
+	json []uints.U8,
 	typeOffset, algOffset frontend.Variable,
 	kidOffset, kidValueLen frontend.Variable,
 	expectedKidValue []uints.U8,
 ) {
-	byteLenTyp := len(expectedTypU8)
-	endTyp := api.Add(typeOffset, byteLenTyp)
+	byteLenTyp := len(ExpectedTypJson)
+	endTyp := v.api.Add(typeOffset, byteLenTyp)
 
-	byteLenAlg := len(expectedAlgU8)
-	endAlg := api.Add(algOffset, byteLenAlg)
+	byteLenAlg := len(ExpectedAlgJson)
+	endAlg := v.api.Add(algOffset, byteLenAlg)
 
-	byteLenKidPrefix := len(expectedKidPrefixU8)
-	endKidPrefix := api.Add(kidOffset, byteLenKidPrefix)
-	endKid := api.Add(endKidPrefix, kidValueLen)
+	byteLenKidPrefix := len(ExpectedKidPrefixJson)
+	endKidPrefix := v.api.Add(kidOffset, byteLenKidPrefix)
+	endKid := v.api.Add(endKidPrefix, kidValueLen)
+
+	kidValueLookup := logderivlookup.New(v.api)
+	for _, v := range expectedKidValue {
+		kidValueLookup.Insert(v.Val)
+	}
 
 	for i := range json {
 		// Check the `"typ":"JWT"`
-		checkByte(api, json, expectedTypU8[:], i, typeOffset, endTyp)
-		checkSeparator(api, json, i, endTyp)
+		v.checkByte(json, v.typLookup, i, typeOffset, endTyp)
+		v.checkSeparator(json, i, endTyp)
 
 		// Check the `"alg":"ES256"`
-		checkByte(api, json, expectedAlgU8[:], i, algOffset, endAlg)
-		checkSeparator(api, json, i, endAlg)
+		v.checkByte(json, v.algLookup, i, algOffset, endAlg)
+		v.checkSeparator(json, i, endAlg)
 
 		// Check the `"kid":`
-		checkByte(api, json, expectedKidPrefixU8[:], i, kidOffset, endKidPrefix)
-		checkSeparator(api, json, i, endKid)
+		v.checkByte(json, v.kidPrefixLookup, i, kidOffset, endKidPrefix)
+		v.checkSeparator(json, i, endKid)
 
 		// Check the "kid" value.
-		checkByte(api, json, expectedKidValue[:], i, endKidPrefix, endKid)
+		v.checkByte(json, kidValueLookup, i, endKidPrefix, endKid)
 	}
 }
 
-func ProcessJwtPayload(
-	api frontend.API, field *uints.BinaryField[uints.U32], json []uints.U8,
+func (v *JwtVerifier) ProcessJwtPayload(
+	json []uints.U8,
 	issOffset, issValueLen frontend.Variable,
 	audOffset, audValueLen frontend.Variable,
 	subOffset, subValueLen frontend.Variable,
-) (iss [MaxJwtPayloadIssLen]uints.U8, aud [MaxJwtPayloadAudLen]uints.U8, sub [MaxJwtPayloadSubLen]uints.U8) {
+) (iss []uints.U8, aud []uints.U8, sub []uints.U8) {
+	byteLenIssPrefix := len(ExpectedIssPrefixJson)
+	endIssPrefix := v.api.Add(issOffset, byteLenIssPrefix)
+	endIss := v.api.Add(endIssPrefix, issValueLen)
 
-	byteLenIssPrefix := len(expectedIssPrefixU8)
-	endIssPrefix := api.Add(issOffset, byteLenIssPrefix)
-	endIss := api.Add(endIssPrefix, issValueLen)
-	api.Println("issOffset", issOffset)
-	api.Println("issValueLen", issValueLen)
-	api.Println("endIssPrefix", endIssPrefix)
-	api.Println("endIss", endIss)
+	byteLenAudPrefix := len(ExpectedAudPrefixJson)
+	endAudPrefix := v.api.Add(audOffset, byteLenAudPrefix)
+	endAud := v.api.Add(endAudPrefix, audValueLen)
 
-	byteLenAudPrefix := len(expectedAudPrefixU8)
-	endAudPrefix := api.Add(audOffset, byteLenAudPrefix)
-	endAud := api.Add(endAudPrefix, audValueLen)
-	api.Println("endAud", endAud)
-
-	byteLenSubPrefix := len(expectedSubPrefixU8)
-	endSubPrefix := api.Add(subOffset, byteLenSubPrefix)
-	endSub := api.Add(endSubPrefix, subValueLen)
-	api.Println("endSub", endSub)
-
-	for i := range iss {
-		iss[i] = uints.NewU8(0)
-	}
-
-	for i := range aud {
-		aud[i] = uints.NewU8(0)
-	}
-
-	for i := range sub {
-		sub[i] = uints.NewU8(0)
-	}
+	byteLenSubPrefix := len(ExpectedSubPrefixJson)
+	endSubPrefix := v.api.Add(subOffset, byteLenSubPrefix)
+	endSub := v.api.Add(endSubPrefix, subValueLen)
 
 	for i := range json {
 		// Check and extract the "iss" value.
-		checkByte(api, json, expectedIssPrefixU8[:], i, issOffset, endIssPrefix)
-		checkSeparator(api, json, i, endIss)
-		extractByte(api, field, json, iss[:], i, endIssPrefix, endIss)
+		v.checkByte(json, v.issPrefixLookup, i, issOffset, endIssPrefix)
+		v.checkSeparator(json, i, endIss)
 
 		// Check and extract the "aud" value.
-		checkByte(api, json, expectedAudPrefixU8[:], i, audOffset, endAudPrefix)
-		extractByte(api, field, json, aud[:], i, endAudPrefix, endAud)
-		checkSeparator(api, json, i, endAud)
+		v.checkByte(json, v.audPrefixLookup, i, audOffset, endAudPrefix)
+		v.checkSeparator(json, i, endAud)
 
 		// Check and extract the "sub" value.
-		checkByte(api, json, expectedSubPrefixU8[:], i, subOffset, endSubPrefix)
-		extractByte(api, field, json, sub[:], i, endSubPrefix, endSub)
-		checkSeparator(api, json, i, endSub)
+		v.checkByte(json, v.subPrefixLookup, i, subOffset, endSubPrefix)
+		v.checkSeparator(json, i, endSub)
 	}
 
-	return sub, iss, aud
-}
-
-func PackJwt(
-	api frontend.API,
-	field *uints.BinaryField[uints.U32],
-	header []uints.U8,
-	payload []uints.U8,
-	jwtHeaderBase64Len frontend.Variable,
-) (res []uints.U8) {
-	res = make([]uints.U8, MaxJwtBase64Len)
-	for i := range res {
-		isHeader := lessThan(api, 16, i, jwtHeaderBase64Len)
-		isDot := equal(api, i, jwtHeaderBase64Len)
-		isPayload := api.Mul(
-			not(api, isHeader),
-			not(api, isDot),
-		)
-
-		headerIndex := i
-		payloadIndex := api.Sub(i, api.Add(jwtHeaderBase64Len, 1)) // +1 for the dot.
-
-		v := api.Add(
-			api.Mul(isHeader, byteAt(api, header, headerIndex)),
-			api.Mul(isDot, '.'),
-			api.Mul(isPayload, byteAt(api, payload, payloadIndex)),
-		)
-
-		res[i] = field.ByteValueOf(v)
-	}
-
-	return res
-}
-
-func checkByte(
-	api frontend.API,
-	json []uints.U8,
-	expectedBytes []uints.U8,
-	i int,
-	rangeStart, rangeEnd frontend.Variable,
-) {
-	// Get the byte from the JWT JSON.
-	b := json[i].Val
-
-	// rangeStart <= i < rangeEnd
-	shouldParse := api.Mul(
-		not(api, lessThan(api, 16, i, rangeStart)), // i >= rangeStart
-		lessThan(api, 16, i, rangeEnd),             // i < rangeEnd
-	)
-
-	// Get the corresponding expected byte from the `expected` bytes.
-	expectedByte := byteAt(
-		api,
-		expectedBytes,
-		api.Sub(i, rangeStart), // NOTE: It is fine to underflow here.
-	)
-
-	// assert(shouldParse == 0 || b == expectedByte)
-	api.AssertIsDifferent(
-		0,
-		api.Add(
-			equal(api, shouldParse, 0),
-			equal(api, b, expectedByte),
-		),
+	return v.extractValues(
+		json,
+		endIssPrefix, issValueLen,
+		endAudPrefix, audValueLen,
+		endSubPrefix, subValueLen,
 	)
 }
 
-func checkSeparator(
-	api frontend.API,
+func (v *JwtVerifier) checkSeparator(
 	json []uints.U8,
 	i int,
 	end frontend.Variable,
 ) {
 	// Get the byte from the JWT JSON.
 	b := json[i].Val
-	api.Println("b", b)
 
 	// i == end
-	shouldBeSeparator := equal(api, i, end)
-	api.Println("shouldBeSeparator", shouldBeSeparator)
+	shouldBeSeparator := equal(v.api, i, end)
 
 	// assert(isSeparator == 0 || (b == commaU8 || b == closeBraceU8))
-	api.AssertIsDifferent(
+	v.api.AssertIsDifferent(
 		0,
-		api.Add(
-			equal(api, shouldBeSeparator, 0),
-			api.Add(
-				equal(api, b, commaU8.Val),
-				equal(api, b, closeBraceU8.Val),
+		v.api.Add(
+			equal(v.api, shouldBeSeparator, 0),
+			v.api.Add(
+				equal(v.api, b, v.commaU8.Val),
+				equal(v.api, b, v.closeBraceU8.Val),
 			),
 		),
 	)
 }
 
-func extractByte(
-	api frontend.API,
-	field *uints.BinaryField[uints.U32],
-	src []uints.U8,
-	dst []uints.U8,
+func (v *JwtVerifier) checkByte(
+	json []uints.U8,
+	lookup *logderivlookup.Table,
 	i int,
 	rangeStart, rangeEnd frontend.Variable,
 ) {
-	// Get the byte from the `src` slice.
-	b := src[i].Val
+	// Get the byte from the JWT JSON.
+	b := json[i].Val
 
 	// rangeStart <= i < rangeEnd
-	shouldExtract := api.Mul(
-		not(api, lessThan(api, 16, i, rangeStart)), // i >= rangeStart
-		lessThan(api, 16, i, rangeEnd),             // i < rangeEnd
+	shouldParse := v.api.Mul(
+		not(v.api, lessThan(v.api, 16, i, rangeStart)), // i >= rangeStart
+		lessThan(v.api, 16, i, rangeEnd),               // i < rangeEnd
 	)
 
-	// The index to write the byte to in the `dst` slice.
-	writeIndex := api.Sub(i, rangeStart) // NOTE: It is fine to underflow here.
+	// Get the corresponding expected byte from the lookup table.
+	expectedByte := lookup.Lookup(
+		v.api.Mul(
+			shouldParse,
+			v.api.Sub(i, rangeStart), // NOTE: It is fine to underflow here.
+		),
+	)[0]
 
-	for i := range dst {
-		dst[i] = field.ByteValueOf(
-			api.Add(
-				dst[i].Val,
-				api.Mul(
-					shouldExtract,
-					api.Mul(
-						equal(api, i, writeIndex),
-						b,
-					),
-				),
-			),
-		)
-	}
+	// assert(shouldParse == 0 || b == expectedByte)
+	v.api.AssertIsDifferent(
+		0,
+		v.api.Add(
+			equal(v.api, shouldParse, 0),
+			equal(v.api, b, expectedByte),
+		),
+	)
 }
 
-// byteAt returns `bytes[atIndex]`. NOTE: If `atIndex` is out of bounds, it will return 0.
-func byteAt(
-	api frontend.API,
-	bytes []uints.U8,
-	atIndex frontend.Variable,
-) frontend.Variable {
-
-	b := frontend.Variable(0)
-
-	for i := range bytes {
-		b = api.Add(
-			b,
-			api.Mul(
-				equal(api, atIndex, i),
-				bytes[i].Val,
-			),
-		)
+func (v *JwtVerifier) extractValues(
+	json []uints.U8,
+	issOffset, issValueLen frontend.Variable,
+	audOffset, audValueLen frontend.Variable,
+	subOffset, subValueLen frontend.Variable,
+) (iss []uints.U8, aud []uints.U8, sub []uints.U8) {
+	// Insert all the values in the lookup table.
+	valueExtractionLookup := logderivlookup.New(v.api)
+	for i := range json {
+		valueExtractionLookup.Insert(json[i].Val)
 	}
 
-	return b
+	// Extract the "iss", "aud", and "sub" values.
+	iss = make([]uints.U8, MaxJwtPayloadIssLen)
+	aud = make([]uints.U8, MaxJwtPayloadAudLen)
+	sub = make([]uints.U8, MaxJwtPayloadSubLen)
+
+	v.extractValue(valueExtractionLookup, issOffset, issValueLen, iss)
+	v.extractValue(valueExtractionLookup, audOffset, audValueLen, aud)
+	v.extractValue(valueExtractionLookup, subOffset, subValueLen, sub)
+
+	return iss, aud, sub
+}
+
+func (v *JwtVerifier) extractValue(
+	valueExtractionLookup *logderivlookup.Table,
+	offset frontend.Variable,
+	length frontend.Variable,
+	dst []uints.U8,
+) {
+	for i := range dst {
+		mask := lessThan(v.api, 8, i, length)
+		val := v.api.Mul(
+			mask,
+			valueExtractionLookup.Lookup(
+				v.api.Add(
+					offset,
+					i,
+				),
+			)[0],
+		)
+
+		dst[i] = v.field.ByteValueOf(val)
+	}
 }

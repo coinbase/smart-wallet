@@ -5,101 +5,49 @@ import (
 	"github.com/consensys/gnark/std/math/uints"
 )
 
-// decodeBase64URL decodes a base64url encoded string into a slice of uint8.
-// The input is assumed to be properly base64url encoded and thus MUST be a 4-bytes aligned.
-// This function does not error on invalid characters and will simply set the corresponding byte to 0.
-func DecodeBase64URL(
-	api frontend.API,
-	field *uints.BinaryField[uints.U32],
-	values []uints.U8,
-) (res []uints.U8) {
-	// The input is assumed to be properly base64url encoded and thus MUST be a 4-bytes aligned.
-	for i := range len(values) / 4 {
-		first := values[i*4].Val
-		second := values[i*4+1].Val
-		third := values[i*4+2].Val
-		fourth := values[i*4+3].Val
-		firstDecoded := decodeValue(api, first)
-		secondDecoded := decodeValue(api, second)
-		thirdDecoded := decodeValue(api, third)
-		fourthDecoded := decodeValue(api, fourth)
+// // Base64URLEncoding maps base64 indices to their corresponding ASCII values
+// var base64URLEncoding = map[int]int{
+// 	// 0-25 => A-Z (65-90)
+// 	0: 65, 1: 66, 2: 67, 3: 68, 4: 69, 5: 70, 6: 71, 7: 72, 8: 73, 9: 74,
+// 	10: 75, 11: 76, 12: 77, 13: 78, 14: 79, 15: 80, 16: 81, 17: 82, 18: 83, 19: 84,
+// 	20: 85, 21: 86, 22: 87, 23: 88, 24: 89, 25: 90,
+// 	// 26-51 => a-z (97-122)
+// 	26: 97, 27: 98, 28: 99, 29: 100, 30: 101, 31: 102, 32: 103, 33: 104, 34: 105, 35: 106,
+// 	36: 107, 37: 108, 38: 109, 39: 110, 40: 111, 41: 112, 42: 113, 43: 114, 44: 115, 45: 116,
+// 	46: 117, 47: 118, 48: 119, 49: 120, 50: 121, 51: 122,
+// 	// 52-61 => 0-9 (48-57)
+// 	52: 48, 53: 49, 54: 50, 55: 51, 56: 52, 57: 53, 58: 54, 59: 55, 60: 56, 61: 57,
+// 	// Special characters
+// 	62: 45, // - (dash)
+// 	63: 95, // _ (underscore)
+// }
 
-		firstDecodedBin := api.ToBinary(firstDecoded, 8)
-		secondDecodedBin := api.ToBinary(secondDecoded, 8)
-		thirdDecodedBin := api.ToBinary(thirdDecoded, 8)
-		fourthDecodedBin := api.ToBinary(fourthDecoded, 8)
+type Base64Encoder struct {
+	api   frontend.API
+	field *uints.BinaryField[uints.U32]
+	// lookup *logderivlookup.Table
+}
 
-		aBin := append(secondDecodedBin[4:6], firstDecodedBin[0:6]...)
-		bBin := append(thirdDecodedBin[2:6], secondDecodedBin[0:4]...)
-		cBin := append(fourthDecodedBin[0:6], thirdDecodedBin[0:2]...)
+func NewBase64Encoder(api frontend.API, field *uints.BinaryField[uints.U32]) *Base64Encoder {
+	// lookup := logderivlookup.New(api)
+	// for _, v := range base64URLEncoding {
+	// 	lookup.Insert(v)
+	// }
 
-		res = append(res,
-			field.ByteValueOf(api.FromBinary(aBin...)),
-			field.ByteValueOf(api.FromBinary(bBin...)),
-			field.ByteValueOf(api.FromBinary(cBin...)),
-		)
+	return &Base64Encoder{
+		api:   api,
+		field: field,
+		// lookup: lookup,
 	}
-
-	return res
 }
 
-func decodeValue(api frontend.API, n frontend.Variable) (res frontend.Variable) {
-	// 45 (-)
-	// 48->57 (0-9)
-	// 61 (=)
-	// 65->90 (A-Z)
-	// 97->122 (a-z)
-	// 95 (_) => 63
-	isDash := equal(api, n, 45)
-	isDigit := api.Mul(
-		not(api, lessThan(api, 8, n, 48)), // not below 48
-		lessThan(api, 8, n, 58),           // not above 57
-	)
-	// isEqual := equal(api, n, 61)
-	isUpper := api.Mul(
-		not(api, lessThan(api, 8, n, 65)), // not below 65
-		lessThan(api, 8, n, 91),           // not above 90
-	)
-	isLower := api.Mul(
-		not(api, lessThan(api, 8, n, 97)), // not below 97
-		lessThan(api, 8, n, 123),          // not above 122
-	)
-	isUnderscore := equal(api, n, 95)
-
-	// 45 (-) => 62
-	// 48->57 (0-9) => 52->61
-	// 61 (=) => 0
-	// 65->90 (A-Z) => 0->25
-	// 97->122 (a-z) => 26->51
-	// 95 (_) => 63
-	decodedDash := api.Mul(isDash, 62)
-	decodedDigit := api.Mul(isDigit, api.Add(n, 4))
-	// decodedEqual := api.Mul(isEqual, 0)
-	decodedUpper := api.Mul(isUpper, api.Sub(n, 65))
-	decodedLower := api.Mul(isLower, api.Sub(n, 71))
-	decodedUnderscore := api.Mul(isUnderscore, 63)
-
-	return api.Add(
-		decodedDash,
-		decodedDigit,
-		// decodedEqual,
-		decodedUpper,
-		decodedLower,
-		decodedUnderscore,
-	)
-}
-
-func EncodeBase64URL(
-	api frontend.API,
-	field *uints.BinaryField[uints.U32],
-	bytes []uints.U8,
-) (res []uints.U8) {
+func (e *Base64Encoder) EncodeBase64URL(bytes []uints.U8) (res []uints.U8) {
 	bitLen := len(bytes) * 8
 
 	// Loop over the input bytes and store them in big endian (msb first)
-	bins := make([]frontend.Variable, 0, bitLen)
+	var bins []frontend.Variable
 	for _, value := range bytes {
-		bin := api.ToBinary(value.Val, 8)
+		bin := e.api.ToBinary(value.Val, 8)
 		for i := range 8 {
 			bins = append(bins, bin[7-i])
 		}
@@ -111,9 +59,9 @@ func EncodeBase64URL(
 		for j := range 6 {
 			bitsForValue = append(bitsForValue, bins[i+(5-j)])
 		}
-		v := api.FromBinary(bitsForValue...)
-		encoded := encodeValue(api, v)
-		res = append(res, field.ByteValueOf(encoded))
+		v := e.api.FromBinary(bitsForValue...)
+		encoded := encodeValue(e.api, v)
+		res = append(res, e.field.ByteValueOf(encoded))
 	}
 
 	return res
