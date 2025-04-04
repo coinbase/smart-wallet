@@ -4,8 +4,8 @@ const (
 
 	// JWT len must be multiple of 3bytes (24 bits) because divisible by both 6 and 8 bits.
 	// This make encoding to base64 easier.
-	MaxJwtPayloadJsonLen = 1200
-	maxJwtHeaderJsonLen  = 180
+	MaxJwtPayloadJsonLen = 600
+	maxJwtHeaderJsonLen  = 120
 
 	MaxIssLen   = 64 // Likely too small for Microsoft.
 	MaxAudLen   = 64
@@ -21,11 +21,6 @@ const (
 )
 
 const (
-	ExpectedTypJson = `"typ":"JWT"`
-	ExpectedAlgJson = `"alg":"RS256"`
-
-	ExpectedKidPrefixJson = `"kid":`
-
 	ExpectedIssPrefixJson   = `"iss":`
 	ExpectedAudPrefixJson   = `"aud":`
 	ExpectedSubPrefixJson   = `"sub":`
