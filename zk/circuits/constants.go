@@ -4,18 +4,17 @@ const (
 
 	// JWT len must be multiple of 3bytes (24 bits) because divisible by both 6 and 8 bits.
 	// This make encoding to base64 easier.
-	MaxJwtHeaderLen  = 180
-	MaxJwtPayloadLen = 1200
+	MaxJwtPayloadJsonLen = 1200
+	maxJwtHeaderJsonLen  = 180
 
-	MaxJwtHeaderKidValueLen = 64 // Google uses thumbprint which is ~40 chars
-	MaxJwtPayloadIssLen     = 64 // Likely too small for Microsoft.
-	MaxJwtPayloadAudLen     = 64
-	MaxJwtPayloadSubLen     = 64
-	MaxJwtPayloadNonceLen   = 86 // (64 * 8 / 6)
+	MaxIssLen   = 64 // Likely too small for Microsoft.
+	MaxAudLen   = 64
+	MaxSubLen   = 64
+	MaxNonceLen = 86 // (64 * 8 / 6)
 
 	// Max length of the base64 encoded JWT "<header>.<payload>".
-	MaxJwtHeaderLenBase64  = MaxJwtHeaderLen * 8 / 6
-	MaxJwtPayloadLenBase64 = MaxJwtPayloadLen * 8 / 6
+	MaxJwtHeaderLenBase64  = maxJwtHeaderJsonLen * 8 / 6
+	MaxJwtPayloadLenBase64 = MaxJwtPayloadJsonLen * 8 / 6
 	MaxJwtLenBase64        = MaxJwtHeaderLenBase64 + 1 + MaxJwtPayloadLenBase64
 
 	UserSaltLen = 32

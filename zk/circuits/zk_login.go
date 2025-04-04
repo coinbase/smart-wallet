@@ -8,25 +8,23 @@ import (
 )
 
 type ZkLoginCircuit struct {
-	// Public inputs
-	JwtHeaderKidValue    []uints.U8        `gnark:",public"`
-	ZkAddr               frontend.Variable `gnark:",public"`
-	JwtHash              frontend.Variable `gnark:",public"`
-	JwtPayloadNonceValue []uints.U8        `gnark:",public"`
+	// Public inputs.
+	JwtHeaderBase64 []uints.U8        `gnark:",public"`
+	Nonce           []uints.U8        `gnark:",public"`
+	JwtHash         frontend.Variable `gnark:",public"`
+	ZkAddr          frontend.Variable `gnark:",public"`
 
-	// Private inputs
-	JwtHeader           []uints.U8
-	JwtHeaderBase64Len  frontend.Variable
-	JwtPayload          []uints.U8
+	// Semi-private inputs (to not require the verifier to provide them).
+	JwtHeaderBase64Len    frontend.Variable
+	NonceOffset, NonceLen frontend.Variable
+
+	// Private inputs.
+	JwtPayloadJson      []uints.U8
 	JwtPayloadBase64Len frontend.Variable
 
-	TypOffset, AlgOffset   frontend.Variable
-	KidOffset, KidValueLen frontend.Variable
-
-	IssOffset, IssValueLen     frontend.Variable
-	AudOffset, AudValueLen     frontend.Variable
-	SubOffset, SubValueLen     frontend.Variable
-	NonceOffset, NonceValueLen frontend.Variable
+	IssOffset, IssLen frontend.Variable
+	AudOffset, AudLen frontend.Variable
+	SubOffset, SubLen frontend.Variable
 
 	UserSalt []uints.U8
 }
@@ -34,31 +32,23 @@ type ZkLoginCircuit struct {
 func (c *ZkLoginCircuit) Define(api frontend.API) error {
 	// 1. Encode the JWT header and payload to base64.
 	base64Encoder := NewBase64Encoder(api)
-
-	encodedJwtHeader := base64Encoder.EncodeBase64URL(c.JwtHeader)
-	encodedJwtPayload := base64Encoder.EncodeBase64URL(c.JwtPayload)
+	jwtPayloadBase64 := base64Encoder.EncodeBase64URL(c.JwtPayloadJson)
 
 	// 2. Recompute the JWT hash and compare it with the expected `JwtHash`.
-	packedJwt := c.packJwt(api, encodedJwtHeader, encodedJwtPayload)
+	packedJwt := c.packJwt(api, c.JwtHeaderBase64, jwtPayloadBase64)
 	jwtHash := c.jwtHash(api, packedJwt)
 	api.AssertIsEqual(jwtHash, c.JwtHash)
 
 	// 3. Verify the JWT content and extract the "iss", "aud" and "sub" fields.
+	//    NOTE: The JWT header is provided as public input and thus MUST be validated by the verifier.
 	jwtVerifier := NewJwtVerifier(api)
-	jwtVerifier.ProcessJwtHeader(
-		c.JwtHeader,
-		c.JwtHeaderKidValue,
-		c.TypOffset, c.AlgOffset,
-		c.KidOffset, c.KidValueLen,
-	)
-
 	iss, aud, sub := jwtVerifier.ProcessJwtPayload(
-		c.JwtPayload,
-		c.JwtPayloadNonceValue,
-		c.IssOffset, c.IssValueLen,
-		c.AudOffset, c.AudValueLen,
-		c.SubOffset, c.SubValueLen,
-		c.NonceOffset, c.NonceValueLen,
+		c.JwtPayloadJson,
+		c.Nonce,
+		c.IssOffset, c.IssLen,
+		c.AudOffset, c.AudLen,
+		c.SubOffset, c.SubLen,
+		c.NonceOffset, c.NonceLen,
 	)
 
 	// 4. Recompute the zkAddr and compare it with the expected `ZkAddr`.
@@ -93,21 +83,21 @@ func (c *ZkLoginCircuit) zkAddr(
 
 func (c *ZkLoginCircuit) packJwt(
 	api frontend.API,
-	header []uints.U8,
-	payload []uints.U8,
+	headerBase64 []uints.U8,
+	payloadBase64 []uints.U8,
 ) (packedJwt []uints.U8) {
 	packedJwt = make([]uints.U8, MaxJwtLenBase64)
 	for i := range packedJwt {
 		packedJwt[i] = uints.NewU8(0)
 	}
-	copy(packedJwt, header)
+	copy(packedJwt, headerBase64)
 
 	// Lookup table (size = MaxJwtLenBase64): <payload> + <padding>
 	lookup := logderivlookup.New(api)
-	for _, b := range payload {
+	for _, b := range payloadBase64 {
 		lookup.Insert(b.Val)
 	}
-	for range MaxJwtLenBase64 - len(payload) {
+	for range MaxJwtLenBase64 - len(payloadBase64) {
 		lookup.Insert(0)
 	}
 

@@ -21,26 +21,26 @@ func TestZkLogin(t *testing.T) {
 
 	// {"typ":"JWT","alg":"RS256","kid":"1234567890"}
 	jwtHeaderKidValue := `"1234567890"`
-	jwtHeader := fmt.Sprintf(
+	jwtHeaderJson := fmt.Sprintf(
 		`{"typ":"JWT","alg":"RS256","kid":%s}`,
 		jwtHeaderKidValue,
 	)
-	jwtHeaderBase64 := base64.RawURLEncoding.EncodeToString([]byte(jwtHeader))
+	jwtHeaderBase64 := base64.RawURLEncoding.EncodeToString([]byte(jwtHeaderJson))
 
 	// {"iss":"google.com","aud":"csw.com","sub":"xenoliss","nonce":"c29tZV9ldGhlcmV1bV9hZGRyZXNz"}
-	jwtPayloadIssValue := `"google.com"`
-	jwtPayloadAudValue := `"csw.com"`
-	jwtPayloadSubValue := `"xenoliss"`
-	jwtPayloadNonceValue := fmt.Sprintf(`"%s"`, base64.RawURLEncoding.EncodeToString(newOwner))
-	jwtPayload := fmt.Sprintf(
+	iss := `"google.com"`
+	aud := `"csw.com"`
+	sub := `"xenoliss"`
+	nonce := fmt.Sprintf(`"%s"`, base64.RawURLEncoding.EncodeToString(newOwner))
+	jwtPayloadJson := fmt.Sprintf(
 		`{"iss":%s,"aud":%s,"sub":%s,"nonce":%s}`,
-		jwtPayloadIssValue,
-		jwtPayloadAudValue,
-		jwtPayloadSubValue,
-		jwtPayloadNonceValue,
+		iss,
+		aud,
+		sub,
+		nonce,
 	)
-	fmt.Println("JWT payload:", jwtPayload)
-	jwtPayloadBase64 := base64.RawURLEncoding.EncodeToString([]byte(jwtPayload))
+	fmt.Println("JWT payload:", jwtPayloadJson)
+	jwtPayloadBase64 := base64.RawURLEncoding.EncodeToString([]byte(jwtPayloadJson))
 
 	userSalt := make([]byte, UserSaltLen)
 	_, err := rand.Read(userSalt)
@@ -48,24 +48,19 @@ func TestZkLogin(t *testing.T) {
 		t.Fatalf("failed to generate user salt: %v", err)
 	}
 
-	witnessJwtPayloadNonceValue := make([]uints.U8, MaxJwtPayloadNonceLen)
-	for i := range jwtPayloadNonceValue {
-		witnessJwtPayloadNonceValue[i] = uints.NewU8(jwtPayloadNonceValue[i])
+	witnessNonce := make([]uints.U8, MaxNonceLen)
+	for i := range nonce {
+		witnessNonce[i] = uints.NewU8(nonce[i])
 	}
 
-	witnessJwtHeader := make([]uints.U8, MaxJwtHeaderLen)
-	for i := range jwtHeader {
-		witnessJwtHeader[i] = uints.NewU8(jwtHeader[i])
+	witnessJwtHeaderBase64 := make([]uints.U8, MaxJwtHeaderLenBase64)
+	for i := range jwtHeaderBase64 {
+		witnessJwtHeaderBase64[i] = uints.NewU8(jwtHeaderBase64[i])
 	}
 
-	witnessJwtHeaderKidValue := make([]uints.U8, MaxJwtHeaderKidValueLen)
-	for i := range jwtHeaderKidValue {
-		witnessJwtHeaderKidValue[i] = uints.NewU8(jwtHeaderKidValue[i])
-	}
-
-	witnessJwtPayload := make([]uints.U8, MaxJwtPayloadLen)
-	for i := range jwtPayload {
-		witnessJwtPayload[i] = uints.NewU8(jwtPayload[i])
+	witnessJwtPayloadJson := make([]uints.U8, MaxJwtPayloadJsonLen)
+	for i := range jwtPayloadJson {
+		witnessJwtPayloadJson[i] = uints.NewU8(jwtPayloadJson[i])
 	}
 
 	witnessUserSalt := make([]uints.U8, UserSaltLen)
@@ -73,11 +68,11 @@ func TestZkLogin(t *testing.T) {
 		witnessUserSalt[i] = uints.NewU8(userSalt[i])
 	}
 
-	bytes := make([]uint8, MaxJwtPayloadIssLen+MaxJwtPayloadAudLen+MaxJwtPayloadSubLen+UserSaltLen)
-	copy(bytes, jwtPayloadIssValue)
-	copy(bytes[MaxJwtPayloadIssLen:], jwtPayloadAudValue)
-	copy(bytes[MaxJwtPayloadIssLen+MaxJwtPayloadAudLen:], jwtPayloadSubValue)
-	copy(bytes[MaxJwtPayloadIssLen+MaxJwtPayloadAudLen+MaxJwtPayloadSubLen:], userSalt)
+	bytes := make([]uint8, MaxIssLen+MaxAudLen+MaxSubLen+UserSaltLen)
+	copy(bytes, iss)
+	copy(bytes[MaxIssLen:], aud)
+	copy(bytes[MaxIssLen+MaxAudLen:], sub)
+	copy(bytes[MaxIssLen+MaxAudLen+MaxSubLen:], userSalt)
 	zkAddrBytes := sha256.Sum256(bytes)
 	zkAddr := new(big.Int).SetBytes(zkAddrBytes[1:]) // Skip the first byte (big endian) to fit the BN254 scalar field.
 
@@ -87,41 +82,36 @@ func TestZkLogin(t *testing.T) {
 
 	assert.ProverSucceeded(
 		&ZkLoginCircuit{
-			// Set public inputs values.
-			JwtHeaderKidValue:    make([]uints.U8, MaxJwtHeaderKidValueLen),
-			JwtPayloadNonceValue: make([]uints.U8, MaxJwtPayloadNonceLen),
+			// Set public inputs sizes.
+			JwtHeaderBase64: make([]uints.U8, MaxJwtHeaderLenBase64),
+			Nonce:           make([]uints.U8, MaxNonceLen),
 
 			// Set private inputs sizes.
-			JwtHeader:  make([]uints.U8, MaxJwtHeaderLen),
-			JwtPayload: make([]uints.U8, MaxJwtPayloadLen),
-			UserSalt:   make([]uints.U8, UserSaltLen),
+			JwtPayloadJson: make([]uints.U8, MaxJwtPayloadJsonLen),
+			UserSalt:       make([]uints.U8, UserSaltLen),
 		},
 		&ZkLoginCircuit{
 			// Public inputs.
-			JwtHeaderKidValue:    witnessJwtHeaderKidValue,
-			JwtHash:              jwtHash,
-			ZkAddr:               zkAddr,
-			JwtPayloadNonceValue: witnessJwtPayloadNonceValue,
+			JwtHeaderBase64: witnessJwtHeaderBase64,
+			Nonce:           witnessNonce,
+			JwtHash:         jwtHash,
+			ZkAddr:          zkAddr,
+
+			// Semi-private inputs.
+			JwtHeaderBase64Len: len(jwtHeaderBase64),
+			NonceOffset:        strings.Index(jwtPayloadJson, `"nonce"`),
+			NonceLen:           len(nonce),
 
 			// Private inputs.
-			JwtHeader:           witnessJwtHeader,
-			JwtHeaderBase64Len:  len(jwtHeaderBase64),
-			JwtPayload:          witnessJwtPayload,
+			JwtPayloadJson:      witnessJwtPayloadJson,
 			JwtPayloadBase64Len: len(jwtPayloadBase64),
 
-			TypOffset:   strings.Index(jwtHeader, `"typ"`),
-			AlgOffset:   strings.Index(jwtHeader, `"alg"`),
-			KidOffset:   strings.Index(jwtHeader, `"kid"`),
-			KidValueLen: len(jwtHeaderKidValue),
-
-			IssOffset:     strings.Index(jwtPayload, `"iss"`),
-			IssValueLen:   len(jwtPayloadIssValue),
-			AudOffset:     strings.Index(jwtPayload, `"aud"`),
-			AudValueLen:   len(jwtPayloadAudValue),
-			SubOffset:     strings.Index(jwtPayload, `"sub"`),
-			SubValueLen:   len(jwtPayloadSubValue),
-			NonceOffset:   strings.Index(jwtPayload, `"nonce"`),
-			NonceValueLen: len(jwtPayloadNonceValue),
+			IssOffset: strings.Index(jwtPayloadJson, `"iss"`),
+			IssLen:    len(iss),
+			AudOffset: strings.Index(jwtPayloadJson, `"aud"`),
+			AudLen:    len(aud),
+			SubOffset: strings.Index(jwtPayloadJson, `"sub"`),
+			SubLen:    len(sub),
 
 			UserSalt: witnessUserSalt,
 		},

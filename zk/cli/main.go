@@ -155,14 +155,13 @@ func main() {
 
 func CompileCircuit(cCtx *cli.Context) error {
 	zkCircuit := circuits.ZkLoginCircuit{
-		// Set public inputs values.
-		JwtHeaderKidValue:    make([]uints.U8, circuits.MaxJwtHeaderKidValueLen),
-		JwtPayloadNonceValue: make([]uints.U8, circuits.MaxJwtPayloadNonceLen),
+		// Set public inputs sizes.
+		JwtHeaderBase64: make([]uints.U8, circuits.MaxJwtHeaderLenBase64),
+		Nonce:           make([]uints.U8, circuits.MaxNonceLen),
 
 		// Set private inputs sizes.
-		JwtHeader:  make([]uints.U8, circuits.MaxJwtHeaderLen),
-		JwtPayload: make([]uints.U8, circuits.MaxJwtPayloadLen),
-		UserSalt:   make([]uints.U8, circuits.UserSaltLen),
+		JwtPayloadJson: make([]uints.U8, circuits.MaxJwtPayloadJsonLen),
+		UserSalt:       make([]uints.U8, circuits.UserSaltLen),
 	}
 
 	fmt.Println("Compiling circuit...")
@@ -254,25 +253,21 @@ func GenerateProof(cCtx *cli.Context) error {
 
 	// Process the header.
 	headerB64 := sections[0]
-	headerJSON, typOffset, algOffset, kidOffset, kidValueLen, kidValue, err := processJwtHeader(headerB64)
-	if err != nil {
-		return fmt.Errorf("failed to process JWT header: %w", err)
-	}
 
 	// Process the payload.
 	payloadB64 := sections[1]
-	payloadJSON, issOffset, issValueLen, audOffset, audValueLen, subOffset, subValueLen, nonceOffset, nonceValueLen, issValue, audValue, subValue, nonceValue, err := processJwtPayload(payloadB64)
+	payloadJSON, issOffset, issLen, audOffset, audLen, subOffset, subLen, nonceOffset, nonceLen, issValue, audValue, subValue, nonce, err := processJwtPayload(payloadB64)
 	if err != nil {
 		return fmt.Errorf("failed to process JWT payload: %w", err)
 	}
 
 	// Compute the hashes.
 	fmt.Println("Computing hashes...")
-	secretBytes := make([]uint8, circuits.MaxJwtPayloadIssLen+circuits.MaxJwtPayloadAudLen+circuits.MaxJwtPayloadSubLen+circuits.UserSaltLen)
+	secretBytes := make([]uint8, circuits.MaxIssLen+circuits.MaxAudLen+circuits.MaxSubLen+circuits.UserSaltLen)
 	copy(secretBytes, issValue)
-	copy(secretBytes[circuits.MaxJwtPayloadIssLen:], audValue)
-	copy(secretBytes[circuits.MaxJwtPayloadIssLen+circuits.MaxJwtPayloadAudLen:], subValue)
-	copy(secretBytes[circuits.MaxJwtPayloadIssLen+circuits.MaxJwtPayloadAudLen+circuits.MaxJwtPayloadSubLen:], userSaltBytes)
+	copy(secretBytes[circuits.MaxIssLen:], audValue)
+	copy(secretBytes[circuits.MaxIssLen+circuits.MaxAudLen:], subValue)
+	copy(secretBytes[circuits.MaxIssLen+circuits.MaxAudLen+circuits.MaxSubLen:], userSaltBytes)
 	zkAddrBytes := sha256.Sum256(secretBytes)
 	zkAddr := new(big.Int).SetBytes(zkAddrBytes[1:])
 
@@ -282,12 +277,19 @@ func GenerateProof(cCtx *cli.Context) error {
 
 	fmt.Println("Generating witness...")
 	witness, err := generateWitness(
-		headerJSON, payloadJSON,
-		len(headerB64), len(payloadB64),
-		kidValue, nonceValue,
-		jwtHash, zkAddr,
-		typOffset, algOffset, kidOffset, kidValueLen,
-		issOffset, issValueLen, audOffset, audValueLen, subOffset, subValueLen, nonceOffset, nonceValueLen,
+		// Public inputs.
+		headerB64,
+		nonce,
+		jwtHash,
+		zkAddr,
+
+		// Private inputs.
+		payloadJSON,
+		len(payloadB64),
+		issOffset, issLen,
+		audOffset, audLen,
+		subOffset, subLen,
+		nonceOffset, nonceLen,
 		userSaltBytes,
 	)
 	if err != nil {
@@ -331,41 +333,7 @@ func GenerateProof(cCtx *cli.Context) error {
 	return nil
 }
 
-func processJwtHeader(headerB64 string) (headerJSON []byte, typOffset, algOffset, kidOffset, kidValueLen int, kidValue []byte, err error) {
-	headerJSON, err = base64.RawURLEncoding.DecodeString(headerB64)
-	if err != nil {
-		return nil, 0, 0, 0, 0, nil, fmt.Errorf("failed to decode header: %w", err)
-	}
-
-	var header map[string]json.RawMessage
-	if err := json.Unmarshal(headerJSON, &header); err != nil {
-		return nil, 0, 0, 0, 0, nil, fmt.Errorf("failed to parse JWT header: %w", err)
-	}
-
-	typ := header["typ"]
-	if string(typ) != `"JWT"` {
-		return nil, 0, 0, 0, 0, nil, fmt.Errorf("invalid JWT header: expected 'JWT', got '%s'", typ)
-	}
-
-	alg := header["alg"]
-	if string(alg) != `"RS256"` {
-		return nil, 0, 0, 0, 0, nil, fmt.Errorf("invalid JWT header: expected 'RS256', got '%s'", alg)
-	}
-
-	kid := header["kid"]
-	if kid == nil {
-		return nil, 0, 0, 0, 0, nil, fmt.Errorf("invalid JWT header: expected 'kid' field")
-	}
-
-	typOffset = strings.Index(string(headerJSON), `"typ"`)
-	algOffset = strings.Index(string(headerJSON), `"alg"`)
-	kidOffset = strings.Index(string(headerJSON), `"kid"`)
-	kidValueLen = len(kid)
-
-	return headerJSON, typOffset, algOffset, kidOffset, kidValueLen, kid, nil
-}
-
-func processJwtPayload(payloadB64 string) (payloadJSON []byte, issOffset, issValueLen, audOffset, audValueLen, subOffset, subValueLen, nonceOffset, nonceValueLen int, issValue, audValue, subValue, nonceValue []byte, err error) {
+func processJwtPayload(payloadB64 string) (payloadJSON []byte, issOffset, issLen, audOffset, audLen, subOffset, subLen, nonceOffset, nonceLen int, issValue, audValue, subValue, nonce []byte, err error) {
 	payloadJSON, err = base64.RawURLEncoding.DecodeString(payloadB64)
 	if err != nil {
 		return nil, 0, 0, 0, 0, 0, 0, 0, 0, nil, nil, nil, nil, fmt.Errorf("failed to decode payload: %w", err)
@@ -378,55 +346,51 @@ func processJwtPayload(payloadB64 string) (payloadJSON []byte, issOffset, issVal
 
 	issOffset = strings.Index(string(payloadJSON), `"iss"`)
 	issValue = payload["iss"]
-	issValueLen = len(issValue)
+	issLen = len(issValue)
 
 	audOffset = strings.Index(string(payloadJSON), `"aud"`)
 	audValue = payload["aud"]
-	audValueLen = len(audValue)
+	audLen = len(audValue)
 
 	subOffset = strings.Index(string(payloadJSON), `"sub"`)
 	subValue = payload["sub"]
-	subValueLen = len(subValue)
+	subLen = len(subValue)
 
 	nonceOffset = strings.Index(string(payloadJSON), `"nonce"`)
-	nonceValue = payload["nonce"]
-	nonceValueLen = len(nonceValue)
+	nonce = payload["nonce"]
+	nonceLen = len(nonce)
 
-	return payloadJSON, issOffset, issValueLen, audOffset, audValueLen, subOffset, subValueLen, nonceOffset, nonceValueLen, issValue, audValue, subValue, nonceValue, nil
+	return payloadJSON, issOffset, issLen, audOffset, audLen, subOffset, subLen, nonceOffset, nonceLen, issValue, audValue, subValue, nonce, nil
 }
 
 func generateWitness(
-	jwtHeaderJson, jwtPayloadJson []byte,
-	lenJwtHeaderBase64, lenJwtPayloadBase64 int,
-
 	// Public inputs.
-	kidValue, nonceValue []byte,
+	jwtHeaderBase64 string,
+	nonce []byte,
 	jwtHash, zkAddr *big.Int,
 
 	// Private inputs.
-	typOffset, algOffset, kidOffset, kidValueLen int,
-	issOffset, issValueLen, audOffset, audValueLen, subOffset, subValueLen, nonceOffset, nonceValueLen int,
+	jwtPayloadJson []byte, lenJwtPayloadBase64 int,
+	issOffset, issLen int,
+	audOffset, audLen int,
+	subOffset, subLen int,
+	nonceOffset, nonceLen int,
 	userSalt []byte,
 ) (witness.Witness, error) {
 
-	witnessJwtHeaderKidValue := make([]uints.U8, circuits.MaxJwtHeaderKidValueLen)
-	for i := range kidValue {
-		witnessJwtHeaderKidValue[i] = uints.NewU8(kidValue[i])
+	witnessNonce := make([]uints.U8, circuits.MaxNonceLen)
+	for i := range nonce {
+		witnessNonce[i] = uints.NewU8(nonce[i])
 	}
 
-	witnessJwtPayloadNonceValue := make([]uints.U8, circuits.MaxJwtPayloadNonceLen)
-	for i := range nonceValue {
-		witnessJwtPayloadNonceValue[i] = uints.NewU8(nonceValue[i])
+	witnessJwtHeaderBase64 := make([]uints.U8, circuits.MaxJwtHeaderLenBase64)
+	for i := range jwtHeaderBase64 {
+		witnessJwtHeaderBase64[i] = uints.NewU8(jwtHeaderBase64[i])
 	}
 
-	witnessJwtHeader := make([]uints.U8, circuits.MaxJwtHeaderLen)
-	for i := range jwtHeaderJson {
-		witnessJwtHeader[i] = uints.NewU8(jwtHeaderJson[i])
-	}
-
-	witnessJwtPayload := make([]uints.U8, circuits.MaxJwtPayloadLen)
+	witnessJwtPayloadJson := make([]uints.U8, circuits.MaxJwtPayloadJsonLen)
 	for i := range jwtPayloadJson {
-		witnessJwtPayload[i] = uints.NewU8(jwtPayloadJson[i])
+		witnessJwtPayloadJson[i] = uints.NewU8(jwtPayloadJson[i])
 	}
 
 	witnessUserSalt := make([]uints.U8, circuits.UserSaltLen)
@@ -436,30 +400,24 @@ func generateWitness(
 
 	assignment := &circuits.ZkLoginCircuit{
 		// // Public inputs.
-		JwtHeaderKidValue:    witnessJwtHeaderKidValue,
-		JwtHash:              jwtHash,
-		ZkAddr:               zkAddr,
-		JwtPayloadNonceValue: witnessJwtPayloadNonceValue,
+		JwtHeaderBase64:    witnessJwtHeaderBase64,
+		JwtHeaderBase64Len: len(jwtHeaderBase64),
+		Nonce:              witnessNonce,
+		JwtHash:            jwtHash,
+		ZkAddr:             zkAddr,
 
 		// Private inputs.
-		JwtHeader:           witnessJwtHeader,
-		JwtHeaderBase64Len:  lenJwtHeaderBase64,
-		JwtPayload:          witnessJwtPayload,
+		JwtPayloadJson:      witnessJwtPayloadJson,
 		JwtPayloadBase64Len: lenJwtPayloadBase64,
 
-		TypOffset:   typOffset,
-		AlgOffset:   algOffset,
-		KidOffset:   kidOffset,
-		KidValueLen: kidValueLen,
-
-		IssOffset:     issOffset,
-		IssValueLen:   issValueLen,
-		AudOffset:     audOffset,
-		AudValueLen:   audValueLen,
-		SubOffset:     subOffset,
-		SubValueLen:   subValueLen,
-		NonceOffset:   nonceOffset,
-		NonceValueLen: nonceValueLen,
+		IssOffset:   issOffset,
+		IssLen:      issLen,
+		AudOffset:   audOffset,
+		AudLen:      audLen,
+		SubOffset:   subOffset,
+		SubLen:      subLen,
+		NonceOffset: nonceOffset,
+		NonceLen:    nonceLen,
 
 		UserSalt: witnessUserSalt,
 	}
