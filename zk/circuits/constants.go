@@ -7,16 +7,18 @@ const (
 	MaxJwtHeaderLen  = 180
 	MaxJwtPayloadLen = 1200
 
+	MaxJwtHeaderKidValueLen = 64 // Google uses thumbprint which is ~40 chars
+	MaxJwtPayloadIssLen     = 64 // Likely too small for Microsoft.
+	MaxJwtPayloadAudLen     = 64
+	MaxJwtPayloadSubLen     = 64
+	MaxJwtPayloadNonceLen   = 86 // (64 * 8 / 6)
+
 	// Max length of the base64 encoded JWT "<header>.<payload>".
 	MaxJwtHeaderLenBase64  = MaxJwtHeaderLen * 8 / 6
 	MaxJwtPayloadLenBase64 = MaxJwtPayloadLen * 8 / 6
 	MaxJwtLenBase64        = MaxJwtHeaderLenBase64 + 1 + MaxJwtPayloadLenBase64
 
-	MaxJwtHeaderKidValueLen = 64 // Google uses thumbprint which is ~40 chars
-	MaxJwtPayloadIssLen     = 64 // Likely too small for Microsoft.
-	MaxJwtPayloadAudLen     = 64
-	MaxJwtPayloadSubLen     = 64
-	MaxJwtPayloadNonceLen   = 90
+	UserSaltLen = 32
 )
 
 const (

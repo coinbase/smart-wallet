@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 
 	"github.com/coinbase/smart-wallet/circuits/circuits"
@@ -103,6 +104,30 @@ var commands = []*cli.Command{
 				Aliases:  []string{"j"},
 				Usage:    "JWT to prove",
 				Required: true,
+				Action: func(cCtx *cli.Context, j string) error {
+					sections := strings.Split(j, ".")
+					if len(sections) < 2 || len(sections) > 3 {
+						return fmt.Errorf("invalid JWT format: expected 2 or 3 sections, got %d", len(sections))
+					}
+					return nil
+				},
+			},
+			&cli.StringFlag{
+				Name:     "user-salt",
+				Aliases:  []string{"salt", "s"},
+				Usage:    "User salt",
+				Required: true,
+				Action: func(cCtx *cli.Context, s string) error {
+					s = strings.TrimPrefix(s, "0x")
+					if _, err := hex.DecodeString(s); err != nil {
+						return fmt.Errorf("invalid hex string: %w", err)
+					}
+
+					if len(s) > circuits.UserSaltLen*2 {
+						return fmt.Errorf("salt too long: max 32 bytes (64 hex characters)")
+					}
+					return nil
+				},
 			},
 			&cli.StringFlag{
 				Name:     "output",
@@ -137,6 +162,7 @@ func CompileCircuit(cCtx *cli.Context) error {
 		// Set private inputs sizes.
 		JwtHeader:  make([]uints.U8, circuits.MaxJwtHeaderLen),
 		JwtPayload: make([]uints.U8, circuits.MaxJwtPayloadLen),
+		UserSalt:   make([]uints.U8, circuits.UserSaltLen),
 	}
 
 	fmt.Println("Compiling circuit...")
@@ -220,12 +246,11 @@ func GenerateContract(cCtx *cli.Context) error {
 
 func GenerateProof(cCtx *cli.Context) error {
 	jwt := cCtx.String("jwt")
+	userSalt := cCtx.String("user-salt")
+	userSaltBytes, _ := hex.DecodeString(strings.TrimPrefix(userSalt, "0x"))
 
 	fmt.Println("Processing JWT...")
 	sections := strings.Split(jwt, ".")
-	if len(sections) < 2 || len(sections) > 3 {
-		return fmt.Errorf("invalid JWT format: expected 2 or 3 sections, got %d", len(sections))
-	}
 
 	// Process the header.
 	headerB64 := sections[0]
@@ -243,12 +268,13 @@ func GenerateProof(cCtx *cli.Context) error {
 
 	// Compute the hashes.
 	fmt.Println("Computing hashes...")
-	secretBytes := make([]uint8, circuits.MaxJwtPayloadIssLen+circuits.MaxJwtPayloadAudLen+circuits.MaxJwtPayloadSubLen)
+	secretBytes := make([]uint8, circuits.MaxJwtPayloadIssLen+circuits.MaxJwtPayloadAudLen+circuits.MaxJwtPayloadSubLen+circuits.UserSaltLen)
 	copy(secretBytes, issValue)
 	copy(secretBytes[circuits.MaxJwtPayloadIssLen:], audValue)
 	copy(secretBytes[circuits.MaxJwtPayloadIssLen+circuits.MaxJwtPayloadAudLen:], subValue)
-	derivedHashBytes := sha256.Sum256(secretBytes)
-	derivedHash := new(big.Int).SetBytes(derivedHashBytes[1:])
+	copy(secretBytes[circuits.MaxJwtPayloadIssLen+circuits.MaxJwtPayloadAudLen+circuits.MaxJwtPayloadSubLen:], userSaltBytes)
+	zkAddrBytes := sha256.Sum256(secretBytes)
+	zkAddr := new(big.Int).SetBytes(zkAddrBytes[1:])
 
 	jwtBase64 := fmt.Sprintf("%s.%s", headerB64, payloadB64)
 	jwtHashBytes := sha256.Sum256([]byte(jwtBase64))
@@ -259,9 +285,10 @@ func GenerateProof(cCtx *cli.Context) error {
 		headerJSON, payloadJSON,
 		len(headerB64), len(payloadB64),
 		kidValue, nonceValue,
-		jwtHash, derivedHash,
+		jwtHash, zkAddr,
 		typOffset, algOffset, kidOffset, kidValueLen,
 		issOffset, issValueLen, audOffset, audValueLen, subOffset, subValueLen, nonceOffset, nonceValueLen,
+		userSaltBytes,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to generate witness: %w", err)
@@ -374,11 +401,12 @@ func generateWitness(
 
 	// Public inputs.
 	kidValue, nonceValue []byte,
-	jwtHash, derivedHash *big.Int,
+	jwtHash, zkAddr *big.Int,
 
 	// Private inputs.
 	typOffset, algOffset, kidOffset, kidValueLen int,
 	issOffset, issValueLen, audOffset, audValueLen, subOffset, subValueLen, nonceOffset, nonceValueLen int,
+	userSalt []byte,
 ) (witness.Witness, error) {
 
 	witnessJwtHeaderKidValue := make([]uints.U8, circuits.MaxJwtHeaderKidValueLen)
@@ -401,11 +429,16 @@ func generateWitness(
 		witnessJwtPayload[i] = uints.NewU8(jwtPayloadJson[i])
 	}
 
+	witnessUserSalt := make([]uints.U8, circuits.UserSaltLen)
+	for i := range userSalt {
+		witnessUserSalt[i] = uints.NewU8(userSalt[i])
+	}
+
 	assignment := &circuits.ZkLoginCircuit{
 		// // Public inputs.
 		JwtHeaderKidValue:    witnessJwtHeaderKidValue,
 		JwtHash:              jwtHash,
-		DerivedHash:          derivedHash,
+		ZkAddr:               zkAddr,
 		JwtPayloadNonceValue: witnessJwtPayloadNonceValue,
 
 		// Private inputs.
@@ -427,6 +460,8 @@ func generateWitness(
 		SubValueLen:   subValueLen,
 		NonceOffset:   nonceOffset,
 		NonceValueLen: nonceValueLen,
+
+		UserSalt: witnessUserSalt,
 	}
 
 	witness, err := frontend.NewWitness(assignment, ecc.BN254.ScalarField())

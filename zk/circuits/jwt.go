@@ -7,11 +7,12 @@ import (
 )
 
 type JwtVerifier struct {
-	api   frontend.API
-	field *uints.BinaryField[uints.U32]
+	api frontend.API
 
 	commaU8      uints.U8
 	closeBraceU8 uints.U8
+
+	// toBinLookup *logderivlookup.Table
 
 	// Header lookup tables.
 	typLookup       *logderivlookup.Table
@@ -25,7 +26,14 @@ type JwtVerifier struct {
 	noncePrefixLookup *logderivlookup.Table
 }
 
-func NewJwtVerifier(api frontend.API, field *uints.BinaryField[uints.U32]) *JwtVerifier {
+func NewJwtVerifier(api frontend.API) *JwtVerifier {
+
+	// toBinLookup := logderivlookup.New(api)
+	// for i := 0; i < MaxJwtLenBase64; i++ {
+
+	// 	toBinLookup.Insert(uints.U8(i))
+	// }
+
 	typLookup := logderivlookup.New(api)
 	for _, v := range ExpectedTypJson {
 		typLookup.Insert(v)
@@ -62,8 +70,7 @@ func NewJwtVerifier(api frontend.API, field *uints.BinaryField[uints.U32]) *JwtV
 	}
 
 	return &JwtVerifier{
-		api:   api,
-		field: field,
+		api: api,
 
 		commaU8:      uints.NewU8(','),
 		closeBraceU8: uints.NewU8('}'),
@@ -210,8 +217,8 @@ func (v *JwtVerifier) checkByte(
 
 	// rangeStart <= i < rangeEnd
 	shouldParse := v.api.Mul(
-		not(v.api, lessThan(v.api, 16, i, rangeStart)), // i >= rangeStart
-		lessThan(v.api, 16, i, rangeEnd),               // i < rangeEnd
+		not(v.api, lessThan(v.api, 11, i, rangeStart)), // i >= rangeStart
+		lessThan(v.api, 11, i, rangeEnd),               // i < rangeEnd
 	)
 
 	// Get the corresponding expected byte from the lookup table.
@@ -274,6 +281,6 @@ func (v *JwtVerifier) extractValue(
 			)[0],
 		)
 
-		dst[i] = v.field.ByteValueOf(val)
+		dst[i] = uints.U8{Val: val}
 	}
 }
