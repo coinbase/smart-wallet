@@ -12,8 +12,6 @@ type JwtVerifier struct {
 	commaU8      uints.U8
 	closeBraceU8 uints.U8
 
-	// toBinLookup *logderivlookup.Table
-
 	// Header lookup tables.
 	typLookup       *logderivlookup.Table
 	algLookup       *logderivlookup.Table
@@ -27,12 +25,6 @@ type JwtVerifier struct {
 }
 
 func NewJwtVerifier(api frontend.API) *JwtVerifier {
-
-	// toBinLookup := logderivlookup.New(api)
-	// for i := 0; i < MaxJwtLenBase64; i++ {
-
-	// 	toBinLookup.Insert(uints.U8(i))
-	// }
 
 	typLookup := logderivlookup.New(api)
 	for _, v := range ExpectedTypJson {

@@ -102,21 +102,23 @@ func (c *ZkLoginCircuit) packJwt(
 	}
 	copy(packedJwt, header)
 
-	// Lookup table: <payload>
+	// Lookup table (size = MaxJwtLenBase64): <payload> + <padding>
 	lookup := logderivlookup.New(api)
 	for _, b := range payload {
 		lookup.Insert(b.Val)
 	}
+	for range MaxJwtLenBase64 - len(payload) {
+		lookup.Insert(0)
+	}
 
 	startPayloadIndex := api.Add(c.JwtHeaderBase64Len, 1)
-	endPayloadIndex := api.Add(startPayloadIndex, c.JwtPayloadBase64Len)
 
 	for i := range MaxJwtLenBase64 {
-		isHeader := lessThan(api, 11, i, c.JwtHeaderBase64Len)
 		isDot := equal(api, i, c.JwtHeaderBase64Len)
-		isPayload := api.Mul(
-			not(api, lessThan(api, 11, i, startPayloadIndex)),
-			lessThan(api, 11, i, endPayloadIndex),
+		isPayload := not(api, lessThan(api, 11, i, startPayloadIndex))
+		isHeader := api.Mul(
+			not(api, isDot),
+			not(api, isPayload),
 		)
 
 		payloadByte := lookup.Lookup(
