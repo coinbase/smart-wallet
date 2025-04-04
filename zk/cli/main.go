@@ -14,7 +14,9 @@ import (
 
 	"github.com/coinbase/smart-wallet/circuits/circuits"
 	"github.com/consensys/gnark-crypto/ecc"
+	"github.com/consensys/gnark/backend"
 	"github.com/consensys/gnark/backend/groth16"
+	"github.com/consensys/gnark/backend/solidity"
 	"github.com/consensys/gnark/backend/witness"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/frontend/cs/r1cs"
@@ -256,7 +258,7 @@ func GenerateProof(cCtx *cli.Context) error {
 
 	// Process the payload.
 	payloadB64 := sections[1]
-	payloadJSON, issOffset, issLen, audOffset, audLen, subOffset, subLen, nonceOffset, nonceLen, issValue, audValue, subValue, nonce, err := processJwtPayload(payloadB64)
+	payloadJSON, issOffset, issLen, audOffset, audLen, subOffset, subLen, nonceOffset, nonceLen, iss, aud, sub, nonce, err := processJwtPayload(payloadB64)
 	if err != nil {
 		return fmt.Errorf("failed to process JWT payload: %w", err)
 	}
@@ -264,16 +266,16 @@ func GenerateProof(cCtx *cli.Context) error {
 	// Compute the hashes.
 	fmt.Println("Computing hashes...")
 	secretBytes := make([]uint8, circuits.MaxIssLen+circuits.MaxAudLen+circuits.MaxSubLen+circuits.UserSaltLen)
-	copy(secretBytes, issValue)
-	copy(secretBytes[circuits.MaxIssLen:], audValue)
-	copy(secretBytes[circuits.MaxIssLen+circuits.MaxAudLen:], subValue)
+	copy(secretBytes, iss)
+	copy(secretBytes[circuits.MaxIssLen:], aud)
+	copy(secretBytes[circuits.MaxIssLen+circuits.MaxAudLen:], sub)
 	copy(secretBytes[circuits.MaxIssLen+circuits.MaxAudLen+circuits.MaxSubLen:], userSaltBytes)
 	zkAddrBytes := sha256.Sum256(secretBytes)
-	zkAddr := new(big.Int).SetBytes(zkAddrBytes[1:])
+	zkAddr := new(big.Int).SetBytes(zkAddrBytes[:31]) // Skip the least significant byte (index 31) to fit the BN254 scalar field.
 
 	jwtBase64 := fmt.Sprintf("%s.%s", headerB64, payloadB64)
 	jwtHashBytes := sha256.Sum256([]byte(jwtBase64))
-	jwtHash := new(big.Int).SetBytes(jwtHashBytes[1:])
+	jwtHash := new(big.Int).SetBytes(jwtHashBytes[:31]) // Skip the least significant byte (index 31) to fit the BN254 scalar field.
 
 	fmt.Println("Generating witness...")
 	witness, err := generateWitness(
@@ -315,7 +317,7 @@ func GenerateProof(cCtx *cli.Context) error {
 	pk.ReadFrom(bytes.NewReader(pkBytes))
 
 	fmt.Println("Generating proof...")
-	proof, err := groth16.Prove(cs, pk, witness)
+	proof, err := groth16.Prove(cs, pk, witness, solidity.WithProverTargetSolidityVerifier(backend.GROTH16))
 	if err != nil {
 		return fmt.Errorf("failed to generate proof: %w", err)
 	}
@@ -323,7 +325,7 @@ func GenerateProof(cCtx *cli.Context) error {
 	fmt.Println("Writing proof...")
 	proofPath := cCtx.String("output")
 	proofBuf := bytes.NewBuffer(nil)
-	proof.WriteTo(proofBuf)
+	proof.WriteRawTo(proofBuf)
 	if err := os.WriteFile(proofPath, proofBuf.Bytes(), 0644); err != nil {
 		return fmt.Errorf("failed to write proof file: %w", err)
 	}
@@ -333,7 +335,7 @@ func GenerateProof(cCtx *cli.Context) error {
 	return nil
 }
 
-func processJwtPayload(payloadB64 string) (payloadJSON []byte, issOffset, issLen, audOffset, audLen, subOffset, subLen, nonceOffset, nonceLen int, issValue, audValue, subValue, nonce []byte, err error) {
+func processJwtPayload(payloadB64 string) (payloadJSON []byte, issOffset, issLen, audOffset, audLen, subOffset, subLen, nonceOffset, nonceLen int, iss, audValue, subValue, nonce []byte, err error) {
 	payloadJSON, err = base64.RawURLEncoding.DecodeString(payloadB64)
 	if err != nil {
 		return nil, 0, 0, 0, 0, 0, 0, 0, 0, nil, nil, nil, nil, fmt.Errorf("failed to decode payload: %w", err)
@@ -345,8 +347,8 @@ func processJwtPayload(payloadB64 string) (payloadJSON []byte, issOffset, issLen
 	}
 
 	issOffset = strings.Index(string(payloadJSON), `"iss"`)
-	issValue = payload["iss"]
-	issLen = len(issValue)
+	iss = payload["iss"]
+	issLen = len(iss)
 
 	audOffset = strings.Index(string(payloadJSON), `"aud"`)
 	audValue = payload["aud"]
@@ -360,14 +362,15 @@ func processJwtPayload(payloadB64 string) (payloadJSON []byte, issOffset, issLen
 	nonce = payload["nonce"]
 	nonceLen = len(nonce)
 
-	return payloadJSON, issOffset, issLen, audOffset, audLen, subOffset, subLen, nonceOffset, nonceLen, issValue, audValue, subValue, nonce, nil
+	return payloadJSON, issOffset, issLen, audOffset, audLen, subOffset, subLen, nonceOffset, nonceLen, iss, audValue, subValue, nonce, nil
 }
 
 func generateWitness(
 	// Public inputs.
 	jwtHeaderBase64 string,
 	nonce []byte,
-	jwtHash, zkAddr *big.Int,
+	jwtHash,
+	zkAddr *big.Int,
 
 	// Private inputs.
 	jwtPayloadJson []byte, lenJwtPayloadBase64 int,

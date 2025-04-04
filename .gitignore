@@ -18,5 +18,9 @@ docs/
 
 .certora_internal/
 
+
+# Go build artifacts
+bin/
+
 # Circuit artifacts
 artifacts/

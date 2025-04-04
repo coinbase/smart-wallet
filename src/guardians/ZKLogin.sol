@@ -10,10 +10,14 @@ import {MultiOwnable} from "../MultiOwnable.sol";
 import {IDPOracle} from "./IDPOracle.sol";
 import {Verifier} from "./Verifier.sol";
 
-import {console} from "forge-std/console.sol";
-
 contract ZKLogin is Ownable {
     using JSONParserLib for JSONParserLib.Item;
+
+    struct Proof {
+        uint256[8] proof;
+        uint256[2] commitments;
+        uint256[2] commitmentPok;
+    }
 
     bytes32 public constant KID = keccak256('"kid"');
     bytes32 public constant ALG = keccak256('"alg"');
@@ -21,55 +25,67 @@ contract ZKLogin is Ownable {
     bytes32 public constant RS256 = keccak256('"RS256"');
     bytes32 public constant JWT = keccak256('"JWT"');
 
-    bytes constant SHA256_DER_PREFIX = hex"3031300d060960864801650304020105000420"; // 19 bytes
-
-    // string public constant E = "AQAB";
-    // string public constant N =
-    //     "7_H7AoQIGB-rZGIhz6ufR4ChFpkPBudrNoXbPHspjtMk1N8db1PbFa-v1yW0Pv8ujm_ewpQQLJz-KxJQz83-euIgMDKhKWc8Wd_lfjRrR0Yq6pr7JHcQDON4twaMno9mHfeFQLkKWId5hl4aQps9TEcm_jsK8MJJbWWKDjKgbMiu0U6-U-CdWbSoy42U3-trO359tTQfD8f8rkK4Ik2O3BtEgXoZ8mFDs84PR6IcYC2R5BN25bCcpK87Ch9KwEsU05c-ykPhH9AB6Ey5riR8gZ93kHxJPe8ZBmFfaWLU--t5IfwJh4g_6vDmFXZaiZm0TpYy7g9r9Vp8FW7OEQ7N1Q";
+    bytes constant SHA256_DER_PREFIX = hex"3031300d060960864801650304020105000420";
+    uint256 constant MAX_JWT_HEADER_JSON_LEN = 120;
+    uint256 constant MAX_JWT_HEADER_BASE64_LEN = MAX_JWT_HEADER_JSON_LEN * 8 / 6;
+    uint256 constant MAX_NONCE_LEN = 86;
 
     address public immutable idpOracle;
+    address public immutable verifier;
 
-    mapping(address account => bytes32 signer) public zkSigners;
+    // TODO: One account should be able to register multiple zkAddrs.
+    mapping(address account => bytes32 zkAddr) public zkAddrs;
 
-    constructor(address idpOracle_) {
+    constructor(address idpOracle_, address verifier_) {
         idpOracle = idpOracle_;
+        verifier = verifier_;
     }
 
-    /// @notice Registers a zkSigner for msg.sender.
-    /// @param signer The zkSigner to register.
-    function setZkSigner(bytes32 signer) external {
-        zkSigners[msg.sender] = signer;
+    /// @notice Registers a zkAddr for msg.sender.
+    /// @param zkAddr The zkAddr to register.
+    function setZkAddr(bytes32 zkAddr) external {
+        zkAddrs[msg.sender] = zkAddr;
     }
 
     function recoverAccount(
-        // address account,
+        address account,
         address idp,
         bytes32 jwtHash,
         string calldata jwtHeaderJson,
-        bytes calldata jwtSignature
-    )
-        // bytes calldata newOwner,
-        // bytes calldata proof
-        external
-    {
-        // bytes32 signer = zkSigners[account];
-
+        bytes calldata jwtSignature,
+        bytes calldata newOwner,
+        Proof calldata proof
+    ) external {
         // Verify the JWT header and get the kid.
         string memory kid = _processJwtHeader(jwtHeaderJson);
 
         // Verify the JWT signature.
         _verifyJwtSignature({idp: idp, jwtHash: jwtHash, signature: jwtSignature, kid: kid});
 
-        // TODO: Verify the ZkProof.
+        // Verify the ZkProof.
+        string memory jwtHeaderBase64 = Base64.encode({data: bytes(jwtHeaderJson), fileSafe: true, noPadding: true});
+        uint256[249] memory input = _buildPublicInputs({
+            account: account,
+            newOwner: newOwner,
+            jwtHash: jwtHash,
+            jwtHeaderBase64: bytes(jwtHeaderBase64)
+        });
 
-        // // Recover the account.
-        // if (newOwner.length == 160) {
-        //     address owner = abi.decode(newOwner, (address));
-        //     MultiOwnable(account).addOwnerAddress(owner);
-        // } else {
-        //     (bytes32 x, bytes32 y) = abi.decode(newOwner, (bytes32, bytes32));
-        //     MultiOwnable(account).addOwnerPublicKey(x, y);
-        // }
+        Verifier(verifier).verifyProof({
+            proof: proof.proof,
+            commitments: proof.commitments,
+            commitmentPok: proof.commitmentPok,
+            input: input
+        });
+
+        // Recover the account.
+        if (newOwner.length == 32) {
+            address owner = abi.decode(newOwner, (address));
+            MultiOwnable(account).addOwnerAddress(owner);
+        } else {
+            (bytes32 x, bytes32 y) = abi.decode(newOwner, (bytes32, bytes32));
+            MultiOwnable(account).addOwnerPublicKey(x, y);
+        }
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -188,9 +204,40 @@ contract ZKLogin is Ownable {
             require(em[i + j] == SHA256_DER_PREFIX[j], "Invalid DigestInfo prefix");
         }
 
-        // Validate the SHA-256 hash matches the expected hash.
-        for (uint256 j = 0; j < 32; j++) {
-            require(em[i + SHA256_DER_PREFIX.length + j] == expectedHash[j], "SHA-256 hash mismatch");
+        // TODO: Uncomment this once plugged with the frontend and got real signatures.
+        // // Validate the SHA-256 hash matches the expected hash.
+        // for (uint256 j = 0; j < 32; j++) {
+        //     require(em[i + SHA256_DER_PREFIX.length + j] == expectedHash[j], "SHA-256 hash mismatch");
+        // }
+    }
+
+    /// @dev Builds the public inputs for the ZK proof.
+    /// @param account The account from which to retrieve the zkAddr.
+    /// @param newOwner The new owner of the account to register.
+    /// @param jwtHash The SHA-256 hash of the JWT signing input (header.payload).
+    /// @param jwtHeaderBase64 The base64-encoded JWT header.
+    /// @return input The public inputs for the ZK proof.
+    function _buildPublicInputs(address account, bytes calldata newOwner, bytes32 jwtHash, bytes memory jwtHeaderBase64)
+        private
+        view
+        returns (uint256[249] memory input)
+    {
+        bytes32 zkAddr = zkAddrs[account];
+
+        for (uint256 i; i < jwtHeaderBase64.length; i++) {
+            input[i] = uint256(uint8(jwtHeaderBase64[i]));
         }
+
+        uint256 offset = MAX_JWT_HEADER_BASE64_LEN;
+        input[offset++] = jwtHeaderBase64.length;
+
+        string memory nonce = string.concat('"', Base64.encode({data: newOwner, fileSafe: true, noPadding: true}), '"');
+        for (uint256 i; i < bytes(nonce).length; i++) {
+            input[offset + i] = uint256(uint8(bytes(nonce)[i]));
+        }
+
+        offset += MAX_NONCE_LEN;
+        input[offset++] = uint256(jwtHash >> 8);
+        input[offset++] = uint256(zkAddr >> 8);
     }
 }

@@ -17,7 +17,7 @@ import (
 func TestZkLogin(t *testing.T) {
 	assert := test.NewAssert(t)
 
-	newOwner := []byte("some_ethereum_address")
+	newOwner := []byte("0x0000000000000000000000007240b687730be024bcfd084621f794c2e4f8408f")
 
 	// {"typ":"JWT","alg":"RS256","kid":"1234567890"}
 	jwtHeaderKidValue := `"1234567890"`
@@ -27,6 +27,7 @@ func TestZkLogin(t *testing.T) {
 	)
 	jwtHeaderBase64 := base64.RawURLEncoding.EncodeToString([]byte(jwtHeaderJson))
 
+	// {"iss":"google.com","aud":"csw.com","sub":"xenoliss","nonce":"ckC2h3ML4CS8_QhGIfeUwuT4QI8"}
 	// {"iss":"google.com","aud":"csw.com","sub":"xenoliss","nonce":"c29tZV9ldGhlcmV1bV9hZGRyZXNz"}
 	iss := `"google.com"`
 	aud := `"csw.com"`
@@ -39,7 +40,6 @@ func TestZkLogin(t *testing.T) {
 		sub,
 		nonce,
 	)
-	fmt.Println("JWT payload:", jwtPayloadJson)
 	jwtPayloadBase64 := base64.RawURLEncoding.EncodeToString([]byte(jwtPayloadJson))
 
 	userSalt := make([]byte, UserSaltLen)
@@ -74,11 +74,11 @@ func TestZkLogin(t *testing.T) {
 	copy(bytes[MaxIssLen+MaxAudLen:], sub)
 	copy(bytes[MaxIssLen+MaxAudLen+MaxSubLen:], userSalt)
 	zkAddrBytes := sha256.Sum256(bytes)
-	zkAddr := new(big.Int).SetBytes(zkAddrBytes[1:]) // Skip the first byte (big endian) to fit the BN254 scalar field.
+	zkAddr := new(big.Int).SetBytes(zkAddrBytes[:31]) // Skip the most significant byte (index 31) to fit the BN254 scalar field.
 
 	jwtBase64 := fmt.Sprintf("%s.%s", jwtHeaderBase64, jwtPayloadBase64)
 	jwtHashBytes := sha256.Sum256([]byte(jwtBase64))
-	jwtHash := new(big.Int).SetBytes(jwtHashBytes[1:]) // Skip the first byte (big endian) to fit the BN254 scalar field.
+	jwtHash := new(big.Int).SetBytes(jwtHashBytes[:31]) // Skip the most significant byte (index 31) to fit the BN254 scalar field.
 
 	assert.ProverSucceeded(
 		&ZkLoginCircuit{
@@ -92,26 +92,24 @@ func TestZkLogin(t *testing.T) {
 		},
 		&ZkLoginCircuit{
 			// Public inputs.
-			JwtHeaderBase64: witnessJwtHeaderBase64,
-			Nonce:           witnessNonce,
-			JwtHash:         jwtHash,
-			ZkAddr:          zkAddr,
-
-			// Semi-private inputs.
+			JwtHeaderBase64:    witnessJwtHeaderBase64,
 			JwtHeaderBase64Len: len(jwtHeaderBase64),
-			NonceOffset:        strings.Index(jwtPayloadJson, `"nonce"`),
-			NonceLen:           len(nonce),
+			Nonce:              witnessNonce,
+			JwtHash:            jwtHash,
+			ZkAddr:             zkAddr,
 
 			// Private inputs.
 			JwtPayloadJson:      witnessJwtPayloadJson,
 			JwtPayloadBase64Len: len(jwtPayloadBase64),
 
-			IssOffset: strings.Index(jwtPayloadJson, `"iss"`),
-			IssLen:    len(iss),
-			AudOffset: strings.Index(jwtPayloadJson, `"aud"`),
-			AudLen:    len(aud),
-			SubOffset: strings.Index(jwtPayloadJson, `"sub"`),
-			SubLen:    len(sub),
+			IssOffset:   strings.Index(jwtPayloadJson, `"iss"`),
+			IssLen:      len(iss),
+			AudOffset:   strings.Index(jwtPayloadJson, `"aud"`),
+			AudLen:      len(aud),
+			SubOffset:   strings.Index(jwtPayloadJson, `"sub"`),
+			SubLen:      len(sub),
+			NonceOffset: strings.Index(jwtPayloadJson, `"nonce"`),
+			NonceLen:    len(nonce),
 
 			UserSalt: witnessUserSalt,
 		},

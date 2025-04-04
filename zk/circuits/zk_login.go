@@ -9,22 +9,20 @@ import (
 
 type ZkLoginCircuit struct {
 	// Public inputs.
-	JwtHeaderBase64 []uints.U8        `gnark:",public"`
-	Nonce           []uints.U8        `gnark:",public"`
-	JwtHash         frontend.Variable `gnark:",public"`
-	ZkAddr          frontend.Variable `gnark:",public"`
-
-	// Semi-private inputs (to not require the verifier to provide them).
-	JwtHeaderBase64Len    frontend.Variable
-	NonceOffset, NonceLen frontend.Variable
+	JwtHeaderBase64    []uints.U8        `gnark:",public"`
+	JwtHeaderBase64Len frontend.Variable `gnark:",public"`
+	Nonce              []uints.U8        `gnark:",public"`
+	JwtHash            frontend.Variable `gnark:",public"`
+	ZkAddr             frontend.Variable `gnark:",public"`
 
 	// Private inputs.
 	JwtPayloadJson      []uints.U8
 	JwtPayloadBase64Len frontend.Variable
 
-	IssOffset, IssLen frontend.Variable
-	AudOffset, AudLen frontend.Variable
-	SubOffset, SubLen frontend.Variable
+	IssOffset, IssLen     frontend.Variable
+	AudOffset, AudLen     frontend.Variable
+	SubOffset, SubLen     frontend.Variable
+	NonceOffset, NonceLen frontend.Variable
 
 	UserSalt []uints.U8
 }
@@ -74,7 +72,7 @@ func (c *ZkLoginCircuit) zkAddr(
 	sha.Write(userSalt)
 	hashBytes := sha.Sum()
 	var hashBin []frontend.Variable
-	for i := 31; i > 0; i-- { // Skip the last byte index[0] to fit the BN254 scalar field.
+	for i := 30; i >= 0; i-- { // Skip the least significant byte (index 31) to fit the BN254 scalar field.
 		hashBin = append(hashBin, api.ToBinary(hashBytes[i].Val, 8)...)
 	}
 	zkAddr = api.FromBinary(hashBin...)
@@ -137,7 +135,7 @@ func (c *ZkLoginCircuit) jwtHash(
 	sha.Write(packedJwt)
 	hashBytes := sha.FixedLengthSum(api.Add(c.JwtHeaderBase64Len, frontend.Variable(1), c.JwtPayloadBase64Len))
 	var hashBin []frontend.Variable
-	for i := 31; i > 0; i-- { // Skip the last byte to fit the BN254 scalar field.
+	for i := 30; i >= 0; i-- { // Skip the least significant byte (index 31) to fit the BN254 scalar field.
 		hashBin = append(hashBin, api.ToBinary(hashBytes[i].Val, 8)...)
 	}
 	jwtHash = api.FromBinary(hashBin...)

@@ -2,6 +2,7 @@
 src = "src"
 out = "out"
 libs = ["lib"]
+fs_permissions = [{ access = 'read', path = 'zk/artifacts' }]
 
 [profile.deploy]
 optimizer = true

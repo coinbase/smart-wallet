@@ -1,0 +1,20 @@
+{
+	"name": "smart-wallet",
+	"build": {
+		"dockerfile": "Dockerfile"
+	},
+	"runArgs": [
+		"--name=smart-wallet"
+	],
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"eamodio.gitlens",
+				"Gruntfuggly.todo-tree",
+				"NomicFoundation.hardhat-solidity",
+				"rust-lang.rust-analyzer",
+				"tamasfe.even-better-toml"
+			]
+		}
+	}
+}
