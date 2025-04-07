@@ -1,15 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
-import { hexToBytes } from "viem";
 
 import { addKeypair } from "../local-storage";
+import { addressToNonce } from "../utils";
 
 export default function SignInPage() {
-  const router = useRouter();
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -31,9 +28,8 @@ export default function SignInPage() {
 
       addKeypair(newKeypair);
 
-      // Convert the Ethereum address to base64 to use as nonce
-      const addressBytes = hexToBytes(address);
-      const base64Address = Buffer.from(addressBytes).toString("base64");
+      // Convert the Ethereum address to the base64Url-encoded nonce
+      const nonce = addressToNonce(address);
 
       // Google OAuth configuration
       const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
@@ -53,7 +49,7 @@ export default function SignInPage() {
         `&redirect_uri=${encodeURIComponent(redirectUri)}` +
         `&response_type=code` +
         `&scope=${encodeURIComponent(scope)}` +
-        `&nonce=${encodeURIComponent(base64Address)}` +
+        `&nonce=${encodeURIComponent(nonce)}` +
         `&access_type=offline` +
         `&prompt=consent`;
 

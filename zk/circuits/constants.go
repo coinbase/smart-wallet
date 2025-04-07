@@ -5,10 +5,10 @@ const (
 	// JWT len must be multiple of 3bytes (24 bits) because divisible by both 6 and 8 bits.
 	// This make encoding to base64 easier.
 	MaxJwtPayloadJsonLen = 600
-	maxJwtHeaderJsonLen  = 120
+	maxJwtHeaderJsonLen  = 180
 
 	MaxIssLen   = 64 // Likely too small for Microsoft.
-	MaxAudLen   = 72
+	MaxAudLen   = 80
 	MaxSubLen   = 64
 	MaxNonceLen = 86 // (64 * 8 / 6)
 

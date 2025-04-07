@@ -9,19 +9,11 @@ export const getKeypairs = () => {
 };
 
 export const addKeypair = (keypair: Keypair) => {
-  const storedKeypairs = getKeypairs();
+  const storedKeypairs = JSON.parse(localStorage.getItem("keypairs") || "[]");
   localStorage.setItem(
     "keypairs",
     JSON.stringify([...storedKeypairs, keypair])
   );
-};
-
-export const getLatestKeypair = () => {
-  const storedKeypairs = getKeypairs();
-  if (storedKeypairs.length === 0) {
-    throw new Error("No keypairs found in storage");
-  }
-  return storedKeypairs[storedKeypairs.length - 1];
 };
 
 export const saveJWT = (jwt: string) => {

@@ -14,7 +14,7 @@ contract ZKLoginTest is Test {
     ZKLogin zkLogin;
 
     uint256 public constant MAX_ISS_LEN = 64;
-    uint256 public constant MAX_AUD_LEN = 72;
+    uint256 public constant MAX_AUD_LEN = 80;
     uint256 public constant MAX_SUB_LEN = 64;
 
     address public google;
@@ -96,6 +96,7 @@ contract ZKLoginTest is Test {
 
         console2.log("Reading generated proof from file...");
         bytes memory proof = vm.readFileBinary("zk/artifacts/proof_test.bin");
+        console2.log("Proof length:", proof.length);
         console2.log("Proof:", vm.toString(proof));
 
         ZKLogin.Proof memory proof_ = this.parseProof(proof);

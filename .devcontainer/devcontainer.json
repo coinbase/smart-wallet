@@ -13,7 +13,8 @@
 				"Gruntfuggly.todo-tree",
 				"NomicFoundation.hardhat-solidity",
 				"rust-lang.rust-analyzer",
-				"tamasfe.even-better-toml"
+				"tamasfe.even-better-toml",
+				"esbenp.prettier-vscode"
 			]
 		}
 	}

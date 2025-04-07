@@ -2,7 +2,16 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { decodeAbiParameters, encodeFunctionData, hexToBytes, pad } from "viem";
+import {
+  decodeAbiParameters,
+  encodeFunctionData,
+  hexToBytes,
+  pad,
+  toHex,
+  encodeAbiParameters,
+  parseAbiParameters,
+  isAddressEqual,
+} from "viem";
 import { sha256 } from "viem/utils";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import {
@@ -12,27 +21,32 @@ import {
   useReadContracts,
   useAccount,
 } from "wagmi";
+import base64url from "base64url";
+
 import { NETWORK_CONFIG } from "./blockchain/network";
 import {
   COINBASE_SMART_WALLET_ABI,
   COINBASE_SMART_WALLET_FACTORY_ABI,
   ZK_LOGIN_ABI,
 } from "./blockchain/abi";
-import { encodeAbiParameters, parseAbiParameters } from "viem";
-
 import {
   ISS_BUFFER_LENGTH,
   AUD_BUFFER_LENGTH,
   SUB_BUFFER_LENGTH,
 } from "./circuit";
 import { getJWT, getKeypairs, removeJWT } from "./local-storage";
+import { nonceToAddress } from "./utils";
 
 type OAuthState =
   | {
       loading: false;
-      header: any;
-      payload: any;
-      signature: string;
+      jwt: {
+        hash: `0x${string}`;
+        header: any;
+        payload: any;
+        signature: string;
+        raw: string;
+      };
     }
   | {
       loading: true;
@@ -41,17 +55,24 @@ type OAuthState =
 type Owner = {
   address: `0x${string}`;
   index: number;
-  type: "normal" | "ephemeral" | "zklogin";
+  type: "removed" | "normal" | "ephemeral" | "zklogin";
 };
 
 export default function Home() {
   const router = useRouter();
 
   const [oauthState, setOauthState] = useState<OAuthState>({ loading: true });
+  const [userSalt, setUserSalt] = useState<string | undefined>(undefined);
   const [zkAddress, setZkAddress] = useState<`0x${string}` | undefined>(
     undefined
   );
   const [owners, setOwners] = useState<Owner[]>([]);
+  const [removingOwnerIndex, setRemovingOwnerIndex] = useState<number | null>(
+    null
+  );
+  const [ephemeralAddress, setEphemeralAddress] = useState<
+    `0x${string}` | undefined
+  >(undefined);
   const { address: walletAddress } = useAccount();
 
   const [jwtInfoExpanded, setJwtInfoExpanded] = useState(false);
@@ -104,18 +125,16 @@ export default function Home() {
   };
 
   // Check if an address is an owner of the smart wallet
-  const {
-    data: nextOwnerIndex,
-    isLoading: isLoadingNextOwnerIndex,
-    refetch: refetchNextOwnerIndex,
-  } = useReadContract({
-    address: smartWalletAddress as `0x${string}`,
-    abi: COINBASE_SMART_WALLET_ABI,
-    functionName: "nextOwnerIndex",
-    query: {
-      enabled: smartWalletAddress != undefined && isWalletDeployed,
-    },
-  });
+  const { data: nextOwnerIndex, isLoading: isLoadingNextOwnerIndex } =
+    useReadContract({
+      address: smartWalletAddress as `0x${string}`,
+      abi: COINBASE_SMART_WALLET_ABI,
+      functionName: "nextOwnerIndex",
+      query: {
+        refetchInterval: 1000,
+        enabled: smartWalletAddress != undefined && isWalletDeployed,
+      },
+    });
 
   // Get all owners using ownerAtIndex
   const ownerAtIndexQueries = useMemo(() => {
@@ -129,37 +148,32 @@ export default function Home() {
     }));
   }, [nextOwnerIndex, smartWalletAddress, isWalletDeployed]);
 
-  const {
-    data: ownerAtIndexResults,
-    isLoading: isLoadingOwnerAtIndex,
-    // refetch: refetchOwnerAtIndices,
-  } = useReadContracts({
-    contracts: ownerAtIndexQueries,
-    query: {
-      enabled: ownerAtIndexQueries.length > 0,
-    },
-  });
+  const { data: ownerAtIndexResults, isLoading: isLoadingOwnerAtIndices } =
+    useReadContracts({
+      contracts: ownerAtIndexQueries,
+      query: {
+        refetchInterval: 1000,
+        enabled: ownerAtIndexQueries.length > 0,
+      },
+    });
 
   // Check if the wallet has registered its zkAddress
-  const {
-    data: registeredZkAddr,
-    isLoading: isLoadingZkAddr,
-    refetch: refetchRegisteredZkAddr,
-  } = useReadContract({
-    address: NETWORK_CONFIG.anvil.ZK_LOGIN_ADDRESS,
-    abi: ZK_LOGIN_ABI,
-    functionName: "zkAddrs",
-    args: [smartWalletAddress as `0x${string}`],
-    query: {
-      enabled: smartWalletAddress != undefined && isWalletDeployed,
-    },
-  });
+  const { data: registeredZkAddr, isLoading: isLoadingZkAddr } =
+    useReadContract({
+      address: NETWORK_CONFIG.anvil.ZK_LOGIN_ADDRESS,
+      abi: ZK_LOGIN_ABI,
+      functionName: "zkAddrs",
+      args: [smartWalletAddress as `0x${string}`],
+      query: {
+        refetchInterval: 1000,
+        enabled: smartWalletAddress != undefined && isWalletDeployed,
+      },
+    });
 
   // Prepare contract write for linking wallet to Google
   const {
     writeContract: writeContractLinkGoogle,
     isPending: isLinkGooglePending,
-    isSuccess: isLinkGoogleSuccess,
   } = useWriteContract();
 
   const hasGoogleRecovery = useMemo(() => {
@@ -171,7 +185,183 @@ export default function Home() {
     );
   }, [registeredZkAddr, owners]);
 
-  const linkWalletToGoogle = () => {
+  // Prepare contract write for removing an owner
+  const {
+    writeContract: writeContractRemoveOwner,
+    isSuccess: isRemovingOwnerSuccess,
+  } = useWriteContract();
+
+  // Call the recoverAccount method on the ZKLogin contract
+  const { writeContract: writeContractRecoverAccount } = useWriteContract();
+
+  // Set the oauth state
+  useEffect(() => {
+    const handle = async () => {
+      try {
+        // Check for JWT in localStorage
+        const storedJWT = getJWT();
+        if (!storedJWT) {
+          router.push("/sign-in");
+          return;
+        }
+
+        // Parse the JWT to get the payload
+        const [headerBase64, payloadBase64, signatureBase64] =
+          storedJWT.split(".");
+
+        // Decode header and payload
+        const header = JSON.parse(base64url.decode(headerBase64));
+        const payload = JSON.parse(base64url.decode(payloadBase64));
+
+        setOauthState({
+          loading: false,
+          jwt: {
+            hash: sha256(Buffer.from(headerBase64 + "." + payloadBase64)),
+            header: header,
+            payload: payload,
+            signature: signatureBase64,
+            raw: storedJWT,
+          },
+        });
+
+        // Decode the address from the JWT nonce
+        const nonceBase64 = payload.nonce;
+        if (nonceBase64) {
+          const addressFromJWT = nonceToAddress(nonceBase64);
+          setEphemeralAddress(addressFromJWT);
+        }
+
+        // If everything is valid, set the states
+      } catch (err) {
+        // Clear JWT on any error
+        removeJWT();
+        console.error("Error checking authentication:", err);
+        router.push("/sign-in");
+      }
+    };
+
+    handle();
+  }, [router]);
+
+  // Compute zkAddress from JWT
+  useEffect(() => {
+    const handle = async () => {
+      if (oauthState.loading) return;
+
+      // Extract JWT claims needed for zkAddress
+      const { iss, aud, sub } = oauthState.jwt.payload;
+
+      const issBuff = pad(Buffer.from(JSON.stringify(iss)), {
+        size: ISS_BUFFER_LENGTH,
+        dir: "right",
+      });
+
+      const audBuff = pad(Buffer.from(JSON.stringify(aud)), {
+        size: AUD_BUFFER_LENGTH,
+        dir: "right",
+      });
+
+      const subBuff = pad(Buffer.from(JSON.stringify(sub)), {
+        size: SUB_BUFFER_LENGTH,
+        dir: "right",
+      });
+
+      // Get userSalt from API
+      const saltResponse = await fetch("/api/salt", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ iss, aud, sub }),
+      });
+
+      if (!saltResponse.ok) {
+        throw new Error("Failed to get user salt");
+      }
+
+      const { salt: userSalt } = await saltResponse.json();
+      setUserSalt(userSalt);
+
+      // Concatenate all buffers
+      const userSaltBytes = hexToBytes(userSalt);
+      console.log("userSaltBytes", userSaltBytes);
+      const concatenated = Uint8Array.from([
+        ...issBuff,
+        ...audBuff,
+        ...subBuff,
+        ...userSaltBytes,
+      ]);
+
+      console.log("concatenated", concatenated);
+
+      // Compute zkAddress
+      const computedZkAddress = sha256(concatenated);
+      setZkAddress(computedZkAddress);
+    };
+
+    handle();
+  }, [oauthState]);
+
+  // Refetch bytecode when deployment is successful
+  useEffect(() => {
+    if (isWalletDeploymentSuccess) {
+      // Wait a short time for the blockchain to update
+      const timer = setTimeout(() => {
+        refetchBytecode();
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [isWalletDeploymentSuccess, refetchBytecode]);
+
+  // Reset removingOwnerIndex when the owner is actually removed (or failed)
+  useEffect(() => {
+    setRemovingOwnerIndex(null);
+  }, [isRemovingOwnerSuccess]);
+
+  // Update owners when ownerAtIndex results change
+  useEffect(() => {
+    if (ownerAtIndexResults) {
+      const decodedOwners = ownerAtIndexResults.map(
+        (result) =>
+          decodeAbiParameters(
+            parseAbiParameters("address"),
+            pad(result.result as `0x${string}`, {
+              size: 32,
+              dir: "left",
+            })
+          )[0]
+      );
+
+      const keypairs = getKeypairs();
+
+      console.log(decodedOwners);
+
+      setOwners(
+        decodedOwners.map((owner, index) => ({
+          address: owner,
+          index,
+          type:
+            owner === NETWORK_CONFIG.anvil.ZK_LOGIN_ADDRESS
+              ? "zklogin"
+              : owner === "0x0000000000000000000000000000000000000000"
+              ? "removed"
+              : keypairs.find((keypair) =>
+                  isAddressEqual(keypair.address, owner)
+                )
+              ? "ephemeral"
+              : "normal",
+        }))
+      );
+    }
+  }, [ownerAtIndexResults]);
+
+  // Function to handle logout
+  const handleLogout = () => {
+    removeJWT();
+    router.push("/sign-in");
+  };
+
+  const enableGoogleRecovery = () => {
     if (oauthState.loading) return;
 
     const addOwnerAddressCall = encodeFunctionData({
@@ -207,188 +397,135 @@ export default function Home() {
     });
   };
 
-  // Set the oauth state
-  useEffect(() => {
-    const handle = async () => {
-      try {
-        // Check for JWT in localStorage
-        const storedJWT = getJWT();
-        if (!storedJWT) {
-          router.push("/sign-in");
-          return;
-        }
+  const removeOwner = (index: number) => {
+    setRemovingOwnerIndex(index);
 
-        // Parse the JWT to get the payload
-        const [headerBase64, payloadBase64, signatureBase64] =
-          storedJWT.split(".");
+    const owner = owners[index];
+    const ownerBytes = encodeAbiParameters(parseAbiParameters("address"), [
+      owner.address,
+    ]);
 
-        // Decode header and payload
-        const header = JSON.parse(atob(headerBase64));
-        const payload = JSON.parse(atob(payloadBase64));
+    // Then call removeOwnerAtIndex with the index and owner bytes
+    writeContractRemoveOwner({
+      address: smartWalletAddress as `0x${string}`,
+      abi: COINBASE_SMART_WALLET_ABI,
+      functionName: "removeOwnerAtIndex",
+      args: [BigInt(index), ownerBytes],
+    });
+  };
 
-        setOauthState({
-          loading: false,
-          header: header,
-          payload: payload,
-          signature: signatureBase64,
-        });
+  const addEphemeralOwner = async () => {
+    if (oauthState.loading || !smartWalletAddress || !ephemeralAddress) return;
 
-        // // Get the nonce from the payload which contains our base64-encoded address
-        // const nonceBase64 = payload.nonce;
-        // if (!nonceBase64) {
-        //   localStorage.removeItem("google_jwt");
-        //   console.error("No nonce found in JWT");
-        //   router.push("/sign-in");
-        //   return;
-        // }
+    const rawJWT = oauthState.jwt.raw;
+    const [headerBase64] = rawJWT.split(".");
+    const jwtHeaderJson = base64url.decode(headerBase64);
 
-        // // Check if private key exists
-        // const privateKey = localStorage.getItem("sk");
-        // if (!privateKey) {
-        //   localStorage.removeItem("google_jwt");
-        //   console.error("No private key found");
-        //   router.push("/sign-in");
-        //   return;
-        // }
+    const newOwner = encodeAbiParameters(parseAbiParameters("address"), [
+      ephemeralAddress,
+    ]);
 
-        // // Get the Ethereum address from the private key
-        // const ephemeralAddressFromKey = privateKeyToAccount(
-        //   privateKey as `0x${string}`
-        // ).address;
-
-        // // Decode the address from the JWT nonce
-        // const addressFromJWT = bytesToHex(Buffer.from(nonceBase64, "base64"));
-
-        // // Verify that the addresses match
-        // if (!isAddressEqual(ephemeralAddressFromKey, addressFromJWT)) {
-        //   localStorage.removeItem("google_jwt");
-        //   console.error("Address mismatch between JWT and private key");
-        //   router.push("/sign-in");
-        //   return;
-        // }
-
-        // If everything is valid, set the states
-      } catch (err) {
-        // Clear JWT on any error
-        removeJWT();
-        console.error("Error checking authentication:", err);
-        router.push("/sign-in");
-      }
-    };
-
-    handle();
-  }, [router]);
-
-  // Compute zkAddress from JWT
-  useEffect(() => {
-    const handle = async () => {
-      if (oauthState.loading) return;
-
-      // Extract JWT claims needed for zkAddress
-      const { iss, aud, sub } = oauthState.payload;
-
-      const issBuff = pad(Buffer.from(iss), {
-        size: ISS_BUFFER_LENGTH,
-        dir: "right",
-      });
-
-      const audBuff = pad(Buffer.from(aud), {
-        size: AUD_BUFFER_LENGTH,
-        dir: "right",
-      });
-
-      const subBuff = pad(Buffer.from(sub), {
-        size: SUB_BUFFER_LENGTH,
-        dir: "right",
-      });
-
-      // Get userSalt from API
-      const saltResponse = await fetch("/api/salt", {
+    try {
+      // Make a request to the GO server's /proof endpoint
+      const proofResponse = await fetch("http://localhost:8080/proof", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ iss, aud, sub }),
+        body: JSON.stringify({
+          jwt: rawJWT,
+          user_salt: userSalt,
+        }),
       });
-
-      if (!saltResponse.ok) {
-        throw new Error("Failed to get user salt");
+      if (!proofResponse.ok) {
+        throw new Error("Failed to generate proof");
       }
 
-      const { salt: userSalt } = await saltResponse.json();
-      const userSaltBytes = hexToBytes(userSalt);
+      const { proof } = await proofResponse.json();
+      const parsedProof = parseProof(proof);
 
-      // Concatenate all buffers
-      const concatenated = Uint8Array.from([
-        ...issBuff,
-        ...audBuff,
-        ...subBuff,
-        ...userSaltBytes,
-      ]);
+      // Convert the signature from base64url to hex
+      const jwtSignature = toHex(base64url.toBuffer(oauthState.jwt.signature));
 
-      // Compute zkAddress
-      const computedZkAddress = sha256(concatenated);
-      setZkAddress(computedZkAddress);
+      writeContractRecoverAccount({
+        address: NETWORK_CONFIG.anvil.ZK_LOGIN_ADDRESS,
+        abi: ZK_LOGIN_ABI,
+        functionName: "recoverAccount",
+        args: [
+          smartWalletAddress, // account
+          NETWORK_CONFIG.anvil.GOOGLE_IDP_ADDRESS, // idp
+          oauthState.jwt.hash, // jwtHash
+          jwtHeaderJson, // jwtHeaderJson
+          jwtSignature, // jwtSignature
+          newOwner, // newOwner
+          {
+            proof: parsedProof.proof.map(BigInt) as any,
+            commitments: parsedProof.commitments.map(BigInt) as any,
+            commitmentPok: parsedProof.commitmentPok.map(BigInt) as any,
+          }, // proof
+        ],
+      });
+    } catch (error) {
+      console.error("Error during recovery:", error);
+    }
+  };
+
+  const parseProof = (proof: string) => {
+    // Convert base64url proof to bytes
+    const proofBytes = base64url.toBuffer(proof);
+
+    // Each field element is 32 bytes (256 bits)
+    const fpSize = 32;
+
+    // Parse the proof components
+    const proofComponents = [];
+
+    // First 8 elements are the proof
+    for (let i = 0; i < 8; i++) {
+      const start = i * fpSize;
+      const end = start + fpSize;
+      const element = toHex(Buffer.from(proofBytes.subarray(start, end)));
+      proofComponents.push(element);
+    }
+
+    // Next 4 bytes contain the commitment count
+    const commitmentCountBytes = proofBytes.subarray(
+      fpSize * 8,
+      fpSize * 8 + 4
+    );
+    const commitmentCount = new DataView(
+      commitmentCountBytes.buffer,
+      commitmentCountBytes.byteOffset,
+      commitmentCountBytes.byteLength
+    ).getUint32(0, false);
+
+    if (commitmentCount !== 1) {
+      throw new Error("Invalid commitment count");
+    }
+
+    // Parse commitments (2 * commitmentCount elements)
+    const commitments = [];
+    for (let i = 0; i < 2 * commitmentCount; i++) {
+      const start = fpSize * 8 + 4 + i * fpSize;
+      const end = start + fpSize;
+      const element = toHex(Buffer.from(proofBytes.subarray(start, end)));
+      commitments.push(element);
+    }
+
+    // Parse commitment POK (2 elements)
+    const commitmentPok = [];
+    for (let i = 0; i < 2; i++) {
+      const start = fpSize * 8 + 4 + 2 * commitmentCount * fpSize + i * fpSize;
+      const end = start + fpSize;
+      const element = toHex(Buffer.from(proofBytes.subarray(start, end)));
+      commitmentPok.push(element);
+    }
+
+    return {
+      proof: proofComponents,
+      commitments,
+      commitmentPok,
     };
-
-    handle();
-  }, [oauthState]);
-
-  // Refetch bytecode when deployment is successful
-  useEffect(() => {
-    if (isWalletDeploymentSuccess) {
-      // Wait a short time for the blockchain to update
-      const timer = setTimeout(() => {
-        refetchBytecode();
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [isWalletDeploymentSuccess, refetchBytecode]);
-
-  // Refetch zkAddr when deployment is successful
-  useEffect(() => {
-    if (isLinkGoogleSuccess) {
-      // Wait a short time for the blockchain to update
-      const timer = setTimeout(() => {
-        refetchRegisteredZkAddr();
-        refetchNextOwnerIndex();
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [isLinkGoogleSuccess, refetchRegisteredZkAddr, refetchNextOwnerIndex]);
-
-  // Update owners when ownerAtIndex results change
-  useEffect(() => {
-    if (ownerAtIndexResults) {
-      const decodedOwners = ownerAtIndexResults.map(
-        (result) =>
-          decodeAbiParameters(
-            parseAbiParameters("address"),
-            result.result as `0x${string}`
-          )[0]
-      );
-
-      const keypairs = getKeypairs();
-
-      setOwners(
-        decodedOwners.map((owner, index) => ({
-          address: owner,
-          index,
-          type:
-            owner === NETWORK_CONFIG.anvil.ZK_LOGIN_ADDRESS
-              ? "zklogin"
-              : keypairs.find((kp) => kp.address === owner)
-              ? "ephemeral"
-              : "normal",
-        }))
-      );
-    }
-  }, [ownerAtIndexResults]);
-
-  // Function to handle logout
-  const handleLogout = () => {
-    removeJWT();
-    router.push("/sign-in");
   };
 
   if (oauthState.loading) {
@@ -474,7 +611,7 @@ export default function Home() {
                   <div className="p-4 bg-gray-900/50">
                     <pre className="overflow-x-auto">
                       <code className="text-gray-200 font-mono text-sm">
-                        {JSON.stringify(oauthState.header, null, 2)}
+                        {JSON.stringify(oauthState.jwt.header, null, 2)}
                       </code>
                     </pre>
                   </div>
@@ -488,7 +625,7 @@ export default function Home() {
                   <div className="p-4 bg-gray-900/50">
                     <pre className="overflow-x-auto">
                       <code className="text-gray-200 font-mono text-sm">
-                        {JSON.stringify(oauthState.payload, null, 2)}
+                        {JSON.stringify(oauthState.jwt.payload, null, 2)}
                       </code>
                     </pre>
                   </div>
@@ -502,7 +639,7 @@ export default function Home() {
                   <div className="p-4 bg-gray-900/50">
                     <pre className="overflow-x-auto break-all">
                       <code className="text-gray-200 font-mono text-sm">
-                        {oauthState.signature}
+                        {oauthState.jwt.signature}
                       </code>
                     </pre>
                   </div>
@@ -580,14 +717,10 @@ export default function Home() {
                       <div>
                         <button
                           onClick={deployWallet}
-                          disabled={
-                            isWalletDeploymentPending ||
-                            isWalletDeploymentSuccess
-                          }
+                          disabled={isWalletDeploymentPending}
                           className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          {isWalletDeploymentPending ||
-                          isWalletDeploymentSuccess
+                          {isWalletDeploymentPending
                             ? "Deploying..."
                             : "Deploy Smart Wallet"}
                         </button>
@@ -607,26 +740,31 @@ export default function Home() {
                         </p>
                       ) : hasGoogleRecovery ? (
                         <div className="flex items-center space-x-4">
-                          <span className="px-2 py-1 bg-green-600/20 text-green-400 rounded text-sm">
-                            Enabled
-                          </span>
                           <button
-                            onClick={() => router.push("/sign-in")}
+                            onClick={addEphemeralOwner}
                             className="px-3 py-1.5 bg-orange-700/80 hover:bg-orange-700 text-white rounded-md text-sm"
                           >
-                            Recover
+                            Add Ephemeral Owner
                           </button>
+                          {ephemeralAddress && (
+                            <div className="text-sm text-gray-300">
+                              <span className="font-medium">
+                                Ephemeral Key:
+                              </span>{" "}
+                              <span className="font-mono">
+                                {ephemeralAddress}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <div>
                           <button
-                            onClick={linkWalletToGoogle}
-                            disabled={
-                              isLinkGooglePending || isLinkGoogleSuccess
-                            }
+                            onClick={enableGoogleRecovery}
+                            disabled={isLinkGooglePending}
                             className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            {isLinkGooglePending || isLinkGoogleSuccess
+                            {isLinkGooglePending
                               ? "Enabling..."
                               : "Enable Google Recovery"}
                           </button>
@@ -641,7 +779,7 @@ export default function Home() {
                       <h3 className="text-sm font-medium text-gray-400 mb-2">
                         Owners
                       </h3>
-                      {isLoadingNextOwnerIndex || isLoadingOwnerAtIndex ? (
+                      {isLoadingNextOwnerIndex || isLoadingOwnerAtIndices ? (
                         <p className="text-sm text-gray-400">
                           Checking owners...
                         </p>
@@ -657,42 +795,72 @@ export default function Home() {
                                   {owner.address}
                                 </p>
                                 {owner.type === "zklogin" && (
-                                  <span className="shrink-0 px-2 py-1 text-xs bg-blue-600 text-white rounded-md">
+                                  <span className="shrink-0 px-2 py-1 text-xs bg-blue-600/20 text-white rounded-md">
                                     ZKLogin Contract
                                   </span>
                                 )}
                                 {owner.type === "ephemeral" && (
-                                  <span className="shrink-0 px-2 py-1 text-xs bg-purple-600 text-white rounded-md">
+                                  <span className="shrink-0 px-2 py-1 text-xs bg-purple-600/20 text-white rounded-md">
                                     Ephemeral
                                   </span>
                                 )}
+                                {owner.type === "removed" && (
+                                  <span className="shrink-0 px-2 py-1 text-xs bg-red-600/20 text-white rounded-md">
+                                    Removed
+                                  </span>
+                                )}
                                 {owner.type === "normal" && (
-                                  <span className="shrink-0 px-2 py-1 text-xs bg-gray-600 text-white rounded-md">
+                                  <span className="shrink-0 px-2 py-1 text-xs bg-gray-600/80 text-white rounded-md">
                                     Normal
                                   </span>
                                 )}
                               </div>
-                              <button
-                                onClick={() => {
-                                  // This will be implemented later
-                                  console.log("Remove owner:", owner);
-                                }}
-                                className="shrink-0 p-1 text-gray-400 hover:text-red-500 rounded-full hover:bg-gray-600 transition-colors"
-                                title="Remove owner"
-                              >
-                                <svg
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  className="h-5 w-5"
-                                  viewBox="0 0 20 20"
-                                  fill="currentColor"
-                                >
-                                  <path
-                                    fillRule="evenodd"
-                                    d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                                    clipRule="evenodd"
-                                  />
-                                </svg>
-                              </button>
+                              <div className="flex items-center space-x-2">
+                                {owner.type !== "removed" && (
+                                  <button
+                                    onClick={() => removeOwner(index)}
+                                    className="shrink-0 p-1 text-gray-400 hover:text-red-500 rounded-full hover:bg-gray-600 transition-colors"
+                                    title="Remove owner"
+                                    disabled={removingOwnerIndex === index}
+                                  >
+                                    {removingOwnerIndex === index ? (
+                                      <svg
+                                        className="animate-spin h-5 w-5 text-gray-400"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <circle
+                                          className="opacity-25"
+                                          cx="12"
+                                          cy="12"
+                                          r="10"
+                                          stroke="currentColor"
+                                          strokeWidth="4"
+                                        ></circle>
+                                        <path
+                                          className="opacity-75"
+                                          fill="currentColor"
+                                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                        ></path>
+                                      </svg>
+                                    ) : (
+                                      <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        className="h-5 w-5"
+                                        viewBox="0 0 20 20"
+                                        fill="currentColor"
+                                      >
+                                        <path
+                                          fillRule="evenodd"
+                                          d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                          clipRule="evenodd"
+                                        />
+                                      </svg>
+                                    )}
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           ))}
                         </div>

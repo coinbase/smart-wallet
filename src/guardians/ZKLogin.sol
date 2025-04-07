@@ -26,7 +26,7 @@ contract ZKLogin is Ownable {
     bytes32 public constant JWT = keccak256('"JWT"');
 
     bytes constant SHA256_DER_PREFIX = hex"3031300d060960864801650304020105000420";
-    uint256 constant MAX_JWT_HEADER_JSON_LEN = 120;
+    uint256 constant MAX_JWT_HEADER_JSON_LEN = 180;
     uint256 constant MAX_JWT_HEADER_BASE64_LEN = MAX_JWT_HEADER_JSON_LEN * 8 / 6;
     uint256 constant MAX_NONCE_LEN = 86;
 
@@ -64,7 +64,7 @@ contract ZKLogin is Ownable {
 
         // Verify the ZkProof.
         string memory jwtHeaderBase64 = Base64.encode({data: bytes(jwtHeaderJson), fileSafe: true, noPadding: true});
-        uint256[249] memory input = _buildPublicInputs({
+        uint256[329] memory input = _buildPublicInputs({
             account: account,
             newOwner: newOwner,
             jwtHash: jwtHash,
@@ -200,12 +200,12 @@ contract ZKLogin is Ownable {
         require(em.length - i == digestInfoLen, "Invalid DigestInfo length");
 
         // Validate the DER-encoded SHA-256 prefix.
-        for (uint256 j = 0; j < SHA256_DER_PREFIX.length; j++) {
+        for (uint256 j; j < SHA256_DER_PREFIX.length; j++) {
             require(em[i + j] == SHA256_DER_PREFIX[j], "Invalid DigestInfo prefix");
         }
 
         // Validate the SHA-256 hash matches the expected hash.
-        for (uint256 j = 0; j < 32; j++) {
+        for (uint256 j; j < 32; j++) {
             require(em[i + SHA256_DER_PREFIX.length + j] == expectedHash[j], "SHA-256 hash mismatch");
         }
     }
@@ -219,7 +219,7 @@ contract ZKLogin is Ownable {
     function _buildPublicInputs(address account, bytes calldata newOwner, bytes32 jwtHash, bytes memory jwtHeaderBase64)
         private
         view
-        returns (uint256[249] memory input)
+        returns (uint256[329] memory input)
     {
         bytes32 zkAddr = zkAddrs[account];
 

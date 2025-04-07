@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { hexToBytes } from "viem";
-import { getLatestKeypair, saveJWT } from "../local-storage";
+
+import { getKeypairs, saveJWT } from "../local-storage";
+import { addressToNonce } from "../utils";
 
 export default function CallbackPage() {
   const router = useRouter();
@@ -48,11 +49,11 @@ export default function CallbackPage() {
         const nonce = payload.nonce;
 
         // Get the latest keypair from localStorage
-        const latestKeypair = getLatestKeypair();
+        const keypairs = getKeypairs();
+        const latestKeypair = keypairs[keypairs.length - 1];
 
         // Verify the nonce matches the latest keypair's address
-        const addressBytes = hexToBytes(latestKeypair.address);
-        const expectedNonce = Buffer.from(addressBytes).toString("base64");
+        const expectedNonce = addressToNonce(latestKeypair.address);
         if (nonce !== expectedNonce) {
           throw new Error(
             "JWT nonce does not match the latest keypair's address"
