@@ -8,7 +8,7 @@ const (
 	maxJwtHeaderJsonLen  = 120
 
 	MaxIssLen   = 64 // Likely too small for Microsoft.
-	MaxAudLen   = 64
+	MaxAudLen   = 72
 	MaxSubLen   = 64
 	MaxNonceLen = 86 // (64 * 8 / 6)
 

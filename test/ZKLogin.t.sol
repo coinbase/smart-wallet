@@ -14,7 +14,7 @@ contract ZKLoginTest is Test {
     ZKLogin zkLogin;
 
     uint256 public constant MAX_ISS_LEN = 64;
-    uint256 public constant MAX_AUD_LEN = 64;
+    uint256 public constant MAX_AUD_LEN = 72;
     uint256 public constant MAX_SUB_LEN = 64;
 
     address public google;

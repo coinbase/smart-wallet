@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.4;
+pragma solidity ^0.8.23;
 
 import {Ownable} from "solady/auth/Ownable.sol";
 import {Base64} from "solady/utils/Base64.sol";
@@ -204,11 +204,10 @@ contract ZKLogin is Ownable {
             require(em[i + j] == SHA256_DER_PREFIX[j], "Invalid DigestInfo prefix");
         }
 
-        // TODO: Uncomment this once plugged with the frontend and got real signatures.
-        // // Validate the SHA-256 hash matches the expected hash.
-        // for (uint256 j = 0; j < 32; j++) {
-        //     require(em[i + SHA256_DER_PREFIX.length + j] == expectedHash[j], "SHA-256 hash mismatch");
-        // }
+        // Validate the SHA-256 hash matches the expected hash.
+        for (uint256 j = 0; j < 32; j++) {
+            require(em[i + SHA256_DER_PREFIX.length + j] == expectedHash[j], "SHA-256 hash mismatch");
+        }
     }
 
     /// @dev Builds the public inputs for the ZK proof.
