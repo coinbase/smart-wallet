@@ -27,7 +27,6 @@ func TestZkLogin(t *testing.T) {
 	)
 	jwtHeaderBase64 := base64.RawURLEncoding.EncodeToString([]byte(jwtHeaderJson))
 
-	// {"iss":"google.com","aud":"csw.com","sub":"xenoliss","nonce":"ckC2h3ML4CS8_QhGIfeUwuT4QI8"}
 	// {"iss":"google.com","aud":"csw.com","sub":"xenoliss","nonce":"c29tZV9ldGhlcmV1bV9hZGRyZXNz"}
 	iss := `"google.com"`
 	aud := `"csw.com"`
