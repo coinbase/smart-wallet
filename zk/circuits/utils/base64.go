@@ -1,4 +1,4 @@
-package circuits
+package utils
 
 import (
 	"github.com/consensys/gnark/frontend"
@@ -63,5 +63,5 @@ func (e *Base64Encoder) EncodeBase64URL(bytes []uints.U8) (res []uints.U8) {
 		res = append(res, uints.U8{Val: encoded})
 	}
 
-	return res
+	return
 }

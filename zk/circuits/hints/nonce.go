@@ -1,7 +1,6 @@
 package hints
 
 import (
-	"fmt"
 	"math/big"
 
 	"github.com/consensys/gnark/frontend"
@@ -9,7 +8,6 @@ import (
 
 func NonceHint(_ *big.Int, inputs []*big.Int, outputs []*big.Int) error {
 	nonce := inputs[0]
-	fmt.Printf("nonce: %v\n", nonce)
 
 	bytes := nonce.Bytes()
 	for i := range bytes {
@@ -30,5 +28,4 @@ func VerifyNonce(api frontend.API, nonceBytes []frontend.Variable, nonce fronten
 	}
 
 	api.AssertIsEqual(sum, nonce)
-
 }

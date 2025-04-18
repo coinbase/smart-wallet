@@ -1,15 +1,16 @@
 package jwt
 
 import (
-	"github.com/coinbase/smart-wallet/circuits/circuits/v2/utils"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/std/lookup/logderivlookup"
 	"github.com/consensys/gnark/std/math/uints"
+
+	"github.com/coinbase/smart-wallet/circuits/circuits/utils"
 )
 
-// checkByte checks if the byte at index i in the JSON matches the expected byte in the lookup table.
+// verifyByte checks if the byte at index i in the JSON matches the expected byte in the lookup table.
 // The mask is used to enable/disable the check.
-func checkByte(
+func verifyByte(
 	api frontend.API,
 	json []uints.U8,
 	lookup *logderivlookup.Table,
@@ -38,9 +39,9 @@ func checkByte(
 	)
 }
 
-// checkSeparator checks if the byte at index i in the JSON is a separator (comma or close brace).
+// verifySeparator checks if the byte at index i in the JSON is a separator (comma or close brace).
 // The end offset is used to enable/disable the check.
-func checkSeparator(
+func verifySeparator(
 	api frontend.API,
 	json []uints.U8,
 	i int,

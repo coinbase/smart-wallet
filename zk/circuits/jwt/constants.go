@@ -3,8 +3,8 @@ package jwt
 const (
 	// JWT len must be multiple of 3bytes (24 bits) because divisible by both 6 and 8 bits.
 	// This make encoding to base64 easier.
-	MaxHeaderJsonLen  = 300
-	MaxPayloadJsonLen = 1800
+	MaxHeaderJsonLen  = 270
+	MaxPayloadJsonLen = 1080
 
 	MaxKidValueLen = 128
 	MaxIssValueLen = 128
@@ -23,10 +23,12 @@ const (
 	KidJsonKey    = "kid"
 	KidJsonPrefix = `"` + KidJsonKey + `":`
 
-	IssJsonKey    = "iss"
-	IssJsonPrefix = `"` + IssJsonKey + `":`
-	AudJsonKey    = "aud"
-	AudJsonPrefix = `"` + AudJsonKey + `":`
-	SubJsonKey    = "sub"
-	SubJsonPrefix = `"` + SubJsonKey + `":`
+	IssJsonKey      = "iss"
+	IssJsonPrefix   = `"` + IssJsonKey + `":`
+	AudJsonKey      = "aud"
+	AudJsonPrefix   = `"` + AudJsonKey + `":`
+	SubJsonKey      = "sub"
+	SubJsonPrefix   = `"` + SubJsonKey + `":`
+	NonceJsonKey    = "nonce"
+	NonceJsonPrefix = `"` + NonceJsonKey + `":`
 )

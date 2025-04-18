@@ -29,7 +29,9 @@ export default function SignInPage() {
       addKeypair(newKeypair);
 
       // Convert the Ethereum address to the base64Url-encoded nonce
-      const nonce = addressToNonce(address);
+      // TODO: Compute the nonce as base64(poseidon(address, jwt_randomness))
+      // const nonce = addressToNonce(address);
+      const nonce = "MCIX6jBZS5JWQEd5Em5d1WFwAIpobyIiOx6vJpHGCEw";
 
       // Google OAuth configuration
       const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;

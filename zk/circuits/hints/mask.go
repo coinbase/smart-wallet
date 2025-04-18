@@ -1,17 +1,14 @@
 package hints
 
 import (
-	"fmt"
 	"math/big"
 
 	"github.com/consensys/gnark/frontend"
 )
 
-func MaskHint(_ *big.Int, inputs []*big.Int, outputs []*big.Int) error {
+func ContiguousMaskHint(_ *big.Int, inputs []*big.Int, outputs []*big.Int) error {
 	offset := int(inputs[0].Uint64())
 	length := int(inputs[1].Uint64())
-
-	fmt.Printf("offset: %v, length: %v\n", offset, length)
 
 	for i := range offset {
 		outputs[i].SetUint64(0)

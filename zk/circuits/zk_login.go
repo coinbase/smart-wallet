@@ -2,142 +2,107 @@ package circuits
 
 import (
 	"github.com/consensys/gnark/frontend"
-	"github.com/consensys/gnark/std/hash/sha2"
-	"github.com/consensys/gnark/std/lookup/logderivlookup"
+	"github.com/consensys/gnark/std/math/emulated"
 	"github.com/consensys/gnark/std/math/uints"
+	"github.com/mdehoog/poseidon/circuits/poseidon"
+
+	"github.com/coinbase/smart-wallet/circuits/circuits/hints"
+	"github.com/coinbase/smart-wallet/circuits/circuits/jwt"
+	"github.com/coinbase/smart-wallet/circuits/circuits/rsa"
+	"github.com/coinbase/smart-wallet/circuits/circuits/utils"
 )
 
-type ZkLoginCircuit struct {
+const (
+	ElementSize                 = 31
+	MaxEphemeralPublicKeyBytes  = 64
+	MaxEphemeralPublicKeyChunks = (MaxEphemeralPublicKeyBytes + ElementSize - 1) / ElementSize
+)
+
+type ZkLoginCircuit[RSAField emulated.FieldParams] struct {
 	// Public inputs.
-	JwtHeaderBase64    []uints.U8        `gnark:",public"`
-	JwtHeaderBase64Len frontend.Variable `gnark:",public"`
-	Nonce              []uints.U8        `gnark:",public"`
-	JwtHash            frontend.Variable `gnark:",public"`
-	ZkAddr             frontend.Variable `gnark:",public"`
+	IdpPublicKeyN      emulated.Element[RSAField] `gnark:",public"`
+	EphemeralPublicKey []frontend.Variable        `gnark:",public"`
+	JwtHeaderJson      []uints.U8                 `gnark:",public"`
+	KidValue           []uints.U8                 `gnark:",public"`
 
 	// Private inputs.
-	JwtPayloadJson      []uints.U8
-	JwtPayloadBase64Len frontend.Variable
-
-	IssOffset, IssLen     frontend.Variable
-	AudOffset, AudLen     frontend.Variable
-	SubOffset, SubLen     frontend.Variable
-	NonceOffset, NonceLen frontend.Variable
-
-	UserSalt []uints.U8
+	JwtRandomness  frontend.Variable
+	JwtPayloadJson []uints.U8
+	IssValue       []uints.U8
+	AudValue       []uints.U8
+	SubValue       []uints.U8
+	JwtSignature   emulated.Element[RSAField]
 }
 
-func (c *ZkLoginCircuit) Define(api frontend.API) error {
-	// 1. Encode the JWT header and payload to base64.
-	base64Encoder := NewBase64Encoder(api)
-	jwtPayloadBase64 := base64Encoder.EncodeBase64URL(c.JwtPayloadJson)
+func (c *ZkLoginCircuit[RSAField]) Define(api frontend.API) error {
+	base64Encoder := utils.NewBase64Encoder(api)
 
-	// 2. Recompute the JWT hash and compare it with the expected `JwtHash`.
-	packedJwt := c.packJwt(api, c.JwtHeaderBase64, jwtPayloadBase64)
-	jwtHash := c.jwtHash(api, packedJwt)
-	api.AssertIsEqual(jwtHash, c.JwtHash)
+	nonceValue, err := c.computeNonceValue(api, base64Encoder)
+	if err != nil {
+		return err
+	}
 
-	// 3. Verify the JWT content and extract the "iss", "aud" and "sub" fields.
-	//    NOTE: The JWT header is provided as public input and thus MUST be validated by the verifier.
-	jwtVerifier := NewJwtVerifier(api)
-	iss, aud, sub := jwtVerifier.ProcessJwtPayload(
+	jwtVerifier, err := jwt.NewJwtVerifier(
+		api,
+		base64Encoder,
+		c.JwtHeaderJson,
 		c.JwtPayloadJson,
-		c.Nonce,
-		c.IssOffset, c.IssLen,
-		c.AudOffset, c.AudLen,
-		c.SubOffset, c.SubLen,
-		c.NonceOffset, c.NonceLen,
+		c.KidValue,
+		c.IssValue,
+		c.AudValue,
+		c.SubValue,
+		nonceValue,
 	)
+	if err != nil {
+		return err
+	}
 
-	// 4. Recompute the zkAddr and compare it with the expected `ZkAddr`.
-	zkAddr := c.zkAddr(api, iss, aud, sub, c.UserSalt)
-	api.AssertIsEqual(zkAddr, c.ZkAddr)
+	jwtVerifier.VerifyJwtHeader()
+	jwtVerifier.VerifyJwtPayload()
+	jwtHash, err := jwtVerifier.Hash()
+	if err != nil {
+		return err
+	}
+
+	err = rsa.VerifyRSASignature(api, jwtHash, &c.JwtSignature, &c.IdpPublicKeyN)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
 
-func (c *ZkLoginCircuit) zkAddr(
-	api frontend.API,
-	iss, aud, sub []uints.U8,
-	userSalt []uints.U8,
-) (zkAddr frontend.Variable) {
-	sha, err := sha2.New(api)
+func (c *ZkLoginCircuit[RSAField]) computeNonceValue(api frontend.API, base64Encoder *utils.Base64Encoder) ([]uints.U8, error) {
+	inputs := make([]frontend.Variable, MaxEphemeralPublicKeyChunks+1)
+	copy(inputs, c.EphemeralPublicKey)
+	inputs[MaxEphemeralPublicKeyChunks] = c.JwtRandomness
+
+	nonce := poseidon.Hash(api, inputs)
+	nonceBytes, err := api.Compiler().NewHint(hints.NonceHint, 32, nonce)
 	if err != nil {
-		return err
+		return nil, err
 	}
+	hints.VerifyNonce(api, nonceBytes, nonce)
 
-	sha.Write(iss)
-	sha.Write(aud)
-	sha.Write(sub)
-	sha.Write(userSalt)
-	hashBytes := sha.Sum()
-	var hashBin []frontend.Variable
-	for i := 30; i >= 0; i-- { // Skip the least significant byte (index 31) to fit the BN254 scalar field.
-		hashBin = append(hashBin, api.ToBinary(hashBytes[i].Val, 8)...)
+	// Base64 encode the nonce.
+	// NOTE: To be compatible with the base64Encoder, we must align the data to 24bits (3 bytes).
+	// 	     Thus, we pad the nonce with 1 byte of zeros. This will return exactly 44 bytes but the very
+	// 	     last character will be a 'A' due to the padding 0 byte. The usefull payload is only contained
+	// 	     in the first 43 bytes.
+	nonceBytesU8 := make([]uints.U8, 32+1)
+	for i := range 32 {
+		nonceBytesU8[i] = uints.U8{Val: nonceBytes[i]}
 	}
-	zkAddr = api.FromBinary(hashBin...)
-	return zkAddr
-}
+	nonceBytesU8[32] = uints.U8{Val: 0}
 
-func (c *ZkLoginCircuit) packJwt(
-	api frontend.API,
-	headerBase64 []uints.U8,
-	payloadBase64 []uints.U8,
-) (packedJwt []uints.U8) {
-	packedJwt = make([]uints.U8, MaxJwtLenBase64)
-	for i := range packedJwt {
-		packedJwt[i] = uints.NewU8(0)
-	}
-	copy(packedJwt, headerBase64)
+	nonceBase64 := base64Encoder.EncodeBase64URL(nonceBytesU8)[:43]
 
-	// Lookup table (size = MaxJwtLenBase64): <payload> + <padding>
-	lookup := logderivlookup.New(api)
-	for _, b := range payloadBase64 {
-		lookup.Insert(b.Val)
-	}
-	for range MaxJwtLenBase64 - len(payloadBase64) {
-		lookup.Insert(0)
-	}
+	doubleQuoteU8 := uints.U8{Val: '"'}
 
-	startPayloadIndex := api.Add(c.JwtHeaderBase64Len, 1)
+	nonceValue := make([]uints.U8, 45)
+	nonceValue[0] = doubleQuoteU8
+	copy(nonceValue[1:], nonceBase64)
+	nonceValue[44] = doubleQuoteU8
 
-	for i := range MaxJwtLenBase64 {
-		isDot := equal(api, i, c.JwtHeaderBase64Len)
-		isPayload := not(api, lessThan(api, 11, i, startPayloadIndex))
-		isHeader := api.Mul(
-			not(api, isDot),
-			not(api, isPayload),
-		)
-
-		payloadByte := lookup.Lookup(
-			api.Mul(isPayload, api.Sub(i, startPayloadIndex)),
-		)[0]
-
-		b := api.Add(
-			api.Mul(isHeader, packedJwt[i].Val),
-			api.Mul(isDot, '.'),
-			api.Mul(isPayload, payloadByte),
-		)
-		packedJwt[i] = uints.U8{Val: b}
-	}
-
-	return packedJwt
-}
-
-func (c *ZkLoginCircuit) jwtHash(
-	api frontend.API,
-	packedJwt []uints.U8,
-) (jwtHash frontend.Variable) {
-	sha, err := sha2.New(api)
-	if err != nil {
-		return err
-	}
-	sha.Write(packedJwt)
-	hashBytes := sha.FixedLengthSum(api.Add(c.JwtHeaderBase64Len, frontend.Variable(1), c.JwtPayloadBase64Len))
-	var hashBin []frontend.Variable
-	for i := 30; i >= 0; i-- { // Skip the least significant byte (index 31) to fit the BN254 scalar field.
-		hashBin = append(hashBin, api.ToBinary(hashBytes[i].Val, 8)...)
-	}
-	jwtHash = api.FromBinary(hashBin...)
-	return jwtHash
+	return nonceValue, nil
 }
