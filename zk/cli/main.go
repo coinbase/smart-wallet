@@ -8,6 +8,7 @@ import (
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/frontend/cs/r1cs"
+	"github.com/consensys/gnark/profile"
 	"github.com/consensys/gnark/std/math/uints"
 	"github.com/urfave/cli/v2"
 
@@ -29,6 +30,12 @@ var commands = []*cli.Command{
 				Aliases:  []string{"o"},
 				Usage:    "Output path for the compiled circuit",
 				Required: true,
+			},
+			&cli.BoolFlag{
+				Name:    "profile",
+				Aliases: []string{"p"},
+				Usage:   "Enable profiling during compilation",
+				Value:   false,
 			},
 		},
 		Action: CompileCircuit,
@@ -162,9 +169,18 @@ func CompileCircuit(cCtx *cli.Context) error {
 	}
 
 	fmt.Println("Compiling circuit...")
+	var p *profile.Profile
+	if cCtx.Bool("profile") {
+		p = profile.Start()
+	}
+
 	cs, err := frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &zkCircuit)
 	if err != nil {
 		return fmt.Errorf("failed to compile circuit: %w", err)
+	}
+
+	if p != nil {
+		p.Stop()
 	}
 
 	var buf bytes.Buffer

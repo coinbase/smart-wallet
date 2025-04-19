@@ -3,8 +3,8 @@ package jwt
 const (
 	// Max header and payload JSON lengths.
 	// NOTE: must be a multiple of 3 bytes (24 bits) to ensure compatibility with Base64Encoder.
-	MaxHeaderJsonLen  = 270
-	MaxPayloadJsonLen = 1080
+	MaxHeaderJsonLen  = 78
+	MaxPayloadJsonLen = 360
 
 	// Max supported lengths of the kid, iss, aud, and sub values.
 	MaxKidValueLen = 128
