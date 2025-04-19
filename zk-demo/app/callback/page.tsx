@@ -55,7 +55,7 @@ export default function CallbackPage() {
         // Verify the nonce matches the latest keypair's address
         // TODO: Compute the nonce as base64(poseidon(latestKeypair.address, jwt_randomness))
         // const expectedNonce = addressToNonce(latestKeypair.address);
-        const expectedNonce = "MCIX6jBZS5JWQEd5Em5d1WFwAIpobyIiOx6vJpHGCEw";
+        const expectedNonce = "LTtll2v68lOJtOU04536biInGt7NpYkkGeIklY6SNdU";
         if (nonce !== expectedNonce) {
           throw new Error(
             "JWT nonce does not match the latest keypair's address"

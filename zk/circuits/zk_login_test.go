@@ -1,28 +1,21 @@
-package circuits
+package circuits_test
 
 import (
 	"crypto/ecdsa"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/base64"
 	"encoding/hex"
-	"fmt"
 	"math/big"
 	"testing"
 
 	"github.com/consensys/gnark-crypto/ecc"
-	bn254fr "github.com/consensys/gnark-crypto/ecc/bn254/fr"
 	"github.com/consensys/gnark/constraint/solver"
 	"github.com/consensys/gnark/frontend"
-	"github.com/consensys/gnark/std/math/emulated"
 	"github.com/consensys/gnark/std/math/uints"
 	"github.com/consensys/gnark/test"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 
-	"github.com/mdehoog/poseidon/poseidon"
-
+	"github.com/coinbase/smart-wallet/circuits/circuits"
 	"github.com/coinbase/smart-wallet/circuits/circuits/hints"
 	"github.com/coinbase/smart-wallet/circuits/circuits/jwt"
 	"github.com/coinbase/smart-wallet/circuits/circuits/rsa"
@@ -32,14 +25,32 @@ import (
 func TestZkLoginV2(t *testing.T) {
 	assert := test.NewAssert(t)
 
-	witnessEphemeralPublicKey, jwtRandomness, witnessJwtHeaderJson, witnessJwtPayloadJson, witnessKidValue, witnessIssValue, witnessAudValue, witnessSubValue, witnessJwtSignature, witnessIdpPublicKeyN, witnessPublicHash := generateWitness[rsa.Mod1e2048]()
+	_, _, ephAddress := generateKeypair()
+	ephPubKey := ephAddress.Bytes()
+	idpPubKeyNBase64 := "vUiHFY8O45dBoYLGipsgaVOk7rGpim6CK1iPG2zSt3sO9-09S9dB5nQdIelGye-mouQXaW5U7H8lZnv5wLJ8VSzquaSh3zJkbDq-Wvgas6U-FJaMy35kiExr5gUKUGPAIjI2sLASDbFD0vT_jxtg0ZRknwkexz_gZadZQ-iFEO7unjpE_zQnx8LhN-3a8dRf2B45BLY5J9aQJi4Csa_NHzl9Ym4uStYraSgwW93VYJwDJ3wKTvwejPvlW3n0hUifvkMke3RTqnSDIbP2xjtNmj12wdd-VUw47-cor5lMn7LG400G7lmI8rUSEHIzC7UyzEW7y15_uzuqvIkFVTLXlQ"
+	jwtHeaderJson := `{"alg":"RS256","kid":"c37da75c9fbe18c2ce9125b9aa1f300dcb31e8d9","typ":"JWT"}`
+	jwtPayloadJson := `{"iss":"https://accounts.google.com","azp":"875735819865-ictb0rltgphgvhrgm125n5ch366tq8pv.apps.googleusercontent.com","aud":"875735819865-ictb0rltgphgvhrgm125n5ch366tq8pv.apps.googleusercontent.com","sub":"113282815992720230663","at_hash":"jV2oDvBCBKV1y_7_8roqTA","nonce":"LTtll2v68lOJtOU04536biInGt7NpYkkGeIklY6SNdU","iat":1745087371,"exp":1745090971}`
+	jwtSignatureBase64 := "nfSMXjM5v5UR8SrqrKCMxIQ6_Jw_K35rpqwAlQVrw_2xstGzUD0YIeJlXXDRD6zVVcVXh0YkHa4GfzfKYhSdqlOawWXpGIjyEfurcI0KlDTY50xxU5GP239-09ZAJDlzKG-r5mmRNThN6Ue9wnhN-sRyio2AVCtTuJVbU9RrM8NnstKwtxe-0Ak0aifu7ZsNHORbbgK6_eNnd30RLCNdOQn0pf_g9d9gQjVcI35z8h3c8-1rvLJRp02epIG-ewQHcjUCRDXZ9LOFEswmVg8ulILx_KyLmhIdlYgmbPI3j8OaMPN1MNwXTF-VuCcOCOnj6z8rS-bwZ5UZBDDSlpqJIw"
+	jwtRandomness := new(big.Int).SetUint64(42)
+
+	witnessPublicHash, witnessIdpPubKeyN, witnessEphPubKey, witnessJwtHeaderJson, witnessKidValue, witnessJwtRandomness, witnessJwtPayloadJson, witnessIssValue, witnessAudValue, witnessSubValue, witnessJwtSignature, err := utils.GenerateWitness[rsa.Mod1e2048](
+		ephPubKey,
+		idpPubKeyNBase64,
+		jwtHeaderJson,
+		jwtPayloadJson,
+		jwtSignatureBase64,
+		jwtRandomness,
+	)
+	if err != nil {
+		t.Fatalf("failed to generate witness: %v", err)
+	}
 
 	assert.ProverSucceeded(
-		&ZkLoginCircuit[rsa.Mod1e2048]{
+		&circuits.ZkLoginCircuit[rsa.Mod1e2048]{
 			// Semi-public inputs sizes.
-			EphemeralPublicKey: make([]frontend.Variable, MaxEphemeralPublicKeyChunks),
-			JwtHeaderJson:      make([]uints.U8, jwt.MaxHeaderJsonLen),
-			KidValue:           make([]uints.U8, jwt.MaxKidValueLen),
+			EphPubKey:     make([]frontend.Variable, circuits.MaxEphPubKeyChunks),
+			JwtHeaderJson: make([]uints.U8, jwt.MaxHeaderJsonLen),
+			KidValue:      make([]uints.U8, jwt.MaxKidValueLen),
 
 			// Private inputs sizes.
 			JwtPayloadJson: make([]uints.U8, jwt.MaxPayloadJsonLen),
@@ -47,18 +58,18 @@ func TestZkLoginV2(t *testing.T) {
 			AudValue:       make([]uints.U8, jwt.MaxAudValueLen),
 			SubValue:       make([]uints.U8, jwt.MaxSubValueLen),
 		},
-		&ZkLoginCircuit[rsa.Mod1e2048]{
+		&circuits.ZkLoginCircuit[rsa.Mod1e2048]{
 			// Public inputs.
 			PublicHash: witnessPublicHash,
 
 			// Semi-public inputs.
-			IdpPublicKeyN:      witnessIdpPublicKeyN,
-			EphemeralPublicKey: witnessEphemeralPublicKey,
-			JwtHeaderJson:      witnessJwtHeaderJson,
-			KidValue:           witnessKidValue,
+			IdpPubKeyN:    witnessIdpPubKeyN,
+			EphPubKey:     witnessEphPubKey,
+			JwtHeaderJson: witnessJwtHeaderJson,
+			KidValue:      witnessKidValue,
 
 			// Private inputs.
-			JwtRandomness:  jwtRandomness,
+			JwtRandomness:  witnessJwtRandomness,
 			JwtPayloadJson: witnessJwtPayloadJson,
 			IssValue:       witnessIssValue,
 			AudValue:       witnessAudValue,
@@ -74,84 +85,6 @@ func TestZkLoginV2(t *testing.T) {
 			hints.Base64LenHint,
 		)),
 	)
-}
-
-func generateWitness[RSAFieldParams emulated.FieldParams]() (
-	witnessEphemeralPublicKey []frontend.Variable,
-	jwtRandomness *big.Int,
-
-	witnessJwtHeaderJson []uints.U8,
-	witnessJwtPayloadJson []uints.U8,
-
-	witnessKidValue []uints.U8,
-
-	witnessIssValue []uints.U8,
-	witnessAudValue []uints.U8,
-	witnessSubValue []uints.U8,
-
-	witnessJwtSignature emulated.Element[RSAFieldParams],
-	witnessIdpPublicKeyN emulated.Element[RSAFieldParams],
-
-	witnessPublicHash *big.Int,
-) {
-	_, publicKey, _ := generateKeypair()
-
-	ephemeralPublicKeyAsElements, err := utils.BytesTo31Chunks(crypto.FromECDSAPub(publicKey))
-	if err != nil {
-		panic(err)
-	}
-
-	witnessEphemeralPublicKey = make([]frontend.Variable, MaxEphemeralPublicKeyChunks)
-	for i := range ephemeralPublicKeyAsElements {
-		witnessEphemeralPublicKey[i] = frontend.Variable(ephemeralPublicKeyAsElements[i])
-	}
-
-	randBytes := make([]byte, ElementSize)
-	_, err = rand.Read(randBytes)
-	if err != nil {
-		panic(err)
-	}
-	jwtRandomness = new(big.Int).SetUint64(42)
-
-	inputBytes := append(ephemeralPublicKeyAsElements[:], jwtRandomness)
-	nonce, err := poseidon.Hash[*bn254fr.Element](inputBytes)
-	if err != nil {
-		panic(err)
-	}
-	nonceBytes := nonce.Bytes()
-	nonceBase64 := fmt.Sprintf(`"%s"`, base64.RawURLEncoding.EncodeToString(nonceBytes))
-
-	kidValue, _, witnessKidValue := buildWitness(`"c37da75c9fbe18c2ce9125b9aa1f300dcb31e8d9"`, jwt.MaxKidValueLen)
-	headerJson, _, witnessJwtHeaderJson := buildWitness(`{"alg":"RS256","kid":`+kidValue+`,"typ":"JWT"}`, jwt.MaxHeaderJsonLen)
-
-	iss, _, witnessIssValue := buildWitness(`"https://accounts.google.com"`, jwt.MaxIssValueLen)
-	aud, _, witnessAudValue := buildWitness(`"875735819865-ictb0rltgphgvhrgm125n5ch366tq8pv.apps.googleusercontent.com"`, jwt.MaxAudValueLen)
-	sub, _, witnessSubValue := buildWitness(`"113282815992720230663"`, jwt.MaxSubValueLen)
-	payloadJson, _, witnessJwtPayloadJson := buildWitness(`{"iss":`+iss+`,"azp":"875735819865-ictb0rltgphgvhrgm125n5ch366tq8pv.apps.googleusercontent.com","aud":`+aud+`,"sub":`+sub+`,"at_hash":"eS0K1c2No-I08aMu5M1NVw","nonce":`+nonceBase64+`,"iat":1745012349,"exp":1745015949}`, jwt.MaxPayloadJsonLen)
-
-	headerBase64 := base64.RawURLEncoding.EncodeToString([]byte(headerJson))
-	payloadBase64 := base64.RawURLEncoding.EncodeToString([]byte(payloadJson))
-
-	packedBase64 := headerBase64 + "." + payloadBase64
-	sha256.Sum256([]byte(packedBase64))
-
-	signatureBase64 := "STWGikhlYClkv5UM_fBFSI9LuPY1vyc3hUs-oshZQFBE6Peq6kxbEpNX4jgqmOJUc_HhxT1lqjqufRKOI5bCq7oAjNSgT3pVNJFNoyeT9LBXrOfWydUb81ld3yVzYaZY7XtZSRjiRTjSy7LKjFAZwyqQY2QEnajtWBgdznQ196B0YKTfzh3skAbR1B9eJx_12idjNjgfw82eYk5uMrG3IxGKMh91ApEocTeC2mEP1_6r1aL_EbrxU7sZtd_5Vqu_5vdYOa7pu5aTPyHOqr-s-DnvWQqnz76fX0tVO-qWAFoocs-EPFWftb1RJnK2V-1dEirCICjyySSVq4YnpujPRA"
-	signatureBytes, err := base64.RawURLEncoding.DecodeString(signatureBase64)
-	if err != nil {
-		panic(err)
-	}
-	witnessJwtSignature = emulated.ValueOf[RSAFieldParams](signatureBytes)
-
-	idpPublicKeyNBase64 := "vUiHFY8O45dBoYLGipsgaVOk7rGpim6CK1iPG2zSt3sO9-09S9dB5nQdIelGye-mouQXaW5U7H8lZnv5wLJ8VSzquaSh3zJkbDq-Wvgas6U-FJaMy35kiExr5gUKUGPAIjI2sLASDbFD0vT_jxtg0ZRknwkexz_gZadZQ-iFEO7unjpE_zQnx8LhN-3a8dRf2B45BLY5J9aQJi4Csa_NHzl9Ym4uStYraSgwW93VYJwDJ3wKTvwejPvlW3n0hUifvkMke3RTqnSDIbP2xjtNmj12wdd-VUw47-cor5lMn7LG400G7lmI8rUSEHIzC7UyzEW7y15_uzuqvIkFVTLXlQ"
-	idpPublicKeyNBytes, err := base64.RawURLEncoding.DecodeString(idpPublicKeyNBase64)
-	if err != nil {
-		panic(err)
-	}
-	witnessIdpPublicKeyN = emulated.ValueOf[RSAFieldParams](idpPublicKeyNBytes)
-
-	witnessPublicHash = hashPublicInputs[RSAFieldParams](idpPublicKeyNBytes, ephemeralPublicKeyAsElements, headerJson, kidValue)
-
-	return
 }
 
 func generateKeypair() (privateKey *ecdsa.PrivateKey, publicKeyECDSA *ecdsa.PublicKey, address common.Address) {
@@ -173,69 +106,6 @@ func generateKeypair() (privateKey *ecdsa.PrivateKey, publicKeyECDSA *ecdsa.Publ
 	}
 
 	address = crypto.PubkeyToAddress(*publicKeyECDSA)
-
-	return
-}
-
-func buildWitness(value string, maxLen int) (v string, valueLen int, witness []uints.U8) {
-	witness = make([]uints.U8, maxLen)
-	for i := range value {
-		witness[i] = uints.NewU8(value[i])
-	}
-
-	v = value
-	valueLen = len(value)
-
-	return
-}
-
-func hashPublicInputs[FieldParams emulated.FieldParams](
-	idpPublicKeyNBytes []byte,
-	ephemeralPublicKeyAsElements []*big.Int,
-	jwtHeaderJson string,
-	kidValue string,
-) (hash *big.Int) {
-	idpPublicKeyNLimbs := bytesToLimbs[FieldParams](idpPublicKeyNBytes)
-
-	// Create a slice of expected length and zero initialize it
-	inputs := make([]*big.Int, len(idpPublicKeyNLimbs)+len(ephemeralPublicKeyAsElements)+jwt.MaxHeaderJsonLen+jwt.MaxKidValueLen)
-	for i := range inputs {
-		inputs[i] = big.NewInt(0)
-	}
-
-	copy(inputs[0:], idpPublicKeyNLimbs)
-
-	offset := len(idpPublicKeyNLimbs)
-	copy(inputs[offset:], ephemeralPublicKeyAsElements)
-
-	offset += len(ephemeralPublicKeyAsElements)
-	for i := range jwtHeaderJson {
-		inputs[offset+i] = big.NewInt(int64(jwtHeaderJson[i]))
-	}
-
-	offset += jwt.MaxHeaderJsonLen
-	for i := range kidValue {
-		inputs[offset+i] = big.NewInt(int64(kidValue[i]))
-	}
-
-	hash, err := poseidon.HashMulti[*bn254fr.Element](inputs)
-	if err != nil {
-		panic(err)
-	}
-
-	return
-}
-
-func bytesToLimbs[FieldParams emulated.FieldParams](bytes []byte) (limbs []*big.Int) {
-	var fp FieldParams
-	l := int(fp.NbLimbs())
-	limbs = make([]*big.Int, l)
-	bytesPerLimb := int(fp.BitsPerLimb() / 8)
-
-	for i := range limbs {
-		limb := new(big.Int).SetBytes(bytes[i*bytesPerLimb : (i+1)*bytesPerLimb])
-		limbs[l-1-i] = limb
-	}
 
 	return
 }
