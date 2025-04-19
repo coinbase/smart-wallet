@@ -65,7 +65,7 @@ func TestZkLoginV2(t *testing.T) {
 		test.WithCurves(ecc.BN254),
 		test.WithSolverOpts(solver.WithHints(
 			hints.OffsetHint,
-			hints.ValueLenHint,
+			hints.JsonValueLenHint,
 			hints.ContiguousMaskHint,
 			hints.NonceHint,
 			hints.Base64LenHint,

@@ -10,7 +10,12 @@ import (
 	"github.com/consensys/gnark/std/math/uints"
 )
 
-func ValueLenHintInputs(api frontend.API, key string, json []uints.U8) []frontend.Variable {
+// JsonValueLenHintInputs prepares inputs for the JsonValueLenHint.
+// It sets the inputs as follows:
+// - inputs[0] is the length of the key.
+// - inputs[1:1+len(key)] is the key.
+// - inputs[1+len(key):] is the JSON string bytes as frontend.Variable, possibly padded with null bytes.
+func JsonValueLenHintInputs(api frontend.API, key string, json []uints.U8) []frontend.Variable {
 	inputs := make([]frontend.Variable, 1+len(key)+len(json))
 	inputs[0] = len(key)
 	for i := range key {
@@ -23,7 +28,12 @@ func ValueLenHintInputs(api frontend.API, key string, json []uints.U8) []fronten
 	return inputs
 }
 
-func ValueLenHint(_ *big.Int, inputs []*big.Int, outputs []*big.Int) error {
+// JsonValueLenHint computes the length of the value (including the potential surrounding quotes) for a key in a JSON object.
+// The inputs should be formatted as follows:
+// - inputs[0] is the length of the key.
+// - inputs[1:1+len(key)] is the key.
+// - inputs[1+len(key):] is the JSON string bytes as frontend.Variable, possibly padded with null bytes.
+func JsonValueLenHint(_ *big.Int, inputs []*big.Int, outputs []*big.Int) error {
 	keyLen := int(inputs[0].Uint64())
 
 	key := make([]byte, keyLen)

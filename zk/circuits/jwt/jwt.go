@@ -14,7 +14,8 @@ var (
 	closeBraceU8 = uints.NewU8('}')
 )
 
-type JwtVerifier struct {
+// Wrapper struct that contains all the information needed to verify a JWT.
+type jwtVerifier struct {
 	api frontend.API
 
 	base64Encoder *utils.Base64Encoder
@@ -48,6 +49,7 @@ type JwtVerifier struct {
 	issMask, audMask, subMask, nonceMask []frontend.Variable
 }
 
+// NewJwtVerifier creates a new JWT verifier.
 func NewJwtVerifier(
 	api frontend.API,
 	base64Encoder *utils.Base64Encoder,
@@ -58,7 +60,7 @@ func NewJwtVerifier(
 	audValue []uints.U8,
 	subValue []uints.U8,
 	nonceValue []uints.U8,
-) (*JwtVerifier, error) {
+) (*jwtVerifier, error) {
 	typLookup := buildLookup(api, TypJson, nil)
 	algLookup := buildLookup(api, AlgJson, nil)
 	kidLookup := buildLookup(api, KidJsonPrefix, kidValue)
@@ -88,12 +90,12 @@ func NewJwtVerifier(
 		return nil, err
 	}
 
-	headerBase64Len, payloadBase64Len, err := sectionsBase64Lenghts(api, headerJson, payloadJson)
+	headerBase64Len, payloadBase64Len, err := sectionBase64LenghtsFromHints(api, headerJson, payloadJson)
 	if err != nil {
 		return nil, err
 	}
 
-	headerBase64Mask, dotMask, payloadBase64Mask, err := sectionBase64Masks(api, headerBase64Len, payloadBase64Len)
+	headerBase64Mask, dotMask, payloadBase64Mask, err := sectionBase64MasksFromHints(api, headerBase64Len, payloadBase64Len)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +121,7 @@ func NewJwtVerifier(
 		return nil, err
 	}
 
-	jwtVerifier := &JwtVerifier{
+	jwtVerifier := &jwtVerifier{
 		api: api,
 
 		base64Encoder: base64Encoder,
@@ -172,7 +174,13 @@ func NewJwtVerifier(
 	return jwtVerifier, nil
 }
 
-func (v *JwtVerifier) VerifyJwtHeader() {
+// VerifyJwtHeader verifies the JWT header.
+// It performs the following checks:
+// - Verifies the "typ" field is present and has the value "JWT"
+// - Verifies the "alg" field is present and has the value "RS256"
+// - Verifies the "kid" field is present and matches the expected kidValue.
+// - Ensures each field is properly separated by commas or closing braces.
+func (v *jwtVerifier) VerifyJwtHeader() {
 	endTypOffset := v.api.Add(v.typOffset, len(TypJson))
 	endAlgOffset := v.api.Add(v.algOffset, len(AlgJson))
 	endKidOffset := v.api.Add(v.kidOffset, len(KidJsonPrefix), v.kidValueLen)
@@ -192,7 +200,14 @@ func (v *JwtVerifier) VerifyJwtHeader() {
 	}
 }
 
-func (v *JwtVerifier) VerifyJwtPayload() {
+// VerifyJwtPayload verifies the JWT payload.
+// It performs the following checks:
+// - Verifies the "iss" field is present and matches the expected issValue.
+// - Verifies the "aud" field is present and matches the expected audValue.
+// - Verifies the "sub" field is present and matches the expected subValue.
+// - Verifies the "nonce" field is present and matches the expected nonceValue.
+// - Ensures each field is properly separated by commas or closing braces.
+func (v *jwtVerifier) VerifyJwtPayload() {
 	endIssOffset := v.api.Add(v.issOffset, len(IssJsonPrefix), v.issValueLen)
 	endAudOffset := v.api.Add(v.audOffset, len(AudJsonPrefix), v.audValueLen)
 	endSubOffset := v.api.Add(v.subOffset, len(SubJsonPrefix), v.subValueLen)
@@ -217,7 +232,9 @@ func (v *JwtVerifier) VerifyJwtPayload() {
 	}
 }
 
-func (v *JwtVerifier) Hash() ([]frontend.Variable, error) {
+// Hash computes the SHA-256 hash of the base64-encoded JWT header and payload.
+// Returns the hash as a slice of (32) frontend.Variable.
+func (v *jwtVerifier) Hash() ([]frontend.Variable, error) {
 	jwtPackedBase64 := v.packBase64()
 
 	sha, err := sha2.New(v.api)
@@ -234,7 +251,9 @@ func (v *JwtVerifier) Hash() ([]frontend.Variable, error) {
 	return hash, nil
 }
 
-func (v *JwtVerifier) packBase64() (packedBase64 []uints.U8) {
+// packBase64 encodes the JWT header and payload as base64URL, concatenates them with a dot separator (header.payload),
+// and returns the packed base64 as a slice of uints.U8. This packed representation is only used in the Hash method.
+func (v *jwtVerifier) packBase64() (packedBase64 []uints.U8) {
 	headerBase64 := v.base64Encoder.EncodeBase64URL(v.headerJson)
 	payloadBase64 := v.base64Encoder.EncodeBase64URL(v.payloadJson)
 

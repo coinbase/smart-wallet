@@ -23,11 +23,13 @@ var base64URLEncoding = map[int]int{
 	63: 95, // _ (underscore)
 }
 
+// Base64Encoder is a helper struct for encoding to base64 URLs.
 type Base64Encoder struct {
 	api    frontend.API
 	lookup *logderivlookup.Table
 }
 
+// NewBase64Encoder creates a new Base64Encoder.
 func NewBase64Encoder(api frontend.API) *Base64Encoder {
 	lookup := logderivlookup.New(api)
 	for k := range len(base64URLEncoding) {
@@ -40,6 +42,10 @@ func NewBase64Encoder(api frontend.API) *Base64Encoder {
 	}
 }
 
+// EncodeBase64URL encodes a slice of bytes to a slice of base64 URL-safe encoded characters.
+// It uses the URL-safe base64 encoding variant where '+' is replaced with '-' and '/' with '_'.
+// No padding is added, and the output length will be 4/3 of the input length.
+// The input bytes slice length MUST be a multiple of 24 bits (3 bytes).
 func (e *Base64Encoder) EncodeBase64URL(bytes []uints.U8) (res []uints.U8) {
 	bitLen := len(bytes) * 8
 

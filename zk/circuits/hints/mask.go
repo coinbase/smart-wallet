@@ -6,6 +6,11 @@ import (
 	"github.com/consensys/gnark/frontend"
 )
 
+// ContiguousMaskHint generates a contiguous mask of 1s for a given offset and length.
+// The inputs should be formatted as follows:
+// - inputs[0] is the offset.
+// - inputs[1] is the length.
+// The output is a slice of integers where the first length bits starting from offset are 1 and the rest are 0.
 func ContiguousMaskHint(_ *big.Int, inputs []*big.Int, outputs []*big.Int) error {
 	offset := int(inputs[0].Uint64())
 	length := int(inputs[1].Uint64())

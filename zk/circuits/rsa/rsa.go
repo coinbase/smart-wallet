@@ -10,6 +10,9 @@ var Sha256DerPrefixBytes = [19]frontend.Variable{
 	0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00, 0x04, 0x20,
 }
 
+// VerifyRSASignature verifies an RSA PKCS#1 v1.5 signature with SHA-256 against the provided hash using the IDP's public key.
+// It checks that the signature, when raised to the power of 65537 (e) modulo n, matches the expected PKCS#1 v1.5 encoded message
+// with the correct DER prefix for SHA-256 and the provided hash value.
 func VerifyRSASignature[T emulated.FieldParams](api frontend.API, hash []frontend.Variable, signature, idpPublicKeyN *emulated.Element[T]) error {
 	f, err := emulated.NewField[T](api)
 	if err != nil {
@@ -26,6 +29,7 @@ func VerifyRSASignature[T emulated.FieldParams](api frontend.API, hash []fronten
 	api.AssertIsEqual(emBytes[0], 0x00)
 	api.AssertIsEqual(emBytes[1], 0x01)
 
+	// Compute the expected padding length based on the modulus (pk.n) size.
 	var fp T
 	pkLength := int(fp.NbLimbs() * fp.BitsPerLimb() / 8)
 	paddingLength := pkLength - 2 - 1 - len(Sha256DerPrefixBytes) - 32
@@ -56,6 +60,8 @@ func VerifyRSASignature[T emulated.FieldParams](api frontend.API, hash []fronten
 	return nil
 }
 
+// rsaModExp performs modular exponentiation using the provided base and modulus.
+// It hardcodes the exponent to be 65537 and performs the exponentiation in a loop.
 func rsaModExp[T emulated.FieldParams](f *emulated.Field[T], base, modulus *emulated.Element[T]) *emulated.Element[T] {
 	// Hardcode the exponent to be 65537
 	acc := base
@@ -68,6 +74,8 @@ func rsaModExp[T emulated.FieldParams](f *emulated.Field[T], base, modulus *emul
 }
 
 // TODO: Should be replaced by a ToByteHint instead of using ToBitsCanonical to improve performance.
+// toBytes converts an emulated.Element[T] to a byte slice ([]frontend.Variable).
+// It first gets the bits of the element, then groups them into bytes.
 func toBytes[T emulated.FieldParams](api frontend.API, f *emulated.Field[T], value *emulated.Element[T]) []frontend.Variable {
 	bits := f.ToBits(value)
 

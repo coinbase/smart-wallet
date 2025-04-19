@@ -6,6 +6,9 @@ import (
 	"github.com/consensys/gnark/frontend"
 )
 
+// NonceHint converts a big.Int nonce into a slice of big.Int outputs, each representing a byte of the nonce.
+// The inputs should be formatted as follows:
+// - inputs[0] is the nonce.
 func NonceHint(_ *big.Int, inputs []*big.Int, outputs []*big.Int) error {
 	nonce := inputs[0]
 
@@ -17,6 +20,8 @@ func NonceHint(_ *big.Int, inputs []*big.Int, outputs []*big.Int) error {
 	return nil
 }
 
+// VerifyNonce verifies that the nonce bytes decomposition is correct by ensuring
+// that reconstructing the nonce from its byte representation matches the original nonce.
 func VerifyNonce(api frontend.API, nonceBytes []frontend.Variable, nonce frontend.Variable) {
 	sum := frontend.Variable(0)
 	factor := frontend.Variable(1)

@@ -7,7 +7,12 @@ import (
 	"github.com/coinbase/smart-wallet/circuits/circuits/hints"
 )
 
-func sectionsBase64Lenghts(api frontend.API, headerJson, payloadJson []uints.U8) (headerBase64Len, payloadBase64Len frontend.Variable, err error) {
+// sectionBase64LenghtsFromHints calculates the length of the base64-encoded JWT header and payload sections.
+// It returns the length of each section as frontend.Variable values.
+func sectionBase64LenghtsFromHints(
+	api frontend.API,
+	headerJson, payloadJson []uints.U8,
+) (headerBase64Len, payloadBase64Len frontend.Variable, err error) {
 	inputs := hints.Base64LenHintInputs(api, headerJson)
 	headerBase64Len_, err := api.Compiler().NewHint(hints.Base64LenHint, 1, inputs...)
 	if err != nil {
@@ -25,7 +30,12 @@ func sectionsBase64Lenghts(api frontend.API, headerJson, payloadJson []uints.U8)
 	return
 }
 
-func sectionBase64Masks(api frontend.API, headerBase64Len, payloadBase64Len frontend.Variable) (headerBase64Mask, dotMask, payloadBase64Mask []frontend.Variable, err error) {
+// sectionBase64MasksFromHints calculates the masks for the base64-encoded JWT header and payload sections.
+// It returns the mask for the header, the dot mask, and the mask for the payload.
+func sectionBase64MasksFromHints(
+	api frontend.API,
+	headerBase64Len, payloadBase64Len frontend.Variable,
+) (headerBase64Mask, dotMask, payloadBase64Mask []frontend.Variable, err error) {
 	headerBase64Mask, err = api.Compiler().NewHint(hints.ContiguousMaskHint, MaxLenBase64, 0, headerBase64Len)
 	if err != nil {
 		return nil, nil, nil, err
@@ -48,7 +58,11 @@ func sectionBase64Masks(api frontend.API, headerBase64Len, payloadBase64Len fron
 	return
 }
 
-func headerOffsetsFromHints(api frontend.API, json []uints.U8) (typOffset, algOffset, kidOffset frontend.Variable, err error) {
+// headerOffsetsFromHints calculates the offsets for the JWT header.
+// It returns the offset for the typ, the alg, and the kid.
+func headerOffsetsFromHints(
+	api frontend.API, json []uints.U8,
+) (typOffset, algOffset, kidOffset frontend.Variable, err error) {
 	inputs := hints.OffsetHintInputs(api, TypJson, json)
 	typOffset_, err := api.Compiler().NewHint(hints.OffsetHint, 1, inputs...)
 	if err != nil {
@@ -73,9 +87,13 @@ func headerOffsetsFromHints(api frontend.API, json []uints.U8) (typOffset, algOf
 	return
 }
 
-func headerValueLengthsFromHints(api frontend.API, json []uints.U8) (kidValueLen frontend.Variable, err error) {
-	inputs := hints.ValueLenHintInputs(api, KidJsonKey, json)
-	kidValueLen_, err := api.Compiler().NewHint(hints.ValueLenHint, 1, inputs...)
+// headerValueLengthsFromHints calculates the length of the kid value.
+// It returns the length of the kid value as a frontend.Variable value.
+func headerValueLengthsFromHints(
+	api frontend.API, json []uints.U8,
+) (kidValueLen frontend.Variable, err error) {
+	inputs := hints.JsonValueLenHintInputs(api, KidJsonKey, json)
+	kidValueLen_, err := api.Compiler().NewHint(hints.JsonValueLenHint, 1, inputs...)
 	if err != nil {
 		return 0, err
 	}
@@ -84,7 +102,11 @@ func headerValueLengthsFromHints(api frontend.API, json []uints.U8) (kidValueLen
 	return
 }
 
-func payloadOffsetsFromHints(api frontend.API, json []uints.U8) (issOffset, audOffset, subOffset, nonceOffset frontend.Variable, err error) {
+// payloadOffsetsFromHints calculates the offsets for the JWT payload.
+// It returns the offset for the iss, the aud, the sub, and the nonce.
+func payloadOffsetsFromHints(
+	api frontend.API, json []uints.U8,
+) (issOffset, audOffset, subOffset, nonceOffset frontend.Variable, err error) {
 	inputs := hints.OffsetHintInputs(api, IssJsonPrefix, json)
 	issOffset_, err := api.Compiler().NewHint(hints.OffsetHint, 1, inputs...)
 	if err != nil {
@@ -116,30 +138,34 @@ func payloadOffsetsFromHints(api frontend.API, json []uints.U8) (issOffset, audO
 	return
 }
 
-func payloadValueLengthsFromHints(api frontend.API, json []uints.U8) (issValueLen, audValueLen, subValueLen, nonceValueLen frontend.Variable, err error) {
-	inputs := hints.ValueLenHintInputs(api, IssJsonKey, json)
-	issValueLen_, err := api.Compiler().NewHint(hints.ValueLenHint, 1, inputs...)
+// payloadValueLengthsFromHints calculates the length of the iss, the aud, the sub, and the nonce values.
+// It returns the length of each value as a frontend.Variable value.
+func payloadValueLengthsFromHints(
+	api frontend.API, json []uints.U8,
+) (issValueLen, audValueLen, subValueLen, nonceValueLen frontend.Variable, err error) {
+	inputs := hints.JsonValueLenHintInputs(api, IssJsonKey, json)
+	issValueLen_, err := api.Compiler().NewHint(hints.JsonValueLenHint, 1, inputs...)
 	if err != nil {
 		return 0, 0, 0, 0, err
 	}
 	issValueLen = issValueLen_[0]
 
-	inputs = hints.ValueLenHintInputs(api, AudJsonKey, json)
-	audValueLen_, err := api.Compiler().NewHint(hints.ValueLenHint, 1, inputs...)
+	inputs = hints.JsonValueLenHintInputs(api, AudJsonKey, json)
+	audValueLen_, err := api.Compiler().NewHint(hints.JsonValueLenHint, 1, inputs...)
 	if err != nil {
 		return 0, 0, 0, 0, err
 	}
 	audValueLen = audValueLen_[0]
 
-	inputs = hints.ValueLenHintInputs(api, SubJsonKey, json)
-	subValueLen_, err := api.Compiler().NewHint(hints.ValueLenHint, 1, inputs...)
+	inputs = hints.JsonValueLenHintInputs(api, SubJsonKey, json)
+	subValueLen_, err := api.Compiler().NewHint(hints.JsonValueLenHint, 1, inputs...)
 	if err != nil {
 		return 0, 0, 0, 0, err
 	}
 	subValueLen = subValueLen_[0]
 
-	inputs = hints.ValueLenHintInputs(api, NonceJsonKey, json)
-	nonceValueLen_, err := api.Compiler().NewHint(hints.ValueLenHint, 1, inputs...)
+	inputs = hints.JsonValueLenHintInputs(api, NonceJsonKey, json)
+	nonceValueLen_, err := api.Compiler().NewHint(hints.JsonValueLenHint, 1, inputs...)
 	if err != nil {
 		return 0, 0, 0, 0, err
 	}
@@ -148,6 +174,8 @@ func payloadValueLengthsFromHints(api frontend.API, json []uints.U8) (issValueLe
 	return
 }
 
+// headerMasksFromHints calculates the masks for the JWT header.
+// It returns the mask for the typ, the alg, and the kid.
 func headerMasksFromHints(
 	api frontend.API,
 	typOffset, algOffset, kidOffset, kidValueLen frontend.Variable,
@@ -176,6 +204,8 @@ func headerMasksFromHints(
 	return
 }
 
+// payloadMasksFromHints calculates the masks for the JWT payload.
+// It returns the mask for the iss, the aud, the sub, and the nonce.
 func payloadMasksFromHints(
 	api frontend.API,
 	issOffset, issValueLen frontend.Variable,

@@ -8,8 +8,8 @@ import (
 	"github.com/coinbase/smart-wallet/circuits/circuits/utils"
 )
 
-// verifyByte checks if the byte at index i in the JSON matches the expected byte in the lookup table.
-// The mask is used to enable/disable the check.
+// verifyByte validates that a byte at position i in the JSON matches the expected value.
+// When mask is 1, the check is active; when mask is 0, the check is skipped.
 func verifyByte(
 	api frontend.API,
 	json []uints.U8,
@@ -39,8 +39,8 @@ func verifyByte(
 	)
 }
 
-// verifySeparator checks if the byte at index i in the JSON is a separator (comma or close brace).
-// The end offset is used to enable/disable the check.
+// verifySeparator validates that the byte at position i is a separator (comma or close brace)
+// when i equals the end offset. The check is only active when i == end.
 func verifySeparator(
 	api frontend.API,
 	json []uints.U8,

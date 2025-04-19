@@ -37,11 +37,13 @@ type ZkLoginCircuit[RSAField emulated.FieldParams] struct {
 func (c *ZkLoginCircuit[RSAField]) Define(api frontend.API) error {
 	base64Encoder := utils.NewBase64Encoder(api)
 
+	// Compute the nonce value.
 	nonceValue, err := c.computeNonceValue(api, base64Encoder)
 	if err != nil {
 		return err
 	}
 
+	// Instantiate the JWT verifier.
 	jwtVerifier, err := jwt.NewJwtVerifier(
 		api,
 		base64Encoder,
@@ -57,6 +59,7 @@ func (c *ZkLoginCircuit[RSAField]) Define(api frontend.API) error {
 		return err
 	}
 
+	// Verify the JWT and compute its hash.
 	jwtVerifier.VerifyJwtHeader()
 	jwtVerifier.VerifyJwtPayload()
 	jwtHash, err := jwtVerifier.Hash()
@@ -64,6 +67,7 @@ func (c *ZkLoginCircuit[RSAField]) Define(api frontend.API) error {
 		return err
 	}
 
+	// Verify the JWT signature against its hash and the IDP's public key.
 	err = rsa.VerifyRSASignature(api, jwtHash, &c.JwtSignature, &c.IdpPublicKeyN)
 	if err != nil {
 		return err
@@ -72,6 +76,10 @@ func (c *ZkLoginCircuit[RSAField]) Define(api frontend.API) error {
 	return nil
 }
 
+// computeNonceValue creates a nonce by hashing the ephemeral public key with JWT randomness
+// using Poseidon, then encodes it as a base64 URL-safe string. The returned value is a 45-byte
+// JSON string (with quotes) containing the 43-byte base64 representation of the hash.
+// Format: "<43 base64 characters>"
 func (c *ZkLoginCircuit[RSAField]) computeNonceValue(api frontend.API, base64Encoder *utils.Base64Encoder) ([]uints.U8, error) {
 	inputs := make([]frontend.Variable, MaxEphemeralPublicKeyChunks+1)
 	copy(inputs, c.EphemeralPublicKey)

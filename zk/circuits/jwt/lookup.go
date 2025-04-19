@@ -6,17 +6,18 @@ import (
 	"github.com/consensys/gnark/std/math/uints"
 )
 
+// buildLookup creates a lookup table for JWT field validation.
 func buildLookup(
 	api frontend.API,
-	expectedPrefix string,
-	expectedValue []uints.U8,
+	compileTimePrefix string,
+	runtimeValue []uints.U8,
 ) *logderivlookup.Table {
 	l := logderivlookup.New(api)
-	for _, v := range expectedPrefix {
+	for _, v := range compileTimePrefix {
 		l.Insert(v)
 	}
 
-	for _, v := range expectedValue {
+	for _, v := range runtimeValue {
 		l.Insert(v.Val)
 	}
 
