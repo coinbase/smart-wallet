@@ -32,11 +32,11 @@ import (
 func TestZkLoginV2(t *testing.T) {
 	assert := test.NewAssert(t)
 
-	witnessEphemeralPublicKey, jwtRandomness, witnessJwtHeaderJson, witnessJwtPayloadJson, witnessKidValue, witnessIssValue, witnessAudValue, witnessSubValue, witnessJwtSignature, witnessIdpPublicKeyN := generateWitness()
+	witnessEphemeralPublicKey, jwtRandomness, witnessJwtHeaderJson, witnessJwtPayloadJson, witnessKidValue, witnessIssValue, witnessAudValue, witnessSubValue, witnessJwtSignature, witnessIdpPublicKeyN, witnessPublicHash := generateWitness[rsa.Mod1e2048]()
 
 	assert.ProverSucceeded(
 		&ZkLoginCircuit[rsa.Mod1e2048]{
-			// Public inputs sizes.
+			// Semi-public inputs sizes.
 			EphemeralPublicKey: make([]frontend.Variable, MaxEphemeralPublicKeyChunks),
 			JwtHeaderJson:      make([]uints.U8, jwt.MaxHeaderJsonLen),
 			KidValue:           make([]uints.U8, jwt.MaxKidValueLen),
@@ -49,6 +49,9 @@ func TestZkLoginV2(t *testing.T) {
 		},
 		&ZkLoginCircuit[rsa.Mod1e2048]{
 			// Public inputs.
+			PublicHash: witnessPublicHash,
+
+			// Semi-public inputs.
 			IdpPublicKeyN:      witnessIdpPublicKeyN,
 			EphemeralPublicKey: witnessEphemeralPublicKey,
 			JwtHeaderJson:      witnessJwtHeaderJson,
@@ -73,7 +76,7 @@ func TestZkLoginV2(t *testing.T) {
 	)
 }
 
-func generateWitness() (
+func generateWitness[RSAFieldParams emulated.FieldParams]() (
 	witnessEphemeralPublicKey []frontend.Variable,
 	jwtRandomness *big.Int,
 
@@ -86,8 +89,10 @@ func generateWitness() (
 	witnessAudValue []uints.U8,
 	witnessSubValue []uints.U8,
 
-	witnessJwtSignature emulated.Element[rsa.Mod1e2048],
-	witnessIdpPublicKeyN emulated.Element[rsa.Mod1e2048],
+	witnessJwtSignature emulated.Element[RSAFieldParams],
+	witnessIdpPublicKeyN emulated.Element[RSAFieldParams],
+
+	witnessPublicHash *big.Int,
 ) {
 	_, publicKey, _ := generateKeypair()
 
@@ -135,27 +140,27 @@ func generateWitness() (
 	if err != nil {
 		panic(err)
 	}
-	signature := new(big.Int).SetBytes(signatureBytes)
-	witnessJwtSignature = emulated.ValueOf[rsa.Mod1e2048](signature)
+	witnessJwtSignature = emulated.ValueOf[RSAFieldParams](signatureBytes)
 
 	idpPublicKeyNBase64 := "vUiHFY8O45dBoYLGipsgaVOk7rGpim6CK1iPG2zSt3sO9-09S9dB5nQdIelGye-mouQXaW5U7H8lZnv5wLJ8VSzquaSh3zJkbDq-Wvgas6U-FJaMy35kiExr5gUKUGPAIjI2sLASDbFD0vT_jxtg0ZRknwkexz_gZadZQ-iFEO7unjpE_zQnx8LhN-3a8dRf2B45BLY5J9aQJi4Csa_NHzl9Ym4uStYraSgwW93VYJwDJ3wKTvwejPvlW3n0hUifvkMke3RTqnSDIbP2xjtNmj12wdd-VUw47-cor5lMn7LG400G7lmI8rUSEHIzC7UyzEW7y15_uzuqvIkFVTLXlQ"
 	idpPublicKeyNBytes, err := base64.RawURLEncoding.DecodeString(idpPublicKeyNBase64)
 	if err != nil {
 		panic(err)
 	}
-	idpPublicKeyN := new(big.Int).SetBytes(idpPublicKeyNBytes)
-	witnessIdpPublicKeyN = emulated.ValueOf[rsa.Mod1e2048](idpPublicKeyN)
+	witnessIdpPublicKeyN = emulated.ValueOf[RSAFieldParams](idpPublicKeyNBytes)
+
+	witnessPublicHash = hashPublicInputs[RSAFieldParams](idpPublicKeyNBytes, ephemeralPublicKeyAsElements, headerJson, kidValue)
 
 	return
 }
 
-func generateKeypair() (*ecdsa.PrivateKey, *ecdsa.PublicKey, common.Address) {
+func generateKeypair() (privateKey *ecdsa.PrivateKey, publicKeyECDSA *ecdsa.PublicKey, address common.Address) {
 	// Use a fixed private key for testing
 	privateKeyBytes, err := hex.DecodeString("1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef")
 	if err != nil {
 		panic(err)
 	}
-	privateKey, err := crypto.ToECDSA(privateKeyBytes)
+	privateKey, err = crypto.ToECDSA(privateKeyBytes)
 	if err != nil {
 		panic(err)
 	}
@@ -167,19 +172,70 @@ func generateKeypair() (*ecdsa.PrivateKey, *ecdsa.PublicKey, common.Address) {
 		panic("failed to get public key")
 	}
 
-	address := crypto.PubkeyToAddress(*publicKeyECDSA)
+	address = crypto.PubkeyToAddress(*publicKeyECDSA)
 
-	return privateKey, publicKeyECDSA, address
+	return
 }
 
-func buildWitness(
-	value string,
-	maxLen int,
-) (string, int, []uints.U8) {
-	witness := make([]uints.U8, maxLen)
+func buildWitness(value string, maxLen int) (v string, valueLen int, witness []uints.U8) {
+	witness = make([]uints.U8, maxLen)
 	for i := range value {
 		witness[i] = uints.NewU8(value[i])
 	}
 
-	return value, len(value), witness
+	v = value
+	valueLen = len(value)
+
+	return
+}
+
+func hashPublicInputs[FieldParams emulated.FieldParams](
+	idpPublicKeyNBytes []byte,
+	ephemeralPublicKeyAsElements []*big.Int,
+	jwtHeaderJson string,
+	kidValue string,
+) (hash *big.Int) {
+	idpPublicKeyNLimbs := bytesToLimbs[FieldParams](idpPublicKeyNBytes)
+
+	// Create a slice of expected length and zero initialize it
+	inputs := make([]*big.Int, len(idpPublicKeyNLimbs)+len(ephemeralPublicKeyAsElements)+jwt.MaxHeaderJsonLen+jwt.MaxKidValueLen)
+	for i := range inputs {
+		inputs[i] = big.NewInt(0)
+	}
+
+	copy(inputs[0:], idpPublicKeyNLimbs)
+
+	offset := len(idpPublicKeyNLimbs)
+	copy(inputs[offset:], ephemeralPublicKeyAsElements)
+
+	offset += len(ephemeralPublicKeyAsElements)
+	for i := range jwtHeaderJson {
+		inputs[offset+i] = big.NewInt(int64(jwtHeaderJson[i]))
+	}
+
+	offset += jwt.MaxHeaderJsonLen
+	for i := range kidValue {
+		inputs[offset+i] = big.NewInt(int64(kidValue[i]))
+	}
+
+	hash, err := poseidon.HashMulti[*bn254fr.Element](inputs)
+	if err != nil {
+		panic(err)
+	}
+
+	return
+}
+
+func bytesToLimbs[FieldParams emulated.FieldParams](bytes []byte) (limbs []*big.Int) {
+	var fp FieldParams
+	l := int(fp.NbLimbs())
+	limbs = make([]*big.Int, l)
+	bytesPerLimb := int(fp.BitsPerLimb() / 8)
+
+	for i := range limbs {
+		limb := new(big.Int).SetBytes(bytes[i*bytesPerLimb : (i+1)*bytesPerLimb])
+		limbs[l-1-i] = limb
+	}
+
+	return
 }

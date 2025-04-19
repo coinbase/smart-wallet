@@ -20,10 +20,13 @@ const (
 
 type ZkLoginCircuit[RSAField emulated.FieldParams] struct {
 	// Public inputs.
-	IdpPublicKeyN      emulated.Element[RSAField] `gnark:",public"`
-	EphemeralPublicKey []frontend.Variable        `gnark:",public"`
-	JwtHeaderJson      []uints.U8                 `gnark:",public"`
-	KidValue           []uints.U8                 `gnark:",public"`
+	PublicHash frontend.Variable `gnark:",public"`
+
+	// Semi-public inputs.
+	IdpPublicKeyN      emulated.Element[RSAField]
+	EphemeralPublicKey []frontend.Variable
+	JwtHeaderJson      []uints.U8
+	KidValue           []uints.U8
 
 	// Private inputs.
 	JwtRandomness  frontend.Variable
@@ -35,6 +38,9 @@ type ZkLoginCircuit[RSAField emulated.FieldParams] struct {
 }
 
 func (c *ZkLoginCircuit[RSAField]) Define(api frontend.API) error {
+	c.verifyPublicHash(api)
+
+	// Instantiate the base64 encoder.
 	base64Encoder := utils.NewBase64Encoder(api)
 
 	// Compute the nonce value.
@@ -72,6 +78,33 @@ func (c *ZkLoginCircuit[RSAField]) Define(api frontend.API) error {
 	if err != nil {
 		return err
 	}
+
+	return nil
+}
+
+// verifyPublicHash verifies that the PublicHash provided as a public input matches
+// the Poseidon hash of the semi-public inputs (IdpPublicKeyN, EphemeralPublicKey,
+// JwtHeaderJson, and KidValue).
+func (c *ZkLoginCircuit[RSAField]) verifyPublicHash(api frontend.API) error {
+	idpPkLen := len(c.IdpPublicKeyN.Limbs)
+	ephemeralPkLen := len(c.EphemeralPublicKey)
+	jwtHeaderJsonLen := len(c.JwtHeaderJson)
+	kidValueLen := len(c.KidValue)
+
+	inputs := make([]frontend.Variable, idpPkLen+ephemeralPkLen+jwtHeaderJsonLen+kidValueLen)
+	copy(inputs, c.IdpPublicKeyN.Limbs)
+	copy(inputs[idpPkLen:], c.EphemeralPublicKey)
+
+	for i := range jwtHeaderJsonLen {
+		inputs[idpPkLen+ephemeralPkLen+i] = c.JwtHeaderJson[i].Val
+	}
+
+	for i := range kidValueLen {
+		inputs[idpPkLen+ephemeralPkLen+jwtHeaderJsonLen+i] = c.KidValue[i].Val
+	}
+
+	hash := poseidon.HashMulti(api, inputs)
+	api.AssertIsEqual(hash, c.PublicHash)
 
 	return nil
 }
