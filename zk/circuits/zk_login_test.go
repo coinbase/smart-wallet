@@ -49,10 +49,12 @@ func TestZkLoginV2(t *testing.T) {
 	assert.ProverSucceeded(
 		&circuits.ZkLoginCircuit[rsa.Mod1e2048]{
 			// Semi-public inputs sizes.
-			JwtHeaderJson: make([]uints.U8, jwt.MaxHeaderJsonLen),
-			KidValue:      make([]uints.U8, jwt.MaxKidValueLen),
+			KidValue: make([]uints.U8, jwt.MaxKidValueLen),
 
-			// Private inputs sizes.
+			// Private non-sensitive inputs sizes.
+			JwtHeaderJson: make([]uints.U8, jwt.MaxHeaderJsonLen),
+
+			// Private sensitive inputs sizes.
 			JwtPayloadJson: make([]uints.U8, jwt.MaxPayloadJsonLen),
 			IssValue:       make([]uints.U8, jwt.MaxIssValueLen),
 			AudValue:       make([]uints.U8, jwt.MaxAudValueLen),
@@ -63,11 +65,13 @@ func TestZkLoginV2(t *testing.T) {
 			PublicHash: witnessPublicHash,
 
 			// Semi-public inputs.
-			IdpPubKeyN:    witnessIdpPubKeyN,
-			EphPubKey:     witnessEphPubKey,
+			IdpPubKeyN: witnessIdpPubKeyN,
+			EphPubKey:  witnessEphPubKey,
+			KidValue:   witnessKidValue,
+			ZkAddr:     witnessZkAddr,
+
+			// Private non-sensitive inputs.
 			JwtHeaderJson: witnessJwtHeaderJson,
-			KidValue:      witnessKidValue,
-			ZkAddr:        witnessZkAddr,
 
 			// Private inputs.
 			JwtPayloadJson: witnessJwtPayloadJson,
