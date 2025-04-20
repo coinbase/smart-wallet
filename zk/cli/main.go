@@ -188,6 +188,20 @@ var commands = []*cli.Command{
 				},
 			},
 			&cli.StringFlag{
+				Name:     "userSaltHex",
+				Usage:    "User salt as hex string",
+				Required: true,
+				Action: func(cCtx *cli.Context, hexUserSalt string) error {
+					hexUserSalt = strings.TrimPrefix(hexUserSalt, "0x")
+					_, err := hex.DecodeString(hexUserSalt)
+					if err != nil {
+						return fmt.Errorf("invalid hex format for userSalt: %v", err)
+					}
+
+					return nil
+				},
+			},
+			&cli.StringFlag{
 				Name:     "output",
 				Aliases:  []string{"o"},
 				Usage:    "Output path for the proof file",
@@ -214,7 +228,6 @@ func main() {
 func CompileCircuit(cCtx *cli.Context) error {
 	zkCircuit := circuits.ZkLoginCircuit[rsa.Mod1e2048]{
 		// Semi-public inputs sizes.
-		EphPubKey:     make([]frontend.Variable, circuits.MaxEphPubKeyChunks),
 		JwtHeaderJson: make([]uints.U8, jwt.MaxHeaderJsonLen),
 		KidValue:      make([]uints.U8, jwt.MaxKidValueLen),
 
@@ -320,6 +333,7 @@ func GenerateProof(cCtx *cli.Context) error {
 	jwtPayloadJson := cCtx.String("jwtPayloadJson")
 	jwtSignatureBase64 := cCtx.String("jwtSignatureBase64")
 	jwtRandomnessHex := cCtx.String("jwtRandomnessHex")
+	userSaltHex := cCtx.String("userSaltHex")
 
 	// Parse the ephemeral public key.
 	ephPubKeyBytes, err := hex.DecodeString(strings.TrimPrefix(ephPubKeyHex, "0x"))
@@ -334,6 +348,13 @@ func GenerateProof(cCtx *cli.Context) error {
 	}
 	jwtRandomness := new(big.Int).SetBytes(jwtRandomnessBytes)
 
+	// Parse the user salt.
+	userSaltBytes, err := hex.DecodeString(strings.TrimPrefix(userSaltHex, "0x"))
+	if err != nil {
+		return fmt.Errorf("failed to decode user salt: %w", err)
+	}
+	userSalt := new(big.Int).SetBytes(userSaltBytes)
+
 	fmt.Println("Generating witness...")
 	witness, err := generateWitness(
 		ephPubKeyBytes,
@@ -342,6 +363,7 @@ func GenerateProof(cCtx *cli.Context) error {
 		string(jwtPayloadJson),
 		jwtSignatureBase64,
 		jwtRandomness,
+		userSalt,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to generate witness: %w", err)
@@ -403,14 +425,16 @@ func generateWitness(
 	jwtPayloadJson string,
 	jwtSignatureBase64 string,
 	jwtRandomness *big.Int,
+	userSalt *big.Int,
 ) (witness.Witness, error) {
-	witnessPublicHash, witnessIdpPubKeyN, witnessEphPubKey, witnessJwtHeaderJson, witnessKidValue, witnessJwtRandomness, witnessJwtPayloadJson, witnessIssValue, witnessAudValue, witnessSubValue, witnessJwtSignature, err := utils.GenerateWitness[rsa.Mod1e2048](
+	witnessPublicHash, witnessIdpPubKeyN, witnessEphPubKey, witnessJwtHeaderJson, witnessKidValue, witnessZkAddr, witnessJwtPayloadJson, witnessIssValue, witnessAudValue, witnessSubValue, witnessJwtSignature, witnessJwtRandomness, witnessUserSalt, err := utils.GenerateWitness[rsa.Mod1e2048](
 		ephPubKey,
 		idpPubKeyNBase64,
 		jwtHeaderJson,
 		jwtPayloadJson,
 		jwtSignatureBase64,
 		jwtRandomness,
+		userSalt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate witness: %w", err)
@@ -425,14 +449,16 @@ func generateWitness(
 		EphPubKey:     witnessEphPubKey,
 		JwtHeaderJson: witnessJwtHeaderJson,
 		KidValue:      witnessKidValue,
+		ZkAddr:        witnessZkAddr,
 
 		// Private inputs.
-		JwtRandomness:  witnessJwtRandomness,
 		JwtPayloadJson: witnessJwtPayloadJson,
 		IssValue:       witnessIssValue,
 		AudValue:       witnessAudValue,
 		SubValue:       witnessSubValue,
 		JwtSignature:   witnessJwtSignature,
+		JwtRandomness:  witnessJwtRandomness,
+		UserSalt:       witnessUserSalt,
 	}
 
 	witness, err := frontend.NewWitness(assignment, ecc.BN254.ScalarField())

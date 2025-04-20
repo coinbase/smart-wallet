@@ -13,9 +13,9 @@ import (
 )
 
 const (
-	ElementSize        = 31
+	elementSize        = 31
 	MaxEphPubKeyBytes  = 64
-	MaxEphPubKeyChunks = (MaxEphPubKeyBytes + ElementSize - 1) / ElementSize
+	MaxEphPubKeyChunks = (MaxEphPubKeyBytes + elementSize - 1) / elementSize
 )
 
 type ZkLoginCircuit[RSAField emulated.FieldParams] struct {
@@ -24,9 +24,10 @@ type ZkLoginCircuit[RSAField emulated.FieldParams] struct {
 
 	// Semi-public inputs.
 	IdpPubKeyN    emulated.Element[RSAField]
-	EphPubKey     []frontend.Variable
+	EphPubKey     [MaxEphPubKeyChunks]frontend.Variable
 	JwtHeaderJson []uints.U8
 	KidValue      []uints.U8
+	ZkAddr        frontend.Variable
 
 	// Private inputs.
 	JwtRandomness  frontend.Variable
@@ -35,10 +36,15 @@ type ZkLoginCircuit[RSAField emulated.FieldParams] struct {
 	AudValue       []uints.U8
 	SubValue       []uints.U8
 	JwtSignature   emulated.Element[RSAField]
+	UserSalt       frontend.Variable
 }
 
 func (c *ZkLoginCircuit[RSAField]) Define(api frontend.API) error {
+	// Verify the semi-public inputs are valid given the public hash.
 	c.verifyPublicHash(api)
+
+	// Verify the ZK address is derived correctly from the JWT payload and the user salt.
+	c.verifyZkAddr(api)
 
 	// Instantiate the base64 encoder.
 	base64Encoder := utils.NewBase64Encoder(api)
@@ -87,21 +93,25 @@ func (c *ZkLoginCircuit[RSAField]) Define(api frontend.API) error {
 // JwtHeaderJson, and KidValue).
 func (c *ZkLoginCircuit[RSAField]) verifyPublicHash(api frontend.API) error {
 	idpPkLen := len(c.IdpPubKeyN.Limbs)
-	ephPubKeyLen := len(c.EphPubKey)
-	jwtHeaderJsonLen := len(c.JwtHeaderJson)
-	kidValueLen := len(c.KidValue)
+	inputs := make([]frontend.Variable, idpPkLen+MaxEphPubKeyChunks+jwt.MaxHeaderJsonLen+jwt.MaxKidValueLen+1)
 
-	inputs := make([]frontend.Variable, idpPkLen+ephPubKeyLen+jwtHeaderJsonLen+kidValueLen)
 	copy(inputs, c.IdpPubKeyN.Limbs)
-	copy(inputs[idpPkLen:], c.EphPubKey)
+	offset := idpPkLen
 
-	for i := range jwtHeaderJsonLen {
-		inputs[idpPkLen+ephPubKeyLen+i] = c.JwtHeaderJson[i].Val
-	}
+	copy(inputs[offset:], c.EphPubKey[:])
+	offset += MaxEphPubKeyChunks
 
-	for i := range kidValueLen {
-		inputs[idpPkLen+ephPubKeyLen+jwtHeaderJsonLen+i] = c.KidValue[i].Val
+	for i := range c.JwtHeaderJson {
+		inputs[offset+i] = c.JwtHeaderJson[i].Val
 	}
+	offset += jwt.MaxHeaderJsonLen
+
+	for i := range c.KidValue {
+		inputs[offset+i] = c.KidValue[i].Val
+	}
+	offset += jwt.MaxKidValueLen
+
+	inputs[offset] = c.ZkAddr
 
 	hash := poseidon.HashMulti(api, inputs)
 	api.AssertIsEqual(hash, c.PublicHash)
@@ -115,7 +125,7 @@ func (c *ZkLoginCircuit[RSAField]) verifyPublicHash(api frontend.API) error {
 // Format: "<43 base64 characters>"
 func (c *ZkLoginCircuit[RSAField]) computeNonceValue(api frontend.API, base64Encoder *utils.Base64Encoder) ([]uints.U8, error) {
 	inputs := make([]frontend.Variable, MaxEphPubKeyChunks+1)
-	copy(inputs, c.EphPubKey)
+	copy(inputs, c.EphPubKey[:])
 	inputs[MaxEphPubKeyChunks] = c.JwtRandomness
 
 	nonce := poseidon.Hash(api, inputs)
@@ -146,4 +156,21 @@ func (c *ZkLoginCircuit[RSAField]) computeNonceValue(api frontend.API, base64Enc
 	nonceValue[44] = doubleQuoteU8
 
 	return nonceValue, nil
+}
+
+// verifyZkAddr verifies that the ZK address is derived correctly from the JWT payload and the user salt.
+func (c *ZkLoginCircuit[RSAField]) verifyZkAddr(api frontend.API) {
+	inputsU8 := make([]uints.U8, jwt.MaxIssValueLen+jwt.MaxAudValueLen+jwt.MaxSubValueLen)
+	copy(inputsU8, c.IssValue)
+	copy(inputsU8[jwt.MaxIssValueLen:], c.AudValue)
+	copy(inputsU8[jwt.MaxIssValueLen+jwt.MaxAudValueLen:], c.SubValue)
+
+	inputs := make([]frontend.Variable, len(inputsU8)+1)
+	for i := range inputsU8 {
+		inputs[i] = inputsU8[i].Val
+	}
+	inputs[len(inputsU8)] = c.UserSalt
+
+	zkAddr := poseidon.HashMulti(api, inputs)
+	api.AssertIsEqual(zkAddr, c.ZkAddr)
 }

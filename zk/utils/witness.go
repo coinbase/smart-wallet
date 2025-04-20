@@ -24,20 +24,23 @@ func GenerateWitness[RSAFieldParams emulated.FieldParams](
 	jwtPayloadJson string,
 	jwtSignatureBase64 string,
 	jwtRandomness *big.Int,
+	userSalt *big.Int,
 ) (
 	witnessPublicHash *big.Int,
 
 	witnessIdpPubKeyN emulated.Element[RSAFieldParams],
-	witnessEphPubKey []frontend.Variable,
+	witnessEphPubKey [circuits.MaxEphPubKeyChunks]frontend.Variable,
 	witnessJwtHeaderJson []uints.U8,
 	witnessKidValue []uints.U8,
+	witnessZkAddr frontend.Variable,
 
-	witnessJwtRandomness *big.Int,
 	witnessJwtPayloadJson []uints.U8,
 	witnessIssValue []uints.U8,
 	witnessAudValue []uints.U8,
 	witnessSubValue []uints.U8,
 	witnessJwtSignature emulated.Element[RSAFieldParams],
+	witnessJwtRandomness *big.Int,
+	witnessUserSalt *big.Int,
 
 	err error,
 ) {
@@ -57,7 +60,6 @@ func GenerateWitness[RSAFieldParams emulated.FieldParams](
 	}
 	copy(ephPublicKeyAsElements, chunks)
 
-	witnessEphPubKey = make([]frontend.Variable, circuits.MaxEphPubKeyChunks)
 	for i := range ephPublicKeyAsElements {
 		witnessEphPubKey[i] = frontend.Variable(ephPublicKeyAsElements[i])
 	}
@@ -77,7 +79,17 @@ func GenerateWitness[RSAFieldParams emulated.FieldParams](
 		return
 	}
 
-	witnessJwtRandomness = new(big.Int).Set(jwtRandomness)
+	zkAddr, err := deriveZkAddr(
+		jwtPayload["iss"],
+		jwtPayload["aud"],
+		jwtPayload["sub"],
+		userSalt,
+	)
+	if err != nil {
+		return
+	}
+	witnessZkAddr = new(big.Int).Set(zkAddr)
+
 	witnessJwtPayloadJson, witnessIssValue, witnessAudValue, witnessSubValue, err = buildJsonPayloadWitnesses(jwtPayloadJson, string(jwtPayload["iss"]), string(jwtPayload["aud"]), string(jwtPayload["sub"]))
 	if err != nil {
 		return
@@ -89,12 +101,19 @@ func GenerateWitness[RSAFieldParams emulated.FieldParams](
 	}
 	witnessJwtSignature = emulated.ValueOf[RSAFieldParams](signatureBytes)
 
-	witnessPublicHash = hashPublicInputs[RSAFieldParams](
+	witnessPublicHash, err = hashPublicInputs[RSAFieldParams](
 		idpPublicKeyNBytes,
 		ephPublicKeyAsElements,
 		jwtHeaderJson,
 		string(jwtHeader["kid"]),
+		zkAddr,
 	)
+	if err != nil {
+		return
+	}
+
+	witnessJwtRandomness = new(big.Int).Set(jwtRandomness)
+	witnessUserSalt = new(big.Int).Set(userSalt)
 
 	// Safety checks to make sure the JWT nonce was computed correctly
 	inputBytes := append(ephPublicKeyAsElements[:], jwtRandomness)
@@ -169,34 +188,34 @@ func hashPublicInputs[FieldParams emulated.FieldParams](
 	ephPublicKeyAsElements []*big.Int,
 	jwtHeaderJson string,
 	kidValue string,
-) (hash *big.Int) {
+	zkAddr *big.Int,
+) (hash *big.Int, err error) {
 	idpPublicKeyNLimbs := bytesToLimbs[FieldParams](idpPublicKeyNBytes)
 
-	// Create a slice of expected length and zero initialize it
-	inputs := make([]*big.Int, len(idpPublicKeyNLimbs)+len(ephPublicKeyAsElements)+jwt.MaxHeaderJsonLen+jwt.MaxKidValueLen)
+	inputs := make([]*big.Int, len(idpPublicKeyNLimbs)+len(ephPublicKeyAsElements)+jwt.MaxHeaderJsonLen+jwt.MaxKidValueLen+1)
 	for i := range inputs {
 		inputs[i] = big.NewInt(0)
 	}
 
 	copy(inputs[0:], idpPublicKeyNLimbs)
-
 	offset := len(idpPublicKeyNLimbs)
-	copy(inputs[offset:], ephPublicKeyAsElements)
 
+	copy(inputs[offset:], ephPublicKeyAsElements)
 	offset += len(ephPublicKeyAsElements)
+
 	for i := range jwtHeaderJson {
 		inputs[offset+i] = big.NewInt(int64(jwtHeaderJson[i]))
 	}
-
 	offset += jwt.MaxHeaderJsonLen
+
 	for i := range kidValue {
 		inputs[offset+i] = big.NewInt(int64(kidValue[i]))
 	}
+	offset += jwt.MaxKidValueLen
 
-	hash, err := poseidon.HashMulti[*bn254fr.Element](inputs)
-	if err != nil {
-		panic(err)
-	}
+	inputs[offset] = zkAddr
+
+	hash, err = poseidon.HashMulti[*bn254fr.Element](inputs)
 
 	return
 }
@@ -211,6 +230,34 @@ func bytesToLimbs[FieldParams emulated.FieldParams](bytes []byte) (limbs []*big.
 		limb := new(big.Int).SetBytes(bytes[i*bytesPerLimb : (i+1)*bytesPerLimb])
 		limbs[l-1-i] = limb
 	}
+
+	return
+}
+
+func deriveZkAddr(iss, aud, sub []byte, userSalt *big.Int) (zkAddr *big.Int, err error) {
+	inputs := make([]*big.Int, jwt.MaxIssValueLen+jwt.MaxAudValueLen+jwt.MaxSubValueLen+1)
+	for i := range inputs {
+		inputs[i] = big.NewInt(0)
+	}
+
+	for i := range iss {
+		inputs[i] = big.NewInt(int64(iss[i]))
+	}
+	offset := jwt.MaxIssValueLen
+
+	for i := range aud {
+		inputs[offset+i] = big.NewInt(int64(aud[i]))
+	}
+	offset += jwt.MaxAudValueLen
+
+	for i := range sub {
+		inputs[offset+i] = big.NewInt(int64(sub[i]))
+	}
+	offset += jwt.MaxSubValueLen
+
+	inputs[offset] = userSalt
+
+	zkAddr, err = poseidon.HashMulti[*bn254fr.Element](inputs)
 
 	return
 }
