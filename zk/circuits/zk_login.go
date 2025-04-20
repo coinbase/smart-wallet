@@ -23,16 +23,16 @@ type ZkLoginCircuit[RSAField emulated.FieldParams] struct {
 	PublicHash frontend.Variable `gnark:",public"`
 
 	// Semi-public inputs.
-	IdpPubKeyN emulated.Element[RSAField]
-	EphPubKey  [MaxEphPubKeyChunks]frontend.Variable
-	ZkAddr     frontend.Variable
+	IdpPubKeyN emulated.Element[RSAField]            `gnark:",public"`
+	EphPubKey  [MaxEphPubKeyChunks]frontend.Variable `gnark:",public"`
+	ZkAddr     frontend.Variable                     `gnark:",public"`
 
 	// Private non-sensitive inputs.
 	JwtHeaderJson []uints.U8
 	KidValue      []uints.U8 // TODO: Is it really needed? Should this be (semi) public?
 
 	// Private sensitive inputs.
-	JwtRandomness  frontend.Variable
+	JwtRnd         frontend.Variable
 	JwtPayloadJson []uints.U8
 	IssValue       []uints.U8
 	AudValue       []uints.U8
@@ -117,7 +117,7 @@ func (c *ZkLoginCircuit[RSAField]) verifyPublicHash(api frontend.API) error {
 func (c *ZkLoginCircuit[RSAField]) computeNonceValue(api frontend.API, base64Encoder *utils.Base64Encoder) ([]uints.U8, error) {
 	inputs := make([]frontend.Variable, MaxEphPubKeyChunks+1)
 	copy(inputs, c.EphPubKey[:])
-	inputs[MaxEphPubKeyChunks] = c.JwtRandomness
+	inputs[MaxEphPubKeyChunks] = c.JwtRnd
 
 	nonce := poseidon.Hash(api, inputs)
 	nonceBytes, err := api.Compiler().NewHint(hints.NonceHint, 32, nonce)

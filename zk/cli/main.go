@@ -173,15 +173,14 @@ var commands = []*cli.Command{
 				},
 			},
 			&cli.StringFlag{
-				Name:     "jwtRandomnessHex",
-				Aliases:  []string{"jwtRndHex"},
+				Name:     "jwtRndHex",
 				Usage:    "JWT randomness as hex string",
 				Required: true,
-				Action: func(cCtx *cli.Context, hexJwtRandomness string) error {
-					hexJwtRandomness = strings.TrimPrefix(hexJwtRandomness, "0x")
-					_, err := hex.DecodeString(hexJwtRandomness)
+				Action: func(cCtx *cli.Context, hexJwtRnd string) error {
+					hexJwtRnd = strings.TrimPrefix(hexJwtRnd, "0x")
+					_, err := hex.DecodeString(hexJwtRnd)
 					if err != nil {
-						return fmt.Errorf("invalid hex format for jwtRandomness: %v", err)
+						return fmt.Errorf("invalid hex format for jwtRnd: %v", err)
 					}
 
 					return nil
@@ -332,7 +331,7 @@ func GenerateProof(cCtx *cli.Context) error {
 	jwtHeaderJson := cCtx.String("jwtHeaderJson")
 	jwtPayloadJson := cCtx.String("jwtPayloadJson")
 	jwtSignatureBase64 := cCtx.String("jwtSignatureBase64")
-	jwtRandomnessHex := cCtx.String("jwtRandomnessHex")
+	jwtRndHex := cCtx.String("jwtRndHex")
 	userSaltHex := cCtx.String("userSaltHex")
 
 	// Parse the ephemeral public key.
@@ -342,11 +341,11 @@ func GenerateProof(cCtx *cli.Context) error {
 	}
 
 	// Parse the JWT randomness.
-	jwtRandomnessBytes, err := hex.DecodeString(strings.TrimPrefix(jwtRandomnessHex, "0x"))
+	jwtRndBytes, err := hex.DecodeString(strings.TrimPrefix(jwtRndHex, "0x"))
 	if err != nil {
 		return fmt.Errorf("failed to decode JWT randomness: %w", err)
 	}
-	jwtRandomness := new(big.Int).SetBytes(jwtRandomnessBytes)
+	jwtRnd := new(big.Int).SetBytes(jwtRndBytes)
 
 	// Parse the user salt.
 	userSaltBytes, err := hex.DecodeString(strings.TrimPrefix(userSaltHex, "0x"))
@@ -362,7 +361,7 @@ func GenerateProof(cCtx *cli.Context) error {
 		string(jwtHeaderJson),
 		string(jwtPayloadJson),
 		jwtSignatureBase64,
-		jwtRandomness,
+		jwtRnd,
 		userSalt,
 	)
 	if err != nil {
@@ -424,16 +423,16 @@ func generateWitness(
 	jwtHeaderJson string,
 	jwtPayloadJson string,
 	jwtSignatureBase64 string,
-	jwtRandomness *big.Int,
+	jwtRnd *big.Int,
 	userSalt *big.Int,
 ) (witness.Witness, error) {
-	witnessPublicHash, witnessIdpPubKeyN, witnessEphPubKey, witnessJwtHeaderJson, witnessKidValue, witnessZkAddr, witnessJwtPayloadJson, witnessIssValue, witnessAudValue, witnessSubValue, witnessJwtSignature, witnessJwtRandomness, witnessUserSalt, err := utils.GenerateWitness[rsa.Mod1e2048](
+	witnessPublicHash, witnessIdpPubKeyN, witnessEphPubKey, witnessJwtHeaderJson, witnessKidValue, witnessZkAddr, witnessJwtPayloadJson, witnessIssValue, witnessAudValue, witnessSubValue, witnessJwtSignature, witnessJwtRnd, witnessUserSalt, err := utils.GenerateWitness[rsa.Mod1e2048](
 		ephPubKey,
 		idpPubKeyNBase64,
 		jwtHeaderJson,
 		jwtPayloadJson,
 		jwtSignatureBase64,
-		jwtRandomness,
+		jwtRnd,
 		userSalt,
 	)
 	if err != nil {
@@ -457,7 +456,7 @@ func generateWitness(
 		AudValue:       witnessAudValue,
 		SubValue:       witnessSubValue,
 		JwtSignature:   witnessJwtSignature,
-		JwtRandomness:  witnessJwtRandomness,
+		JwtRnd:         witnessJwtRnd,
 		UserSalt:       witnessUserSalt,
 	}
 
