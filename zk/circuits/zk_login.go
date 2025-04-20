@@ -25,11 +25,11 @@ type ZkLoginCircuit[RSAField emulated.FieldParams] struct {
 	// Semi-public inputs.
 	IdpPubKeyN emulated.Element[RSAField]
 	EphPubKey  [MaxEphPubKeyChunks]frontend.Variable
-	KidValue   []uints.U8
 	ZkAddr     frontend.Variable
 
 	// Private non-sensitive inputs.
 	JwtHeaderJson []uints.U8
+	KidValue      []uints.U8 // TODO: Is it really needed? Should this be (semi) public?
 
 	// Private sensitive inputs.
 	JwtRandomness  frontend.Variable
@@ -91,21 +91,16 @@ func (c *ZkLoginCircuit[RSAField]) Define(api frontend.API) error {
 }
 
 // verifyPublicHash verifies that the PublicHash provided as a public input matches
-// the Poseidon hash of the semi-public inputs (IdpPubKeyN, EphPubKey, ZkAddr and KidValue).
+// the Poseidon hash of the semi-public inputs (IdpPubKeyN, EphPubKey and ZkAddr).
 func (c *ZkLoginCircuit[RSAField]) verifyPublicHash(api frontend.API) error {
 	idpPkLen := len(c.IdpPubKeyN.Limbs)
-	inputs := make([]frontend.Variable, idpPkLen+MaxEphPubKeyChunks+jwt.MaxKidValueLen+1)
+	inputs := make([]frontend.Variable, idpPkLen+MaxEphPubKeyChunks+1)
 
 	copy(inputs, c.IdpPubKeyN.Limbs)
 	offset := idpPkLen
 
 	copy(inputs[offset:], c.EphPubKey[:])
 	offset += MaxEphPubKeyChunks
-
-	for i := range c.KidValue {
-		inputs[offset+i] = c.KidValue[i].Val
-	}
-	offset += jwt.MaxKidValueLen
 
 	inputs[offset] = c.ZkAddr
 

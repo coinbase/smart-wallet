@@ -104,7 +104,6 @@ func GenerateWitness[RSAFieldParams emulated.FieldParams](
 	witnessPublicHash, err = hashPublicInputs[RSAFieldParams](
 		idpPublicKeyNBytes,
 		ephPublicKeyAsElements,
-		string(jwtHeader["kid"]),
 		zkAddr,
 	)
 	if err != nil {
@@ -185,12 +184,11 @@ func buildWitnessU8Slice(value string, maxLen int) (witness []uints.U8) {
 func hashPublicInputs[FieldParams emulated.FieldParams](
 	idpPublicKeyNBytes []byte,
 	ephPublicKeyAsElements []*big.Int,
-	kidValue string,
 	zkAddr *big.Int,
 ) (hash *big.Int, err error) {
 	idpPublicKeyNLimbs := bytesToLimbs[FieldParams](idpPublicKeyNBytes)
 
-	inputs := make([]*big.Int, len(idpPublicKeyNLimbs)+circuits.MaxEphPubKeyChunks+jwt.MaxKidValueLen+1)
+	inputs := make([]*big.Int, len(idpPublicKeyNLimbs)+circuits.MaxEphPubKeyChunks+1)
 	for i := range inputs {
 		inputs[i] = big.NewInt(0)
 	}
@@ -200,11 +198,6 @@ func hashPublicInputs[FieldParams emulated.FieldParams](
 
 	copy(inputs[offset:], ephPublicKeyAsElements)
 	offset += len(ephPublicKeyAsElements)
-
-	for i := range kidValue {
-		inputs[offset+i] = big.NewInt(int64(kidValue[i]))
-	}
-	offset += jwt.MaxKidValueLen
 
 	inputs[offset] = zkAddr
 
