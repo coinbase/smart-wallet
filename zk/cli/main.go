@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"math/big"
 	"os"
 	"strings"
 
@@ -13,7 +12,6 @@ import (
 	"github.com/consensys/gnark/backend"
 	"github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/backend/solidity"
-	"github.com/consensys/gnark/backend/witness"
 	"github.com/consensys/gnark/constraint/solver"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/frontend/cs/r1cs"
@@ -334,35 +332,15 @@ func GenerateProof(cCtx *cli.Context) error {
 	jwtRndHex := cCtx.String("jwtRndHex")
 	userSaltHex := cCtx.String("userSaltHex")
 
-	// Parse the ephemeral public key.
-	ephPubKeyBytes, err := hex.DecodeString(strings.TrimPrefix(ephPubKeyHex, "0x"))
-	if err != nil {
-		return fmt.Errorf("failed to decode ephemeral public key: %w", err)
-	}
-
-	// Parse the JWT randomness.
-	jwtRndBytes, err := hex.DecodeString(strings.TrimPrefix(jwtRndHex, "0x"))
-	if err != nil {
-		return fmt.Errorf("failed to decode JWT randomness: %w", err)
-	}
-	jwtRnd := new(big.Int).SetBytes(jwtRndBytes)
-
-	// Parse the user salt.
-	userSaltBytes, err := hex.DecodeString(strings.TrimPrefix(userSaltHex, "0x"))
-	if err != nil {
-		return fmt.Errorf("failed to decode user salt: %w", err)
-	}
-	userSalt := new(big.Int).SetBytes(userSaltBytes)
-
 	fmt.Println("Generating witness...")
-	witness, err := generateWitness(
-		ephPubKeyBytes,
+	_, witness, err := utils.GenerateWitness[rsa.Mod1e2048](
+		ephPubKeyHex,
 		idpPubKeyNBase64,
 		string(jwtHeaderJson),
 		string(jwtPayloadJson),
 		jwtSignatureBase64,
-		jwtRnd,
-		userSalt,
+		jwtRndHex,
+		userSaltHex,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to generate witness: %w", err)
@@ -415,55 +393,4 @@ func GenerateProof(cCtx *cli.Context) error {
 	fmt.Printf("Successfully wrote proof to %s\n", proofPath)
 
 	return nil
-}
-
-func generateWitness(
-	ephPubKey []byte,
-	idpPubKeyNBase64 string,
-	jwtHeaderJson string,
-	jwtPayloadJson string,
-	jwtSignatureBase64 string,
-	jwtRnd *big.Int,
-	userSalt *big.Int,
-) (witness.Witness, error) {
-	witnessPublicHash, witnessIdpPubKeyN, witnessEphPubKey, witnessJwtHeaderJson, witnessKidValue, witnessZkAddr, witnessJwtPayloadJson, witnessIssValue, witnessAudValue, witnessSubValue, witnessJwtSignature, witnessJwtRnd, witnessUserSalt, err := utils.GenerateWitness[rsa.Mod1e2048](
-		ephPubKey,
-		idpPubKeyNBase64,
-		jwtHeaderJson,
-		jwtPayloadJson,
-		jwtSignatureBase64,
-		jwtRnd,
-		userSalt,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate witness: %w", err)
-	}
-
-	assignment := &circuits.ZkLoginCircuit[rsa.Mod1e2048]{
-		// Public inputs.
-		PublicHash: witnessPublicHash,
-
-		// Semi-public inputs.
-		IdpPubKeyN:    witnessIdpPubKeyN,
-		EphPubKey:     witnessEphPubKey,
-		JwtHeaderJson: witnessJwtHeaderJson,
-		KidValue:      witnessKidValue,
-		ZkAddr:        witnessZkAddr,
-
-		// Private inputs.
-		JwtPayloadJson: witnessJwtPayloadJson,
-		IssValue:       witnessIssValue,
-		AudValue:       witnessAudValue,
-		SubValue:       witnessSubValue,
-		JwtSignature:   witnessJwtSignature,
-		JwtRnd:         witnessJwtRnd,
-		UserSalt:       witnessUserSalt,
-	}
-
-	witness, err := frontend.NewWitness(assignment, ecc.BN254.ScalarField())
-	if err != nil {
-		return nil, fmt.Errorf("failed to create witness: %w", err)
-	}
-
-	return witness, nil
 }

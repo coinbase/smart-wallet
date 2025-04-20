@@ -3,15 +3,18 @@
 import { useState } from "react";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 
-import { addKeypair } from "../local-storage";
-import { addressToNonce } from "../utils";
+import {
+  addKeypairToLocalStorage,
+  setNonceToLocalStorage,
+} from "../local-storage";
+import { keypairToNonce } from "../utils";
 
 export default function SignInPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   // Function to handle Google OAuth login
-  const handleGoogleLogin = () => {
+  const handleGoogleLogin = async () => {
     setLoading(true);
     setError("");
 
@@ -24,14 +27,15 @@ export default function SignInPage() {
       const newKeypair = {
         privateKey,
         address,
+        jwtRnd: "42424242",
       };
-
-      addKeypair(newKeypair);
+      addKeypairToLocalStorage(newKeypair);
 
       // Convert the Ethereum address to the base64Url-encoded nonce
-      // TODO: Compute the nonce as base64(poseidon(address, jwt_randomness))
-      // const nonce = addressToNonce(address);
-      const nonce = "LTtll2v68lOJtOU04536biInGt7NpYkkGeIklY6SNdU";
+      const nonce = await keypairToNonce(newKeypair);
+
+      // Set the nonce to localstorage for the OIDC callback.
+      setNonceToLocalStorage(nonce);
 
       // Google OAuth configuration
       const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;

@@ -5,7 +5,7 @@ import (
 	"math/big"
 )
 
-func BytesTo31Chunks(bytes []byte) ([]*big.Int, error) {
+func BytesTo31BytesElements(bytes []byte) ([]*big.Int, error) {
 	if bytes == nil {
 		return nil, fmt.Errorf("input bytes cannot be nil")
 	}

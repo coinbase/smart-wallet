@@ -3,7 +3,6 @@ package circuits_test
 import (
 	"crypto/ecdsa"
 	"encoding/hex"
-	"math/big"
 	"testing"
 
 	"github.com/consensys/gnark-crypto/ecc"
@@ -25,22 +24,21 @@ func TestZkLoginV2(t *testing.T) {
 	assert := test.NewAssert(t)
 
 	_, _, ephAddress := generateKeypair()
-	ephPubKey := ephAddress.Bytes()
 	idpPubKeyNBase64 := "vUiHFY8O45dBoYLGipsgaVOk7rGpim6CK1iPG2zSt3sO9-09S9dB5nQdIelGye-mouQXaW5U7H8lZnv5wLJ8VSzquaSh3zJkbDq-Wvgas6U-FJaMy35kiExr5gUKUGPAIjI2sLASDbFD0vT_jxtg0ZRknwkexz_gZadZQ-iFEO7unjpE_zQnx8LhN-3a8dRf2B45BLY5J9aQJi4Csa_NHzl9Ym4uStYraSgwW93VYJwDJ3wKTvwejPvlW3n0hUifvkMke3RTqnSDIbP2xjtNmj12wdd-VUw47-cor5lMn7LG400G7lmI8rUSEHIzC7UyzEW7y15_uzuqvIkFVTLXlQ"
 	jwtHeaderJson := `{"alg":"RS256","kid":"c37da75c9fbe18c2ce9125b9aa1f300dcb31e8d9","typ":"JWT"}`
 	jwtPayloadJson := `{"iss":"https://accounts.google.com","azp":"875735819865-ictb0rltgphgvhrgm125n5ch366tq8pv.apps.googleusercontent.com","aud":"875735819865-ictb0rltgphgvhrgm125n5ch366tq8pv.apps.googleusercontent.com","sub":"113282815992720230663","at_hash":"jV2oDvBCBKV1y_7_8roqTA","nonce":"LTtll2v68lOJtOU04536biInGt7NpYkkGeIklY6SNdU","iat":1745087371,"exp":1745090971}`
 	jwtSignatureBase64 := "nfSMXjM5v5UR8SrqrKCMxIQ6_Jw_K35rpqwAlQVrw_2xstGzUD0YIeJlXXDRD6zVVcVXh0YkHa4GfzfKYhSdqlOawWXpGIjyEfurcI0KlDTY50xxU5GP239-09ZAJDlzKG-r5mmRNThN6Ue9wnhN-sRyio2AVCtTuJVbU9RrM8NnstKwtxe-0Ak0aifu7ZsNHORbbgK6_eNnd30RLCNdOQn0pf_g9d9gQjVcI35z8h3c8-1rvLJRp02epIG-ewQHcjUCRDXZ9LOFEswmVg8ulILx_KyLmhIdlYgmbPI3j8OaMPN1MNwXTF-VuCcOCOnj6z8rS-bwZ5UZBDDSlpqJIw"
-	jwtRnd := new(big.Int).SetUint64(42)
-	userSalt := new(big.Int).SetUint64(4242)
+	jwtRndHex := "0x2a"
+	userSaltHex := "0x1092"
 
-	witnessPublicHash, witnessIdpPubKeyN, witnessEphPubKey, witnessJwtHeaderJson, witnessKidValue, witnessZkAddr, witnessJwtPayloadJson, witnessIssValue, witnessAudValue, witnessSubValue, witnessJwtSignature, witnessJwtRnd, witnessUserSalt, err := utils.GenerateWitness[rsa.Mod1e2048](
-		ephPubKey,
+	assignment, _, err := utils.GenerateWitness[rsa.Mod1e2048](
+		ephAddress.Hex(),
 		idpPubKeyNBase64,
 		jwtHeaderJson,
 		jwtPayloadJson,
 		jwtSignatureBase64,
-		jwtRnd,
-		userSalt,
+		jwtRndHex,
+		userSaltHex,
 	)
 	if err != nil {
 		t.Fatalf("failed to generate witness: %v", err)
@@ -60,28 +58,7 @@ func TestZkLoginV2(t *testing.T) {
 			AudValue:       make([]uints.U8, jwt.MaxAudValueLen),
 			SubValue:       make([]uints.U8, jwt.MaxSubValueLen),
 		},
-		&circuits.ZkLoginCircuit[rsa.Mod1e2048]{
-			// Public inputs.
-			PublicHash: witnessPublicHash,
-
-			// Semi-public inputs.
-			IdpPubKeyN: witnessIdpPubKeyN,
-			EphPubKey:  witnessEphPubKey,
-			KidValue:   witnessKidValue,
-			ZkAddr:     witnessZkAddr,
-
-			// Private non-sensitive inputs.
-			JwtHeaderJson: witnessJwtHeaderJson,
-
-			// Private inputs.
-			JwtPayloadJson: witnessJwtPayloadJson,
-			IssValue:       witnessIssValue,
-			AudValue:       witnessAudValue,
-			SubValue:       witnessSubValue,
-			JwtSignature:   witnessJwtSignature,
-			JwtRnd:         witnessJwtRnd,
-			UserSalt:       witnessUserSalt,
-		},
+		assignment,
 		test.WithCurves(ecc.BN254),
 		test.WithSolverOpts(solver.WithHints(
 			hints.OffsetHint,

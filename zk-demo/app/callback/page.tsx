@@ -3,8 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { getKeypairs, saveJWT } from "../local-storage";
-import { addressToNonce } from "../utils";
+import {
+  getNonceFromLocalStorage,
+  removeNonceFromLocalStorage,
+  setJwtToLocalStorage,
+} from "../local-storage";
 
 export default function CallbackPage() {
   const router = useRouter();
@@ -48,23 +51,19 @@ export default function CallbackPage() {
         const payload = JSON.parse(atob(payloadBase64));
         const nonce = payload.nonce;
 
-        // Get the latest keypair from localStorage
-        const keypairs = getKeypairs();
-        const latestKeypair = keypairs[keypairs.length - 1];
-
-        // Verify the nonce matches the latest keypair's address
-        // TODO: Compute the nonce as base64(poseidon(latestKeypair.address, jwt_randomness))
-        // const expectedNonce = addressToNonce(latestKeypair.address);
-        const expectedNonce = "LTtll2v68lOJtOU04536biInGt7NpYkkGeIklY6SNdU";
-        if (nonce !== expectedNonce) {
-          throw new Error(
-            "JWT nonce does not match the latest keypair's address"
-          );
+        // Verify the nonce matches the local storage nonce
+        const expectedNonce = getNonceFromLocalStorage();
+        if (!expectedNonce) {
+          throw new Error("Local storage nonce not set");
         }
 
-        // Save the JWT and redirect
-        saveJWT(tokenData.id_token);
+        if (nonce !== expectedNonce) {
+          throw new Error("JWT nonce does not match the local storage nonce");
+        }
+        removeNonceFromLocalStorage();
 
+        // Save the JWT and redirect
+        setJwtToLocalStorage(tokenData.id_token);
         router.push("/");
       } catch (err) {
         console.error("Error processing callback:", err);

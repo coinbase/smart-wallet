@@ -37,7 +37,7 @@ contract ZKLogin is Ownable {
     }
 
     function recoverAccount(address account, bytes calldata ephPk, Proof calldata proof) external {
-        uint256[1] memory input;
+        uint256[37] memory input;
 
         Verifier(verifier).verifyProof({
             proof: proof.proof,

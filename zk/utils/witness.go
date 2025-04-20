@@ -2,11 +2,15 @@ package utils
 
 import (
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"strings"
 
+	"github.com/consensys/gnark-crypto/ecc"
 	bn254fr "github.com/consensys/gnark-crypto/ecc/bn254/fr"
+	"github.com/consensys/gnark/backend/witness"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/std/math/emulated"
 	"github.com/consensys/gnark/std/math/uints"
@@ -17,17 +21,135 @@ import (
 	"github.com/coinbase/smart-wallet/circuits/circuits/jwt"
 )
 
+func DeriveNonce(ephPublicKeyAsElements []*big.Int, jwtRnd *big.Int) (nonce *big.Int, err error) {
+	inputBytes := append(ephPublicKeyAsElements[:], jwtRnd)
+	nonce, err = poseidon.Hash[*bn254fr.Element](inputBytes)
+
+	return
+}
+
+func DeriveZkAddr(iss, aud, sub string, userSalt *big.Int) (zkAddr *big.Int, err error) {
+	inputs := make([]*big.Int, jwt.MaxIssValueLen+jwt.MaxAudValueLen+jwt.MaxSubValueLen+1)
+	for i := range inputs {
+		inputs[i] = big.NewInt(0)
+	}
+
+	for i := range iss {
+		inputs[i] = big.NewInt(int64(iss[i]))
+	}
+	offset := jwt.MaxIssValueLen
+
+	for i := range aud {
+		inputs[offset+i] = big.NewInt(int64(aud[i]))
+	}
+	offset += jwt.MaxAudValueLen
+
+	for i := range sub {
+		inputs[offset+i] = big.NewInt(int64(sub[i]))
+	}
+	offset += jwt.MaxSubValueLen
+
+	inputs[offset] = userSalt
+
+	zkAddr, err = poseidon.HashMulti[*bn254fr.Element](inputs)
+
+	return
+}
+
+func EphPubKeyToElements(ephPubKey []byte) (ephPublicKeyAsElements []*big.Int, err error) {
+	ephPublicKeyAsElements = make([]*big.Int, circuits.MaxEphPubKeyChunks)
+	for i := range ephPublicKeyAsElements {
+		ephPublicKeyAsElements[i] = big.NewInt(0)
+	}
+
+	elements, err := BytesTo31BytesElements(ephPubKey)
+	if err != nil {
+		err = fmt.Errorf("failed to convert ephemeral public key to 31-byte elements: %w", err)
+		return
+	}
+
+	copy(ephPublicKeyAsElements, elements)
+
+	return
+}
+
 func GenerateWitness[RSAFieldParams emulated.FieldParams](
+	ephPubKeyHex string,
+	idpPubKeyNBase64 string,
+	jwtHeaderJson string,
+	jwtPayloadJson string,
+	jwtSignatureBase64 string,
+	jwtRndHex string,
+	userSaltHex string,
+) (assignment *circuits.ZkLoginCircuit[RSAFieldParams], w witness.Witness, err error) {
+	// Parse the ephemeral public key.
+	ephPubKey, err := hex.DecodeString(strings.TrimPrefix(ephPubKeyHex, "0x"))
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to decode ephemeral public key: %w", err)
+	}
+
+	// Parse the JWT randomness.
+	jwtRndBytes, err := hex.DecodeString(strings.TrimPrefix(jwtRndHex, "0x"))
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to decode JWT randomness: %w", err)
+	}
+	jwtRnd := new(big.Int).SetBytes(jwtRndBytes)
+
+	// Parse the user salt.
+	userSaltBytes, err := hex.DecodeString(strings.TrimPrefix(userSaltHex, "0x"))
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to decode user salt: %w", err)
+	}
+	userSalt := new(big.Int).SetBytes(userSaltBytes)
+
+	witnessIdpPubKeyN, witnessEphPubKey, witnessJwtHeaderJson, witnessKidValue, witnessZkAddr, witnessJwtPayloadJson, witnessIssValue, witnessAudValue, witnessSubValue, witnessJwtSignature, witnessJwtRnd, witnessUserSalt, err := generateWitnesses[RSAFieldParams](
+		ephPubKey,
+		idpPubKeyNBase64,
+		jwtHeaderJson,
+		jwtPayloadJson,
+		jwtSignatureBase64,
+		jwtRnd,
+		userSalt,
+	)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to generate witness: %w", err)
+	}
+
+	assignment = &circuits.ZkLoginCircuit[RSAFieldParams]{
+		// Public inputs.
+		IdpPubKeyN:    witnessIdpPubKeyN,
+		EphPubKey:     witnessEphPubKey,
+		JwtHeaderJson: witnessJwtHeaderJson,
+		KidValue:      witnessKidValue,
+		ZkAddr:        witnessZkAddr,
+
+		// Private inputs.
+		JwtPayloadJson: witnessJwtPayloadJson,
+		IssValue:       witnessIssValue,
+		AudValue:       witnessAudValue,
+		SubValue:       witnessSubValue,
+		JwtSignature:   witnessJwtSignature,
+		JwtRnd:         witnessJwtRnd,
+		UserSalt:       witnessUserSalt,
+	}
+
+	w, err = frontend.NewWitness(assignment, ecc.BN254.ScalarField())
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create witness: %w", err)
+	}
+
+	return
+}
+
+func generateWitnesses[RSAFieldParams emulated.FieldParams](
 	ephPubKey []byte,
 	idpPubKeyNBase64 string,
 	jwtHeaderJson string,
 	jwtPayloadJson string,
 	jwtSignatureBase64 string,
-	jwtRandomness *big.Int,
+	jwtRnd *big.Int,
 	userSalt *big.Int,
 ) (
-	witnessPublicHash *big.Int,
-
 	witnessIdpPubKeyN emulated.Element[RSAFieldParams],
 	witnessEphPubKey [circuits.MaxEphPubKeyChunks]frontend.Variable,
 	witnessJwtHeaderJson []uints.U8,
@@ -39,7 +161,7 @@ func GenerateWitness[RSAFieldParams emulated.FieldParams](
 	witnessAudValue []uints.U8,
 	witnessSubValue []uints.U8,
 	witnessJwtSignature emulated.Element[RSAFieldParams],
-	witnessJwtRandomness *big.Int,
+	witnessJwtRnd *big.Int,
 	witnessUserSalt *big.Int,
 
 	err error,
@@ -50,15 +172,11 @@ func GenerateWitness[RSAFieldParams emulated.FieldParams](
 	}
 	witnessIdpPubKeyN = emulated.ValueOf[RSAFieldParams](idpPublicKeyNBytes)
 
-	ephPublicKeyAsElements := make([]*big.Int, circuits.MaxEphPubKeyChunks)
-	for i := range ephPublicKeyAsElements {
-		ephPublicKeyAsElements[i] = big.NewInt(0)
-	}
-	chunks, err := BytesTo31Chunks(ephPubKey)
+	ephPublicKeyAsElements, err := EphPubKeyToElements(ephPubKey)
 	if err != nil {
+		err = fmt.Errorf("failed to convert ephemeral public key to 31-byte chunks: %w", err)
 		return
 	}
-	copy(ephPublicKeyAsElements, chunks)
 
 	for i := range ephPublicKeyAsElements {
 		witnessEphPubKey[i] = frontend.Variable(ephPublicKeyAsElements[i])
@@ -66,57 +184,54 @@ func GenerateWitness[RSAFieldParams emulated.FieldParams](
 
 	var jwtHeader map[string]json.RawMessage
 	if err = json.Unmarshal([]byte(jwtHeaderJson), &jwtHeader); err != nil {
+		err = fmt.Errorf("failed to unmarshal JWT header JSON: %w", err)
 		return
 	}
 
 	witnessJwtHeaderJson, witnessKidValue, err = buildJsonHeaderWitnesses(jwtHeaderJson, string(jwtHeader["kid"]))
 	if err != nil {
+		err = fmt.Errorf("failed to build JSON header witnesses: %w", err)
 		return
 	}
 
 	var jwtPayload map[string]json.RawMessage
 	if err = json.Unmarshal([]byte(jwtPayloadJson), &jwtPayload); err != nil {
+		err = fmt.Errorf("failed to unmarshal JWT payload JSON: %w", err)
 		return
 	}
 
-	zkAddr, err := deriveZkAddr(
-		jwtPayload["iss"],
-		jwtPayload["aud"],
-		jwtPayload["sub"],
+	zkAddr, err := DeriveZkAddr(
+		string(jwtPayload["iss"]),
+		string(jwtPayload["aud"]),
+		string(jwtPayload["sub"]),
 		userSalt,
 	)
 	if err != nil {
+		err = fmt.Errorf("failed to derive ZK address: %w", err)
 		return
 	}
 	witnessZkAddr = new(big.Int).Set(zkAddr)
 
 	witnessJwtPayloadJson, witnessIssValue, witnessAudValue, witnessSubValue, err = buildJsonPayloadWitnesses(jwtPayloadJson, string(jwtPayload["iss"]), string(jwtPayload["aud"]), string(jwtPayload["sub"]))
 	if err != nil {
+		err = fmt.Errorf("failed to build JSON payload witnesses: %w", err)
 		return
 	}
 
 	signatureBytes, err := base64.RawURLEncoding.DecodeString(jwtSignatureBase64)
 	if err != nil {
+		err = fmt.Errorf("failed to decode JWT signature: %w", err)
 		return
 	}
 	witnessJwtSignature = emulated.ValueOf[RSAFieldParams](signatureBytes)
 
-	witnessPublicHash, err = hashPublicInputs[RSAFieldParams](
-		idpPublicKeyNBytes,
-		ephPublicKeyAsElements,
-		zkAddr,
-	)
-	if err != nil {
-		return
-	}
-
-	witnessJwtRandomness = new(big.Int).Set(jwtRandomness)
+	witnessJwtRnd = new(big.Int).Set(jwtRnd)
 	witnessUserSalt = new(big.Int).Set(userSalt)
 
 	// Safety checks to make sure the JWT nonce was computed correctly
-	inputBytes := append(ephPublicKeyAsElements[:], jwtRandomness)
-	expectedNonce, err := poseidon.Hash[*bn254fr.Element](inputBytes)
+	expectedNonce, err := DeriveNonce(ephPublicKeyAsElements, jwtRnd)
 	if err != nil {
+		err = fmt.Errorf("failed to hash JWT nonce: %w", err)
 		return
 	}
 	expectedNonceBase64 := fmt.Sprintf(`"%s"`, base64.RawURLEncoding.EncodeToString(expectedNonce.Bytes()))
@@ -177,73 +292,6 @@ func buildWitnessU8Slice(value string, maxLen int) (witness []uints.U8) {
 	for i := range value {
 		witness[i] = uints.NewU8(value[i])
 	}
-
-	return
-}
-
-func hashPublicInputs[FieldParams emulated.FieldParams](
-	idpPublicKeyNBytes []byte,
-	ephPublicKeyAsElements []*big.Int,
-	zkAddr *big.Int,
-) (hash *big.Int, err error) {
-	idpPublicKeyNLimbs := bytesToLimbs[FieldParams](idpPublicKeyNBytes)
-
-	inputs := make([]*big.Int, len(idpPublicKeyNLimbs)+circuits.MaxEphPubKeyChunks+1)
-	for i := range inputs {
-		inputs[i] = big.NewInt(0)
-	}
-
-	copy(inputs[0:], idpPublicKeyNLimbs)
-	offset := len(idpPublicKeyNLimbs)
-
-	copy(inputs[offset:], ephPublicKeyAsElements)
-	offset += len(ephPublicKeyAsElements)
-
-	inputs[offset] = zkAddr
-
-	hash, err = poseidon.HashMulti[*bn254fr.Element](inputs)
-
-	return
-}
-
-func bytesToLimbs[FieldParams emulated.FieldParams](bytes []byte) (limbs []*big.Int) {
-	var fp FieldParams
-	l := int(fp.NbLimbs())
-	limbs = make([]*big.Int, l)
-	bytesPerLimb := int(fp.BitsPerLimb() / 8)
-
-	for i := range limbs {
-		limb := new(big.Int).SetBytes(bytes[i*bytesPerLimb : (i+1)*bytesPerLimb])
-		limbs[l-1-i] = limb
-	}
-
-	return
-}
-
-func deriveZkAddr(iss, aud, sub []byte, userSalt *big.Int) (zkAddr *big.Int, err error) {
-	inputs := make([]*big.Int, jwt.MaxIssValueLen+jwt.MaxAudValueLen+jwt.MaxSubValueLen+1)
-	for i := range inputs {
-		inputs[i] = big.NewInt(0)
-	}
-
-	for i := range iss {
-		inputs[i] = big.NewInt(int64(iss[i]))
-	}
-	offset := jwt.MaxIssValueLen
-
-	for i := range aud {
-		inputs[offset+i] = big.NewInt(int64(aud[i]))
-	}
-	offset += jwt.MaxAudValueLen
-
-	for i := range sub {
-		inputs[offset+i] = big.NewInt(int64(sub[i]))
-	}
-	offset += jwt.MaxSubValueLen
-
-	inputs[offset] = userSalt
-
-	zkAddr, err = poseidon.HashMulti[*bn254fr.Element](inputs)
 
 	return
 }

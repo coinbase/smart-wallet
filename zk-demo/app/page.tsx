@@ -34,8 +34,13 @@ import {
   AUD_BUFFER_LENGTH,
   SUB_BUFFER_LENGTH,
 } from "./circuit";
-import { getJWT, getKeypairs, removeJWT } from "./local-storage";
-import { nonceToAddress } from "./utils";
+import {
+  clearLocalStorage,
+  getJwtFromLocalStorage,
+  getKeypairsFromLocalStorage,
+  removeJwtFromLocalStorage,
+} from "./local-storage";
+import { keypairToNonce } from "./utils";
 
 type OAuthState =
   | {
@@ -199,10 +204,9 @@ export default function Home() {
     const handle = async () => {
       try {
         // Check for JWT in localStorage
-        const storedJWT = getJWT();
+        const storedJWT = getJwtFromLocalStorage();
         if (!storedJWT) {
-          router.push("/sign-in");
-          return;
+          throw new Error("Local storage JWT not set");
         }
 
         // Parse the JWT to get the payload
@@ -224,18 +228,25 @@ export default function Home() {
           },
         });
 
-        // Decode the address from the JWT nonce
-        const nonceBase64 = payload.nonce;
-        if (nonceBase64) {
-          const addressFromJWT = nonceToAddress(nonceBase64);
-          setEphemeralAddress(addressFromJWT);
+        // Get the latest Keypair from the local storage and check if computing the nonce
+        // from it gives the JWT payload nonce value.
+        const latestKeypair = getKeypairsFromLocalStorage().pop();
+        if (!latestKeypair) {
+          throw new Error("Local storage Keypair not set");
         }
 
-        // If everything is valid, set the states
+        const nonce = await keypairToNonce(latestKeypair);
+        if (nonce !== payload.nonce) {
+          throw new Error("Missmatch JWT nonce");
+        }
+
+        // If everything is valid, set the ephemeral address.
+        setEphemeralAddress(latestKeypair.address);
       } catch (err) {
-        // Clear JWT on any error
-        removeJWT();
         console.error("Error checking authentication:", err);
+
+        // Clear local storage on error and retry signing in.
+        clearLocalStorage();
         router.push("/sign-in");
       }
     };
@@ -284,15 +295,12 @@ export default function Home() {
 
       // Concatenate all buffers
       const userSaltBytes = hexToBytes(userSalt);
-      console.log("userSaltBytes", userSaltBytes);
       const concatenated = Uint8Array.from([
         ...issBuff,
         ...audBuff,
         ...subBuff,
         ...userSaltBytes,
       ]);
-
-      console.log("concatenated", concatenated);
 
       // Compute zkAddress
       const computedZkAddress = sha256(concatenated);
@@ -332,9 +340,7 @@ export default function Home() {
           )[0]
       );
 
-      const keypairs = getKeypairs();
-
-      console.log(decodedOwners);
+      const keypairs = getKeypairsFromLocalStorage();
 
       setOwners(
         decodedOwners.map((owner, index) => ({
@@ -357,7 +363,7 @@ export default function Home() {
 
   // Function to handle logout
   const handleLogout = () => {
-    removeJWT();
+    removeJwtFromLocalStorage();
     router.push("/sign-in");
   };
 

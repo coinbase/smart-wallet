@@ -19,9 +19,6 @@ const (
 )
 
 type ZkLoginCircuit[RSAField emulated.FieldParams] struct {
-	// Public inputs.
-	PublicHash frontend.Variable `gnark:",public"`
-
 	// Semi-public inputs.
 	IdpPubKeyN emulated.Element[RSAField]            `gnark:",public"`
 	EphPubKey  [MaxEphPubKeyChunks]frontend.Variable `gnark:",public"`
@@ -42,9 +39,6 @@ type ZkLoginCircuit[RSAField emulated.FieldParams] struct {
 }
 
 func (c *ZkLoginCircuit[RSAField]) Define(api frontend.API) error {
-	// Verify the semi-public inputs are valid given the public hash.
-	c.verifyPublicHash(api)
-
 	// Verify the ZK address is derived correctly from the JWT payload and the user salt.
 	c.verifyZkAddr(api)
 
@@ -86,26 +80,6 @@ func (c *ZkLoginCircuit[RSAField]) Define(api frontend.API) error {
 	if err != nil {
 		return err
 	}
-
-	return nil
-}
-
-// verifyPublicHash verifies that the PublicHash provided as a public input matches
-// the Poseidon hash of the semi-public inputs (IdpPubKeyN, EphPubKey and ZkAddr).
-func (c *ZkLoginCircuit[RSAField]) verifyPublicHash(api frontend.API) error {
-	idpPkLen := len(c.IdpPubKeyN.Limbs)
-	inputs := make([]frontend.Variable, idpPkLen+MaxEphPubKeyChunks+1)
-
-	copy(inputs, c.IdpPubKeyN.Limbs)
-	offset := idpPkLen
-
-	copy(inputs[offset:], c.EphPubKey[:])
-	offset += MaxEphPubKeyChunks
-
-	inputs[offset] = c.ZkAddr
-
-	hash := poseidon.HashMulti(api, inputs)
-	api.AssertIsEqual(hash, c.PublicHash)
 
 	return nil
 }
