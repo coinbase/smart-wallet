@@ -1,181 +1,198 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-// import {Base64} from "solady/utils/Base64.sol";
+import {Base64} from "solady/utils/Base64.sol";
 
-// import {Test, Vm, console2} from "forge-std/Test.sol";
+import {Test, Vm, console2} from "forge-std/Test.sol";
 
-// import {MultiOwnable} from "../src/MultiOwnable.sol";
-// import {IDPOracle} from "../src/guardians/IDPOracle.sol";
-// import {Verifier} from "../src/guardians/Verifier.sol";
-// import {ZKLogin} from "../src/guardians/ZKLogin.sol";
+import {MultiOwnable} from "../src/MultiOwnable.sol";
+import {IDPOracle} from "../src/guardians/IDPOracle.sol";
+import {Verifier} from "../src/guardians/Verifier.sol";
+import {ZKLogin} from "../src/guardians/ZKLogin.sol";
 
-// contract ZKLoginTest is Test {
-//     ZKLogin zkLogin;
+contract ZKLoginTest is Test {
+    struct IDPEntry {
+        string kid;
+        string nBase64;
+        string eBase64;
+    }
 
-//     uint256 public constant MAX_ISS_LEN = 64;
-//     uint256 public constant MAX_AUD_LEN = 80;
-//     uint256 public constant MAX_SUB_LEN = 64;
+    ZKLogin zkLogin;
+    address public google;
 
-//     address public google;
+    function setUp() public {
+        google = makeAddr("google");
 
-//     function setUp() public {
-//         google = makeAddr("google");
+        IDPOracle idpOracle = new IDPOracle();
+        Verifier verifier = new Verifier();
 
-//         IDPOracle idpOracle = new IDPOracle();
-//         Verifier verifier = new Verifier();
+        // Set the PK for Google IDP
+        IDPEntry[] memory googlePks = new IDPEntry[](2);
+        googlePks[0] = IDPEntry({
+            kid: "c37da75c9fbe18c2ce9125b9aa1f300dcb31e8d9",
+            nBase64: "vUiHFY8O45dBoYLGipsgaVOk7rGpim6CK1iPG2zSt3sO9-09S9dB5nQdIelGye-mouQXaW5U7H8lZnv5wLJ8VSzquaSh3zJkbDq-Wvgas6U-FJaMy35kiExr5gUKUGPAIjI2sLASDbFD0vT_jxtg0ZRknwkexz_gZadZQ-iFEO7unjpE_zQnx8LhN-3a8dRf2B45BLY5J9aQJi4Csa_NHzl9Ym4uStYraSgwW93VYJwDJ3wKTvwejPvlW3n0hUifvkMke3RTqnSDIbP2xjtNmj12wdd-VUw47-cor5lMn7LG400G7lmI8rUSEHIzC7UyzEW7y15_uzuqvIkFVTLXlQ",
+            eBase64: "AQAB"
+        });
 
-//         vm.prank(google);
-//         idpOracle.setPk({
-//             kid: "1234567890",
-//             pk: IDPOracle.Pk({
-//                 n:
-// hex"eff1fb028408181fab646221cfab9f4780a116990f06e76b3685db3c7b298ed324d4df1d6f53db15afafd725b43eff2e8e6fdec294102c9cfe2b1250cfcdfe7ae2203032a129673c59dfe57e346b47462aea9afb2477100ce378b7068c9e8f661df78540b90a588779865e1a429b3d4c4726fe3b0af0c2496d658a0e32a06cc8aed14ebe53e09d59b4a8cb8d94dfeb6b3b7e7db5341f0fc7fcae42b8224d8edc1b44817a19f26143b3ce0f47a21c602d91e41376e5b09ca4af3b0a1f4ac04b14d3973eca43e11fd001e84cb9ae247c819f77907c493def1906615f6962d4fbeb7921fc0987883feaf0e615765a8999b44e9632ee0f6bf55a7c156ece110ecdd5",
-//                 e: hex"010001"
-//             })
-//         });
+        googlePks[1] = IDPEntry({
+            kid: "23f7a3583796f97129e5418f9b2136fcc0a96462",
+            nBase64: "jb7Wtq9aDMpiXvHGCB5nrfAS2UutDEkSbK16aDtDhbYJhDWhd7vqWhFbnP0C_XkSxsqWJoku69y49EzgabEiUMf0q3X5N0pNvV64krviH2m9uLnyGP5GMdwZpjTXARK9usGgYZGuWhjfgTTvooKDUdqVQYvbrmXlblkM6xjbA8GnShSaOZ4AtMJCjWnaN_UaMD_vAXvOYj4SaefDMSlSoiI46yipFdggfoIV8RDg1jeffyre_8DwOWsGz7b2yQrL7grhYCvoiPrybKmViXqu-17LTIgBw6TDk8EzKdKzm33_LvxU7AKs3XWW_NvZ4WCPwp4gr7uw6RAkdDX_ZAn0TQ",
+            eBase64: "AQAB"
+        });
 
-//         zkLogin = new ZKLogin({idpOracle_: address(idpOracle), verifier_: address(verifier)});
-//     }
+        vm.startPrank(google);
+        for (uint256 i; i < googlePks.length; i++) {
+            string memory kid = googlePks[i].kid;
+            bytes memory n = Base64.decode(googlePks[i].nBase64);
+            bytes memory e = Base64.decode(googlePks[i].eBase64);
 
-//     function test_recoverAccount() public {
-//         address account = makeAddr("account");
-//         console2.log("Account:", account);
+            IDPOracle.Pk memory pk = IDPOracle.Pk({n: n, e: e});
+            idpOracle.setPk(kid, pk);
+        }
+        vm.stopPrank();
 
-//         address newOwner = makeAddr("newOwner");
-//         console2.log("New owner:", newOwner);
+        zkLogin = new ZKLogin({idpOracle_: address(idpOracle), verifier_: address(verifier)});
+    }
 
-//         string memory jwtHeaderJson = '{"alg":"RS256","typ":"JWT","kid":"1234567890"}';
-//         string memory jwtPayloadJson;
-//         bytes32 userSalt;
-//         {
-//             string memory nonce =
-//                 string.concat('"', Base64.encode({data: abi.encode(newOwner), fileSafe: true, noPadding: true}),
-// '"');
-//             string memory iss = '"google.com"';
-//             string memory aud = '"csw.com"';
-//             string memory sub = '"xenoliss"';
-//             jwtPayloadJson = string.concat('{"iss":', iss, ',"aud":', aud, ',"sub":', sub, ',"nonce":', nonce, "}");
-//             userSalt = _userSalt({iss: bytes(iss), aud: bytes(aud), sub: bytes(sub)});
+    // TODO: Fix test for v2.
+    // function test_recoverAccount() public {
+    //     address account = makeAddr("account");
+    //     console2.log("Account:", account);
 
-//             bytes32 zkAddr = _zkAddr({iss: bytes(iss), aud: bytes(aud), sub: bytes(sub), userSalt: userSalt});
+    //     address newOwner = makeAddr("newOwner");
+    //     console2.log("New owner:", newOwner);
 
-//             vm.prank(account);
-//             zkLogin.setZkAddr({zkAddr: zkAddr});
-//         }
+    //     string memory jwtHeaderJson = '{"alg":"RS256","typ":"JWT","kid":"1234567890"}';
+    //     string memory jwtPayloadJson;
+    //     bytes32 userSalt;
+    //     {
+    //         string memory nonce =
+    //             string.concat('"', Base64.encode({data: abi.encode(newOwner), fileSafe: true, noPadding: true}),
+    // '"');
+    //         string memory iss = '"google.com"';
+    //         string memory aud = '"csw.com"';
+    //         string memory sub = '"xenoliss"';
+    //         jwtPayloadJson = string.concat('{"iss":', iss, ',"aud":', aud, ',"sub":', sub, ',"nonce":', nonce, "}");
+    //         userSalt = _userSalt({iss: bytes(iss), aud: bytes(aud), sub: bytes(sub)});
 
-//         string memory jwtBase64;
-//         bytes32 jwtHash;
-//         {
-//             string memory jwtHeaderBase64 = Base64.encode({data: bytes(jwtHeaderJson), fileSafe: true, noPadding:
-// true});
-//             string memory jwtPayloadBase64 =
-//                 Base64.encode({data: bytes(jwtPayloadJson), fileSafe: true, noPadding: true});
-//             jwtBase64 = string.concat(jwtHeaderBase64, ".", jwtPayloadBase64);
-//             jwtHash = sha256(bytes(jwtBase64));
-//         }
+    //         bytes32 zkAddr = _zkAddr({iss: bytes(iss), aud: bytes(aud), sub: bytes(sub), userSalt: userSalt});
 
-//         console2.log("Generating proof via CLI...");
-//         string[] memory proveCmd = new string[](12);
-//         proveCmd[0] = "zk/cli/bin/cli";
-//         proveCmd[1] = "prove";
-//         proveCmd[2] = "-c";
-//         proveCmd[3] = "zk/artifacts/circuit.bin";
-//         proveCmd[4] = "-pk";
-//         proveCmd[5] = "zk/artifacts/pk.bin";
-//         proveCmd[6] = "-jwt";
-//         proveCmd[7] = jwtBase64;
-//         proveCmd[8] = "-s";
-//         proveCmd[9] = vm.toString(userSalt);
-//         proveCmd[10] = "-o";
-//         proveCmd[11] = "zk/artifacts/proof_test.bin";
+    //         vm.prank(account);
+    //         zkLogin.setZkAddr({zkAddr: zkAddr});
+    //     }
 
-//         Vm.FfiResult memory result = vm.tryFfi(proveCmd);
-//         if (result.exitCode != 0) {
-//             console2.log("stdout:", vm.toString(result.stdout));
-//             console2.log("stderr:", vm.toString(result.stderr));
-//             revert("Proof generation failed");
-//         }
+    //     string memory jwtBase64;
+    //     bytes32 jwtHash;
+    //     {
+    //         string memory jwtHeaderBase64 = Base64.encode({data: bytes(jwtHeaderJson), fileSafe: true, noPadding:
+    // true});
+    //         string memory jwtPayloadBase64 =
+    //             Base64.encode({data: bytes(jwtPayloadJson), fileSafe: true, noPadding: true});
+    //         jwtBase64 = string.concat(jwtHeaderBase64, ".", jwtPayloadBase64);
+    //         jwtHash = sha256(bytes(jwtBase64));
+    //     }
 
-//         console2.log("Reading generated proof from file...");
-//         bytes memory proof = vm.readFileBinary("zk/artifacts/proof_test.bin");
-//         console2.log("Proof length:", proof.length);
-//         console2.log("Proof:", vm.toString(proof));
+    //     console2.log("Generating proof via CLI...");
+    //     string[] memory proveCmd = new string[](12);
+    //     proveCmd[0] = "zk/cli/bin/cli";
+    //     proveCmd[1] = "prove";
+    //     proveCmd[2] = "-c";
+    //     proveCmd[3] = "zk/artifacts/circuit.bin";
+    //     proveCmd[4] = "-pk";
+    //     proveCmd[5] = "zk/artifacts/pk.bin";
+    //     proveCmd[6] = "-jwt";
+    //     proveCmd[7] = jwtBase64;
+    //     proveCmd[8] = "-s";
+    //     proveCmd[9] = vm.toString(userSalt);
+    //     proveCmd[10] = "-o";
+    //     proveCmd[11] = "zk/artifacts/proof_test.bin";
 
-//         ZKLogin.Proof memory proof_ = this.parseProof(proof);
+    //     Vm.FfiResult memory result = vm.tryFfi(proveCmd);
+    //     if (result.exitCode != 0) {
+    //         console2.log("stdout:", vm.toString(result.stdout));
+    //         console2.log("stderr:", vm.toString(result.stderr));
+    //         revert("Proof generation failed");
+    //     }
 
-//         vm.mockCall({
-//             callee: account,
-//             data: abi.encodeCall(MultiOwnable.addOwnerAddress, (newOwner)),
-//             returnData: abi.encode("")
-//         });
+    //     console2.log("Reading generated proof from file...");
+    //     bytes memory proof = vm.readFileBinary("zk/artifacts/proof_test.bin");
+    //     console2.log("Proof length:", proof.length);
+    //     console2.log("Proof:", vm.toString(proof));
 
-//         vm.expectCall(account, abi.encodeCall(MultiOwnable.addOwnerAddress, (newOwner)));
+    //     ZKLogin.Proof memory proof_ = this.parseProof(proof);
 
-//         console2.log("Recovering account...");
-//         zkLogin.recoverAccount({
-//             account: account,
-//             idp: google,
-//             jwtHash: jwtHash,
-//             jwtHeaderJson: jwtHeaderJson,
-//             jwtSignature:
-// hex"52c30c5edc502974fc73efe2931b2d7510ec30431c624d9ea337ca9a12d0feee9ced104cc8c26c5efa482a53f6485dcff9e8f4eeadb155e84b87d3fd2eb06365911f30d1bb792d676c2babf1f571c2e50ee3daae40df06cfbf3e2b8aa073162caf1a9224796c83650f4318c5dc8db5d5c6f69def1cceb9016e76f91867288c8b1721e6be1a399857da2a853205e0dca27ac6728a1cbca433101ff1d66a19c4ad6008d819c9ff9dddc625dacfb31d4638c0846bb927f39c9e4e62f2cb762eec4c1f44a6422c15dd00c8ec64e54417f497c77f14f4a6b8c1f2d24a85332f6a406dfa485753c28034534cedb01f6e148ee697df0800026dba75ca47b89f08f7d283",
-//             newOwner: abi.encode(newOwner),
-//             proof: proof_
-//         });
+    //     vm.mockCall({
+    //         callee: account,
+    //         data: abi.encodeCall(MultiOwnable.addOwnerAddress, (newOwner)),
+    //         returnData: abi.encode("")
+    //     });
 
-//         console2.log("%s added as an owner of %s", vm.toString(newOwner), vm.toString(account));
-//     }
+    //     vm.expectCall(account, abi.encodeCall(MultiOwnable.addOwnerAddress, (newOwner)));
 
-//     function _zkAddr(bytes memory iss, bytes memory aud, bytes memory sub, bytes32 userSalt)
-//         public
-//         pure
-//         returns (bytes32 zkAddr)
-//     {
-//         bytes memory issBuf = new bytes(MAX_ISS_LEN);
-//         bytes memory audBuf = new bytes(MAX_AUD_LEN);
-//         bytes memory subBuf = new bytes(MAX_SUB_LEN);
+    //     console2.log("Recovering account...");
+    //     zkLogin.recoverAccount({
+    //         account: account,
+    //         idp: google,
+    //         jwtHash: jwtHash,
+    //         jwtHeaderJson: jwtHeaderJson,
+    //         jwtSignature:
+    // hex"52c30c5edc502974fc73efe2931b2d7510ec30431c624d9ea337ca9a12d0feee9ced104cc8c26c5efa482a53f6485dcff9e8f4eeadb155e84b87d3fd2eb06365911f30d1bb792d676c2babf1f571c2e50ee3daae40df06cfbf3e2b8aa073162caf1a9224796c83650f4318c5dc8db5d5c6f69def1cceb9016e76f91867288c8b1721e6be1a399857da2a853205e0dca27ac6728a1cbca433101ff1d66a19c4ad6008d819c9ff9dddc625dacfb31d4638c0846bb927f39c9e4e62f2cb762eec4c1f44a6422c15dd00c8ec64e54417f497c77f14f4a6b8c1f2d24a85332f6a406dfa485753c28034534cedb01f6e148ee697df0800026dba75ca47b89f08f7d283",
+    //         newOwner: abi.encode(newOwner),
+    //         proof: proof_
+    //     });
 
-//         for (uint256 i; i < iss.length; i++) {
-//             issBuf[i] = iss[i];
-//         }
+    //     console2.log("%s added as an owner of %s", vm.toString(newOwner), vm.toString(account));
+    // }
 
-//         for (uint256 i; i < aud.length; i++) {
-//             audBuf[i] = aud[i];
-//         }
+    // function _zkAddr(bytes memory iss, bytes memory aud, bytes memory sub, bytes32 userSalt)
+    //     public
+    //     pure
+    //     returns (bytes32 zkAddr)
+    // {
+    //     bytes memory issBuf = new bytes(MAX_ISS_LEN);
+    //     bytes memory audBuf = new bytes(MAX_AUD_LEN);
+    //     bytes memory subBuf = new bytes(MAX_SUB_LEN);
 
-//         for (uint256 i; i < sub.length; i++) {
-//             subBuf[i] = sub[i];
-//         }
+    //     for (uint256 i; i < iss.length; i++) {
+    //         issBuf[i] = iss[i];
+    //     }
 
-//         bytes memory secretBytes = bytes.concat(issBuf, audBuf, subBuf, abi.encode(userSalt));
-//         zkAddr = sha256(secretBytes);
-//     }
+    //     for (uint256 i; i < aud.length; i++) {
+    //         audBuf[i] = aud[i];
+    //     }
 
-//     function _userSalt(bytes memory iss, bytes memory aud, bytes memory sub) public pure returns (bytes32 userSalt) {
-//         bytes memory SEED = hex"deadbeef";
-//         bytes memory nonce = bytes.concat(SEED, iss, aud, sub);
-//         userSalt = keccak256(nonce);
-//     }
+    //     for (uint256 i; i < sub.length; i++) {
+    //         subBuf[i] = sub[i];
+    //     }
 
-//     function parseProof(bytes calldata proof) external pure returns (ZKLogin.Proof memory proof_) {
-//         uint256 fpSize = 32;
+    //     bytes memory secretBytes = bytes.concat(issBuf, audBuf, subBuf, abi.encode(userSalt));
+    //     zkAddr = sha256(secretBytes);
+    // }
 
-//         for (uint256 i; i < 8; i++) {
-//             proof_.proof[i] = abi.decode(proof[fpSize * i:fpSize * (i + 1)], (uint256));
-//         }
+    // function _userSalt(bytes memory iss, bytes memory aud, bytes memory sub) public pure returns (bytes32 userSalt) {
+    //     bytes memory SEED = hex"deadbeef";
+    //     bytes memory nonce = bytes.concat(SEED, iss, aud, sub);
+    //     userSalt = keccak256(nonce);
+    // }
 
-//         uint32 commitmentCount = uint32(bytes4(proof[fpSize * 8:fpSize * 8 + 4]));
-//         require(commitmentCount == 1, "Invalid commitment count");
+    function parseProof(bytes calldata proof) external pure returns (ZKLogin.Proof memory proof_) {
+        uint256 fpSize = 32;
 
-//         for (uint256 i; i < 2 * commitmentCount; i++) {
-//             uint256 offset = fpSize * 8 + 4 + i * fpSize;
-//             proof_.commitments[i] = abi.decode(proof[offset:offset + fpSize], (uint256));
-//         }
+        for (uint256 i; i < 8; i++) {
+            proof_.proof[i] = abi.decode(proof[fpSize * i:fpSize * (i + 1)], (uint256));
+        }
 
-//         for (uint256 i; i < 2; i++) {
-//             uint256 offset = fpSize * 8 + 4 + 2 * commitmentCount * fpSize + i * fpSize;
-//             proof_.commitmentPok[i] = abi.decode(proof[offset:offset + fpSize], (uint256));
-//         }
-//     }
-// }
+        uint32 commitmentCount = uint32(bytes4(proof[fpSize * 8:fpSize * 8 + 4]));
+        require(commitmentCount == 1, "Invalid commitment count");
+
+        for (uint256 i; i < 2 * commitmentCount; i++) {
+            uint256 offset = fpSize * 8 + 4 + i * fpSize;
+            proof_.commitments[i] = abi.decode(proof[offset:offset + fpSize], (uint256));
+        }
+
+        for (uint256 i; i < 2; i++) {
+            uint256 offset = fpSize * 8 + 4 + 2 * commitmentCount * fpSize + i * fpSize;
+            proof_.commitmentPok[i] = abi.decode(proof[offset:offset + fpSize], (uint256));
+        }
+    }
+}

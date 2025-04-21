@@ -60,7 +60,7 @@ export default function CallbackPage() {
         if (nonce !== expectedNonce) {
           throw new Error("JWT nonce does not match the local storage nonce");
         }
-        removeNonceFromLocalStorage();
+        // removeNonceFromLocalStorage();
 
         // Save the JWT and redirect
         setJwtToLocalStorage(tokenData.id_token);

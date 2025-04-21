@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/coinbase/smart-wallet/circuits/circuits/hints"
 	"github.com/coinbase/smart-wallet/circuits/circuits/rsa"
 	"github.com/coinbase/smart-wallet/circuits/utils"
 	"github.com/consensys/gnark-crypto/ecc"
@@ -16,6 +17,7 @@ import (
 	"github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/backend/solidity"
 	"github.com/consensys/gnark/constraint"
+	"github.com/consensys/gnark/constraint/solver"
 )
 
 // Global variables to store the circuit and proving key
@@ -40,30 +42,10 @@ type ProofResponse struct {
 	Proof string `json:"proof"`
 }
 
-// LoadCircuitAndProvingKey loads the circuit and proving key from files
-func LoadCircuitAndProvingKey() error {
-	// Load the circuit
-	circuitPath := "../artifacts/circuit.bin"
-	circuit, err := os.ReadFile(circuitPath)
-	if err != nil {
-		return fmt.Errorf("failed to read circuit file: %w", err)
+func init() {
+	if err := loadCircuitAndProvingKey(); err != nil {
+		log.Fatalf("Failed to load circuit and proving key: %v", err)
 	}
-
-	cs = groth16.NewCS(ecc.BN254)
-	cs.ReadFrom(bytes.NewReader(circuit))
-
-	// Load the proving key
-	pkPath := "../artifacts/pk.bin"
-	pkBytes, err := os.ReadFile(pkPath)
-	if err != nil {
-		return fmt.Errorf("failed to read proving key file: %w", err)
-	}
-
-	pk = groth16.NewProvingKey(ecc.BN254)
-	pk.ReadFrom(bytes.NewReader(pkBytes))
-
-	log.Println("Successfully loaded circuit and proving key")
-	return nil
 }
 
 // HandleProofRequest handles the /proof endpoint
@@ -123,7 +105,19 @@ func generateProof(ephPubKeyHex, idpPubKeyNBase64, jwtHeaderJson, jwtPayloadJson
 	}
 
 	// Generate proof
-	proof, err := groth16.Prove(cs, pk, witness, solidity.WithProverTargetSolidityVerifier(backend.GROTH16))
+	proof, err := groth16.Prove(
+		cs,
+		pk,
+		witness,
+		backend.WithSolverOptions(solver.WithHints(
+			hints.OffsetHint,
+			hints.JsonValueLenHint,
+			hints.ContiguousMaskHint,
+			hints.NonceHint,
+			hints.Base64LenHint,
+		)),
+		solidity.WithProverTargetSolidityVerifier(backend.GROTH16),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate proof: %w", err)
 	}
@@ -133,4 +127,30 @@ func generateProof(ephPubKeyHex, idpPubKeyNBase64, jwtHeaderJson, jwtPayloadJson
 	proof.WriteRawTo(proofBuf)
 
 	return proofBuf.Bytes(), nil
+}
+
+// loadCircuitAndProvingKey loads the circuit and proving key from files
+func loadCircuitAndProvingKey() error {
+	// Load the circuit
+	circuitPath := "../artifacts/circuit.bin"
+	circuit, err := os.ReadFile(circuitPath)
+	if err != nil {
+		return fmt.Errorf("failed to read circuit file: %w", err)
+	}
+
+	cs = groth16.NewCS(ecc.BN254)
+	cs.ReadFrom(bytes.NewReader(circuit))
+
+	// Load the proving key
+	pkPath := "../artifacts/pk.bin"
+	pkBytes, err := os.ReadFile(pkPath)
+	if err != nil {
+		return fmt.Errorf("failed to read proving key file: %w", err)
+	}
+
+	pk = groth16.NewProvingKey(ecc.BN254)
+	pk.ReadFrom(bytes.NewReader(pkBytes))
+
+	log.Println("Successfully loaded circuit and proving key")
+	return nil
 }

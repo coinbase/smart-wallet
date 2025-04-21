@@ -16,4 +16,8 @@ contract IDPOracle {
     function setPk(string calldata kid, Pk calldata pk) external {
         _pks[msg.sender][kid] = pk;
     }
+
+    function removePk(string calldata kid) external {
+        delete _pks[msg.sender][kid];
+    }
 }

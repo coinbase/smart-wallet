@@ -5,6 +5,7 @@ import (
 	"log"
 	"math/big"
 	"net/http"
+	"strings"
 
 	"github.com/coinbase/smart-wallet/circuits/utils"
 )
@@ -26,6 +27,7 @@ type ZkAddrResponse struct {
 func HandleZkAddrRequest(w http.ResponseWriter, r *http.Request) {
 	// Only allow POST method
 	if r.Method != http.MethodPost {
+		log.Printf("Method not allowed: %v", r.Method)
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
@@ -33,13 +35,15 @@ func HandleZkAddrRequest(w http.ResponseWriter, r *http.Request) {
 	// Parse the request body
 	var req ZkAddrRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Printf("Error decoding request body: %v", err)
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
 	// Convert userSalt from hex string to big.Int
-	userSalt, ok := new(big.Int).SetString(req.UserSaltHex, 16)
+	userSalt, ok := new(big.Int).SetString(strings.TrimPrefix(req.UserSaltHex, "0x"), 16)
 	if !ok {
+		log.Printf("Error converting user salt to big.Int: %v", req.UserSaltHex)
 		http.Error(w, "Invalid user salt format", http.StatusBadRequest)
 		return
 	}
@@ -59,7 +63,7 @@ func HandleZkAddrRequest(w http.ResponseWriter, r *http.Request) {
 
 	// Return the ZK address
 	response := ZkAddrResponse{
-		ZkAddr: zkAddr.String(),
+		ZkAddr: "0x" + zkAddr.Text(16),
 	}
 
 	w.Header().Set("Content-Type", "application/json")

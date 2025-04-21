@@ -916,71 +916,6 @@ export const ZK_LOGIN_ABI = [
   },
   {
     type: "function",
-    name: "ALG",
-    inputs: [],
-    outputs: [
-      {
-        name: "",
-        type: "bytes32",
-        internalType: "bytes32",
-      },
-    ],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
-    name: "JWT",
-    inputs: [],
-    outputs: [
-      {
-        name: "",
-        type: "bytes32",
-        internalType: "bytes32",
-      },
-    ],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
-    name: "KID",
-    inputs: [],
-    outputs: [
-      {
-        name: "",
-        type: "bytes32",
-        internalType: "bytes32",
-      },
-    ],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
-    name: "RS256",
-    inputs: [],
-    outputs: [
-      {
-        name: "",
-        type: "bytes32",
-        internalType: "bytes32",
-      },
-    ],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
-    name: "TYP",
-    inputs: [],
-    outputs: [
-      {
-        name: "",
-        type: "bytes32",
-        internalType: "bytes32",
-      },
-    ],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
     name: "cancelOwnershipHandover",
     inputs: [],
     outputs: [],
@@ -1054,27 +989,22 @@ export const ZK_LOGIN_ABI = [
         internalType: "address",
       },
       {
+        name: "zkAddr",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
+      {
         name: "idp",
         type: "address",
         internalType: "address",
       },
       {
-        name: "jwtHash",
-        type: "bytes32",
-        internalType: "bytes32",
-      },
-      {
-        name: "jwtHeaderJson",
+        name: "kid",
         type: "string",
         internalType: "string",
       },
       {
-        name: "jwtSignature",
-        type: "bytes",
-        internalType: "bytes",
-      },
-      {
-        name: "newOwner",
+        name: "ephPubKey",
         type: "bytes",
         internalType: "bytes",
       },
@@ -1166,12 +1096,17 @@ export const ZK_LOGIN_ABI = [
         type: "address",
         internalType: "address",
       },
-    ],
-    outputs: [
       {
         name: "zkAddr",
         type: "bytes32",
         internalType: "bytes32",
+      },
+    ],
+    outputs: [
+      {
+        name: "registered",
+        type: "bool",
+        internalType: "bool",
       },
     ],
     stateMutability: "view",

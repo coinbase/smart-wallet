@@ -5,9 +5,12 @@ import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 
 import {
   addKeypairToLocalStorage,
+  Keypair,
   setNonceToLocalStorage,
 } from "../local-storage";
-import { keypairToNonce } from "../utils";
+import { getNonce } from "../api/go-backend";
+import { randomBytes } from "crypto";
+import { toHex } from "viem";
 
 export default function SignInPage() {
   const [loading, setLoading] = useState(false);
@@ -24,15 +27,26 @@ export default function SignInPage() {
       const account = privateKeyToAccount(privateKey);
       const address = account.address;
 
-      const newKeypair = {
+      // Generate a random 31-byte nonce
+      const jwtRnd = toHex(randomBytes(31));
+
+      const newKeypair: Keypair = {
         privateKey,
         address,
-        jwtRnd: "42424242",
+        jwtRnd,
       };
       addKeypairToLocalStorage(newKeypair);
 
       // Convert the Ethereum address to the base64Url-encoded nonce
-      const nonce = await keypairToNonce(newKeypair);
+      let nonce: string;
+      try {
+        nonce = await getNonce(newKeypair.address, newKeypair.jwtRnd);
+      } catch (err) {
+        console.error("Error getting nonce:", err);
+        setError("Failed to get nonce. Please try again.");
+        setLoading(false);
+        return;
+      }
 
       // Set the nonce to localstorage for the OIDC callback.
       setNonceToLocalStorage(nonce);

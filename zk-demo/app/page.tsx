@@ -5,14 +5,12 @@ import { useRouter } from "next/navigation";
 import {
   decodeAbiParameters,
   encodeFunctionData,
-  hexToBytes,
   pad,
   toHex,
   encodeAbiParameters,
   parseAbiParameters,
   isAddressEqual,
 } from "viem";
-import { sha256 } from "viem/utils";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import {
   useReadContract,
@@ -30,27 +28,22 @@ import {
   ZK_LOGIN_ABI,
 } from "./blockchain/abi";
 import {
-  ISS_BUFFER_LENGTH,
-  AUD_BUFFER_LENGTH,
-  SUB_BUFFER_LENGTH,
-} from "./circuit";
-import {
   clearLocalStorage,
   getJwtFromLocalStorage,
   getKeypairsFromLocalStorage,
+  Keypair,
   removeJwtFromLocalStorage,
 } from "./local-storage";
-import { keypairToNonce } from "./utils";
+import { getNonce, getZkAddress, getProof } from "./api/go-backend";
+import { getGoogleIDPKey } from "./api/idp";
 
 type OAuthState =
   | {
       loading: false;
       jwt: {
-        hash: `0x${string}`;
-        header: any;
-        payload: any;
+        header: Record<string, unknown>;
+        payload: Record<string, unknown>;
         signature: string;
-        raw: string;
       };
     }
   | {
@@ -67,17 +60,19 @@ export default function Home() {
   const router = useRouter();
 
   const [oauthState, setOauthState] = useState<OAuthState>({ loading: true });
-  const [userSalt, setUserSalt] = useState<string | undefined>(undefined);
-  const [zkAddress, setZkAddress] = useState<`0x${string}` | undefined>(
+  const [userSaltHex, setUserSaltHex] = useState<`0x${string}` | undefined>(
+    undefined
+  );
+  const [zkAddressHex, setZkAddressHex] = useState<`0x${string}` | undefined>(
     undefined
   );
   const [owners, setOwners] = useState<Owner[]>([]);
   const [removingOwnerIndex, setRemovingOwnerIndex] = useState<number | null>(
     null
   );
-  const [ephemeralAddress, setEphemeralAddress] = useState<
-    `0x${string}` | undefined
-  >(undefined);
+  const [ephemeralKeypair, setEphemeralKeypair] = useState<Keypair | undefined>(
+    undefined
+  );
   const { address: walletAddress } = useAccount();
 
   const [jwtInfoExpanded, setJwtInfoExpanded] = useState(false);
@@ -87,40 +82,39 @@ export default function Home() {
     ? encodeAbiParameters(parseAbiParameters("address"), [walletAddress])
     : "0x";
 
-  // Check if smart wallet exists
-  const { data: smartWalletAddress, isLoading: isLoadingWalletAddress } =
-    useReadContract({
-      address: NETWORK_CONFIG.anvil.COINBASE_SMART_WALLET_FACTORY_ADDRESS,
-      abi: COINBASE_SMART_WALLET_FACTORY_ABI,
-      functionName: "getAddress",
-      query: {
-        enabled: !oauthState.loading,
-      },
-      args: [[initialOwnerEncoded], BigInt(0)],
-    });
+  // Derive the account address by calling the factory contract
+  const { data: account, isLoading: isLoadingAccount } = useReadContract({
+    address: NETWORK_CONFIG.anvil.COINBASE_SMART_WALLET_FACTORY_ADDRESS,
+    abi: COINBASE_SMART_WALLET_FACTORY_ABI,
+    functionName: "getAddress",
+    args: [[initialOwnerEncoded], BigInt(0)],
+    query: {
+      enabled: !oauthState.loading,
+    },
+  });
 
-  // Check if the smart wallet is actually deployed by checking its bytecode
+  // Check if the account is already deployed by checking its bytecode
   const {
-    data: walletBytecode,
+    data: accountBytecode,
     isLoading: isLoadingBytecode,
     refetch: refetchBytecode,
   } = useBytecode({
-    address: isLoadingWalletAddress
-      ? undefined
-      : (smartWalletAddress as `0x${string}`),
+    address: account as `0x${string}`,
+    query: {
+      enabled: !isLoadingAccount && !!account,
+    },
   });
 
-  // Determine if the wallet is deployed based on bytecode presence
-  const isWalletDeployed = !!walletBytecode && walletBytecode !== "0x";
+  const isAccountDeployed = !!accountBytecode && accountBytecode !== "0x";
 
-  // Prepare contract write for deploying a new smart wallet
+  // Prepare contract write for deploying the account (if needed)
   const {
     writeContract: writeContractCreateAccount,
-    isPending: isWalletDeploymentPending,
-    isSuccess: isWalletDeploymentSuccess,
+    isPending: isAccountDeploymentPending,
+    isSuccess: isAccountDeploymentSuccess,
   } = useWriteContract();
 
-  const deployWallet = () => {
+  const deployAccount = () => {
     writeContractCreateAccount({
       address: NETWORK_CONFIG.anvil.COINBASE_SMART_WALLET_FACTORY_ADDRESS,
       abi: COINBASE_SMART_WALLET_FACTORY_ABI,
@@ -129,35 +123,34 @@ export default function Home() {
     });
   };
 
-  // Check if an address is an owner of the smart wallet
+  // Query the next owner index to iterate over the owners
   const { data: nextOwnerIndex, isLoading: isLoadingNextOwnerIndex } =
     useReadContract({
-      address: smartWalletAddress as `0x${string}`,
+      address: account as `0x${string}`,
       abi: COINBASE_SMART_WALLET_ABI,
       functionName: "nextOwnerIndex",
       query: {
         refetchInterval: 1000,
-        enabled: smartWalletAddress != undefined && isWalletDeployed,
+        enabled: !!account && isAccountDeployed,
       },
     });
 
   // Get all owners using ownerAtIndex
   const ownerAtIndexQueries = useMemo(() => {
-    if (!nextOwnerIndex || !smartWalletAddress || !isWalletDeployed) return [];
+    if (!nextOwnerIndex || !account) return [];
 
     return Array.from({ length: Number(nextOwnerIndex) }, (_, i) => ({
-      address: smartWalletAddress as `0x${string}`,
+      address: account as `0x${string}`,
       abi: COINBASE_SMART_WALLET_ABI,
       functionName: "ownerAtIndex",
       args: [BigInt(i)],
     }));
-  }, [nextOwnerIndex, smartWalletAddress, isWalletDeployed]);
+  }, [nextOwnerIndex, account]);
 
   const { data: ownerAtIndexResults, isLoading: isLoadingOwnerAtIndices } =
     useReadContracts({
       contracts: ownerAtIndexQueries,
       query: {
-        refetchInterval: 1000,
         enabled: ownerAtIndexQueries.length > 0,
       },
     });
@@ -168,10 +161,10 @@ export default function Home() {
       address: NETWORK_CONFIG.anvil.ZK_LOGIN_ADDRESS,
       abi: ZK_LOGIN_ABI,
       functionName: "zkAddrs",
-      args: [smartWalletAddress as `0x${string}`],
+      args: [account as `0x${string}`, zkAddressHex as `0x${string}`],
       query: {
         refetchInterval: 1000,
-        enabled: smartWalletAddress != undefined && isWalletDeployed,
+        enabled: !!account && isAccountDeployed && !!zkAddressHex,
       },
     });
 
@@ -183,10 +176,7 @@ export default function Home() {
 
   const hasGoogleRecovery = useMemo(() => {
     return (
-      registeredZkAddr != undefined &&
-      registeredZkAddr !=
-        "0x0000000000000000000000000000000000000000000000000000000000000000" &&
-      owners.find((owner) => owner.type === "zklogin")
+      !!registeredZkAddr && owners.find((owner) => owner.type === "zklogin")
     );
   }, [registeredZkAddr, owners]);
 
@@ -196,7 +186,7 @@ export default function Home() {
     isSuccess: isRemovingOwnerSuccess,
   } = useWriteContract();
 
-  // Call the recoverAccount method on the ZKLogin contract
+  // Prepare contract write for enabling recovery
   const { writeContract: writeContractRecoverAccount } = useWriteContract();
 
   // Set the oauth state
@@ -220,11 +210,9 @@ export default function Home() {
         setOauthState({
           loading: false,
           jwt: {
-            hash: sha256(Buffer.from(headerBase64 + "." + payloadBase64)),
             header: header,
             payload: payload,
             signature: signatureBase64,
-            raw: storedJWT,
           },
         });
 
@@ -235,13 +223,16 @@ export default function Home() {
           throw new Error("Local storage Keypair not set");
         }
 
-        const nonce = await keypairToNonce(latestKeypair);
+        const nonce = await getNonce(
+          latestKeypair.address,
+          latestKeypair.jwtRnd
+        );
         if (nonce !== payload.nonce) {
           throw new Error("Missmatch JWT nonce");
         }
 
-        // If everything is valid, set the ephemeral address.
-        setEphemeralAddress(latestKeypair.address);
+        // If everything is valid, set the ephemeral keypair.
+        setEphemeralKeypair(latestKeypair);
       } catch (err) {
         console.error("Error checking authentication:", err);
 
@@ -262,21 +253,6 @@ export default function Home() {
       // Extract JWT claims needed for zkAddress
       const { iss, aud, sub } = oauthState.jwt.payload;
 
-      const issBuff = pad(Buffer.from(JSON.stringify(iss)), {
-        size: ISS_BUFFER_LENGTH,
-        dir: "right",
-      });
-
-      const audBuff = pad(Buffer.from(JSON.stringify(aud)), {
-        size: AUD_BUFFER_LENGTH,
-        dir: "right",
-      });
-
-      const subBuff = pad(Buffer.from(JSON.stringify(sub)), {
-        size: SUB_BUFFER_LENGTH,
-        dir: "right",
-      });
-
       // Get userSalt from API
       const saltResponse = await fetch("/api/salt", {
         method: "POST",
@@ -291,35 +267,35 @@ export default function Home() {
       }
 
       const { salt: userSalt } = await saltResponse.json();
-      setUserSalt(userSalt);
+      setUserSaltHex(userSalt);
 
-      // Concatenate all buffers
-      const userSaltBytes = hexToBytes(userSalt);
-      const concatenated = Uint8Array.from([
-        ...issBuff,
-        ...audBuff,
-        ...subBuff,
-        ...userSaltBytes,
-      ]);
+      // Convert claims to JSON strings
+      const issJson = JSON.stringify(iss);
+      const audJson = JSON.stringify(aud);
+      const subJson = JSON.stringify(sub);
 
-      // Compute zkAddress
-      const computedZkAddress = sha256(concatenated);
-      setZkAddress(computedZkAddress);
+      try {
+        // Get zkAddress from backend
+        const zkAddr = await getZkAddress(issJson, audJson, subJson, userSalt);
+        setZkAddressHex(zkAddr);
+      } catch (error) {
+        console.error("Failed to get zk address:", error);
+      }
     };
 
     handle();
   }, [oauthState]);
 
-  // Refetch bytecode when deployment is successful
+  // Refetch bytecode when account deployment is successful
   useEffect(() => {
-    if (isWalletDeploymentSuccess) {
+    if (isAccountDeploymentSuccess) {
       // Wait a short time for the blockchain to update
       const timer = setTimeout(() => {
         refetchBytecode();
       }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [isWalletDeploymentSuccess, refetchBytecode]);
+  }, [isAccountDeploymentSuccess, refetchBytecode]);
 
   // Reset removingOwnerIndex when the owner is actually removed (or failed)
   useEffect(() => {
@@ -361,8 +337,7 @@ export default function Home() {
     }
   }, [ownerAtIndexResults]);
 
-  // Function to handle logout
-  const handleLogout = () => {
+  const logout = () => {
     removeJwtFromLocalStorage();
     router.push("/sign-in");
   };
@@ -379,17 +354,17 @@ export default function Home() {
     const setZkAddrCall = encodeFunctionData({
       abi: ZK_LOGIN_ABI,
       functionName: "setZkAddr",
-      args: [zkAddress ?? "0x"],
+      args: [zkAddressHex ?? "0x"],
     });
 
     writeContractLinkGoogle({
-      address: smartWalletAddress as `0x${string}`,
+      address: account as `0x${string}`,
       abi: COINBASE_SMART_WALLET_ABI,
       functionName: "executeBatch",
       args: [
         [
           {
-            target: smartWalletAddress as `0x${string}`,
+            target: account as `0x${string}`,
             value: BigInt(0),
             data: addOwnerAddressCall,
           },
@@ -413,7 +388,7 @@ export default function Home() {
 
     // Then call removeOwnerAtIndex with the index and owner bytes
     writeContractRemoveOwner({
-      address: smartWalletAddress as `0x${string}`,
+      address: account as `0x${string}`,
       abi: COINBASE_SMART_WALLET_ABI,
       functionName: "removeOwnerAtIndex",
       args: [BigInt(index), ownerBytes],
@@ -421,49 +396,55 @@ export default function Home() {
   };
 
   const addEphemeralOwner = async () => {
-    if (oauthState.loading || !smartWalletAddress || !ephemeralAddress) return;
+    if (
+      oauthState.loading ||
+      !account ||
+      !ephemeralKeypair ||
+      !zkAddressHex ||
+      !userSaltHex
+    )
+      return;
 
-    const rawJWT = oauthState.jwt.raw;
-    const [headerBase64] = rawJWT.split(".");
-    const jwtHeaderJson = base64url.decode(headerBase64);
-
-    const newOwner = encodeAbiParameters(parseAbiParameters("address"), [
-      ephemeralAddress,
-    ]);
-
+    const kid = oauthState.jwt.header["kid"] as string;
+    let idpPubKeyNBase64: string | undefined;
     try {
-      // Make a request to the GO server's /proof endpoint
-      const proofResponse = await fetch("http://localhost:8080/proof", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          jwt: rawJWT,
-          user_salt: userSalt,
-        }),
-      });
-      if (!proofResponse.ok) {
-        throw new Error("Failed to generate proof");
+      const idpPubKeyN = await getGoogleIDPKey(kid);
+      if (idpPubKeyN === undefined) {
+        console.error(
+          `Failed to get Google public key for kid ${oauthState.jwt.header["kid"]}`
+        );
+        return;
       }
 
-      const { proof } = await proofResponse.json();
-      const parsedProof = parseProof(proof);
+      idpPubKeyNBase64 = idpPubKeyN.n;
+    } catch (error) {
+      console.error("Error getting IDP public key:", error);
+      return;
+    }
 
-      // Convert the signature from base64url to hex
-      const jwtSignature = toHex(base64url.toBuffer(oauthState.jwt.signature));
+    try {
+      // Get proof from the backend
+      const proof = await getProof(
+        ephemeralKeypair.address,
+        idpPubKeyNBase64,
+        JSON.stringify(oauthState.jwt.header),
+        JSON.stringify(oauthState.jwt.payload),
+        oauthState.jwt.signature,
+        ephemeralKeypair.jwtRnd,
+        userSaltHex
+      );
+      const parsedProof = parseProof(proof);
 
       writeContractRecoverAccount({
         address: NETWORK_CONFIG.anvil.ZK_LOGIN_ADDRESS,
         abi: ZK_LOGIN_ABI,
         functionName: "recoverAccount",
         args: [
-          smartWalletAddress, // account
+          account, // account
+          zkAddressHex, // zkAddr
           NETWORK_CONFIG.anvil.GOOGLE_IDP_ADDRESS, // idp
-          oauthState.jwt.hash, // jwtHash
-          jwtHeaderJson, // jwtHeaderJson
-          jwtSignature, // jwtSignature
-          newOwner, // newOwner
+          kid, // kid
+          ephemeralKeypair.address, // ephPubKey
           {
             proof: parsedProof.proof.map(BigInt) as any,
             commitments: parsedProof.commitments.map(BigInt) as any,
@@ -578,7 +559,7 @@ export default function Home() {
                   New Ephemeral Key
                 </button>
                 <button
-                  onClick={handleLogout}
+                  onClick={logout}
                   className="px-3 py-1.5 bg-gray-700 hover:bg-red-600 text-gray-200 hover:text-white rounded-md font-medium transition-colors text-sm border border-gray-600 hover:border-red-500"
                 >
                   Sign Out
@@ -650,6 +631,20 @@ export default function Home() {
                     </pre>
                   </div>
                 </div>
+                <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-lg overflow-hidden border border-gray-700 shadow-lg">
+                  <div className="px-4 py-2 bg-gradient-to-r from-gray-800 to-gray-700 border-b border-gray-700">
+                    <h3 className="text-sm font-medium text-yellow-300">
+                      Randomness
+                    </h3>
+                  </div>
+                  <div className="p-4 bg-gray-900/50">
+                    <pre className="overflow-x-auto break-all">
+                      <code className="text-gray-200 font-mono text-sm">
+                        {ephemeralKeypair?.jwtRnd || "Not available"}
+                      </code>
+                    </pre>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -686,14 +681,23 @@ export default function Home() {
                 <div className="space-y-4">
                   {/* ZK Address - Always shown */}
                   <div>
-                    <h3 className="text-sm font-medium text-gray-400 mb-2">
-                      ZK Address
-                    </h3>
                     <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-lg overflow-hidden border border-gray-700 shadow-lg">
+                      <div className="px-4 py-2 bg-gradient-to-r from-gray-800 to-gray-700 border-b border-gray-700">
+                        <h3 className="text-sm font-medium text-blue-300">
+                          ZK Information
+                        </h3>
+                      </div>
                       <div className="p-4 bg-gray-900/50">
-                        <pre className="overflow-x-auto break-all">
+                        <pre className="overflow-x-auto">
                           <code className="text-gray-200 font-mono text-sm">
-                            {zkAddress || "Not computed yet"}
+                            {JSON.stringify(
+                              {
+                                userSalt: userSaltHex || "Not computed yet",
+                                zkAddr: zkAddressHex || "Not computed yet",
+                              },
+                              null,
+                              2
+                            )}
                           </code>
                         </pre>
                       </div>
@@ -705,16 +709,16 @@ export default function Home() {
                     <h3 className="text-sm font-medium text-gray-400 mb-2">
                       Smart Wallet
                     </h3>
-                    {isLoadingWalletAddress || isLoadingBytecode ? (
+                    {isLoadingAccount || isLoadingBytecode ? (
                       <p className="text-gray-400">
                         Checking smart wallet status...
                       </p>
-                    ) : isWalletDeployed ? (
+                    ) : isAccountDeployed ? (
                       <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-lg overflow-hidden border border-gray-700 shadow-lg">
                         <div className="p-4 bg-gray-900/50">
                           <pre className="overflow-x-auto break-all">
                             <code className="text-gray-200 font-mono text-sm">
-                              {smartWalletAddress}
+                              {account}
                             </code>
                           </pre>
                         </div>
@@ -722,11 +726,11 @@ export default function Home() {
                     ) : (
                       <div>
                         <button
-                          onClick={deployWallet}
-                          disabled={isWalletDeploymentPending}
+                          onClick={deployAccount}
+                          disabled={isAccountDeploymentPending}
                           className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          {isWalletDeploymentPending
+                          {isAccountDeploymentPending
                             ? "Deploying..."
                             : "Deploy Smart Wallet"}
                         </button>
@@ -735,7 +739,7 @@ export default function Home() {
                   </div>
 
                   {/* Google Recovery Protection - Only shown if wallet is deployed */}
-                  {isWalletDeployed && (
+                  {isAccountDeployed && (
                     <div>
                       <h3 className="text-sm font-medium text-gray-400 mb-2">
                         Google Recovery Protection
@@ -752,13 +756,13 @@ export default function Home() {
                           >
                             Add Ephemeral Owner
                           </button>
-                          {ephemeralAddress && (
+                          {ephemeralKeypair && (
                             <div className="text-sm text-gray-300">
                               <span className="font-medium">
                                 Ephemeral Key:
                               </span>{" "}
                               <span className="font-mono">
-                                {ephemeralAddress}
+                                {ephemeralKeypair.address}
                               </span>
                             </div>
                           )}
@@ -780,7 +784,7 @@ export default function Home() {
                   )}
 
                   {/* Owners - Only shown if wallet is deployed */}
-                  {isWalletDeployed && (
+                  {isAccountDeployed && (
                     <div>
                       <h3 className="text-sm font-medium text-gray-400 mb-2">
                         Owners

@@ -3,6 +3,8 @@ pragma solidity ^0.8.23;
 
 import {Script, console2} from "forge-std/Script.sol";
 
+import {Base64} from "solady/utils/Base64.sol";
+
 import {IDPOracle} from "../src/guardians/IDPOracle.sol";
 import {Verifier} from "../src/guardians/Verifier.sol";
 import {ZKLogin} from "../src/guardians/ZKLogin.sol";
@@ -11,6 +13,12 @@ import {CoinbaseSmartWallet} from "../src/CoinbaseSmartWallet.sol";
 import {CoinbaseSmartWalletFactory} from "../src/CoinbaseSmartWalletFactory.sol";
 
 contract DeployZkLoginPocScript is Script {
+    struct IDPEntry {
+        string kid;
+        string nBase64;
+        string eBase64;
+    }
+
     function run() public {
         vm.startBroadcast();
         IDPOracle idpOracle = new IDPOracle();
@@ -26,15 +34,29 @@ contract DeployZkLoginPocScript is Script {
         console2.log("CoinbaseSmartWallet implementation deployed at", address(coinbaseSmartWallet));
         console2.log("CoinbaseSmartWalletFactory deployed at", address(factory));
 
-        // Set the PK for the Google IDP
-        console2.log("Google IDP address:", msg.sender);
-        idpOracle.setPk({
-            kid: "c7e04465649ffa606557650c7e65f0a87ae00fe8",
-            pk: IDPOracle.Pk({
-                n: hex"eff1fb028408181fab646221cfab9f4780a116990f06e76b3685db3c7b298ed324d4df1d6f53db15afafd725b43eff2e8e6fdec294102c9cfe2b1250cfcdfe7ae2203032a129673c59dfe57e346b47462aea9afb2477100ce378b7068c9e8f661df78540b90a588779865e1a429b3d4c4726fe3b0af0c2496d658a0e32a06cc8aed14ebe53e09d59b4a8cb8d94dfeb6b3b7e7db5341f0fc7fcae42b8224d8edc1b44817a19f26143b3ce0f47a21c602d91e41376e5b09ca4af3b0a1f4ac04b14d3973eca43e11fd001e84cb9ae247c819f77907c493def1906615f6962d4fbeb7921fc0987883feaf0e615765a8999b44e9632ee0f6bf55a7c156ece110ecdd5",
-                e: hex"010001"
-            })
+        // Set the PK for Google IDP
+        IDPEntry[] memory googlePks = new IDPEntry[](2);
+        googlePks[0] = IDPEntry({
+            kid: "c37da75c9fbe18c2ce9125b9aa1f300dcb31e8d9",
+            nBase64: "vUiHFY8O45dBoYLGipsgaVOk7rGpim6CK1iPG2zSt3sO9-09S9dB5nQdIelGye-mouQXaW5U7H8lZnv5wLJ8VSzquaSh3zJkbDq-Wvgas6U-FJaMy35kiExr5gUKUGPAIjI2sLASDbFD0vT_jxtg0ZRknwkexz_gZadZQ-iFEO7unjpE_zQnx8LhN-3a8dRf2B45BLY5J9aQJi4Csa_NHzl9Ym4uStYraSgwW93VYJwDJ3wKTvwejPvlW3n0hUifvkMke3RTqnSDIbP2xjtNmj12wdd-VUw47-cor5lMn7LG400G7lmI8rUSEHIzC7UyzEW7y15_uzuqvIkFVTLXlQ",
+            eBase64: "AQAB"
         });
+
+        googlePks[1] = IDPEntry({
+            kid: "23f7a3583796f97129e5418f9b2136fcc0a96462",
+            nBase64: "jb7Wtq9aDMpiXvHGCB5nrfAS2UutDEkSbK16aDtDhbYJhDWhd7vqWhFbnP0C_XkSxsqWJoku69y49EzgabEiUMf0q3X5N0pNvV64krviH2m9uLnyGP5GMdwZpjTXARK9usGgYZGuWhjfgTTvooKDUdqVQYvbrmXlblkM6xjbA8GnShSaOZ4AtMJCjWnaN_UaMD_vAXvOYj4SaefDMSlSoiI46yipFdggfoIV8RDg1jeffyre_8DwOWsGz7b2yQrL7grhYCvoiPrybKmViXqu-17LTIgBw6TDk8EzKdKzm33_LvxU7AKs3XWW_NvZ4WCPwp4gr7uw6RAkdDX_ZAn0TQ",
+            eBase64: "AQAB"
+        });
+
+        for (uint256 i; i < googlePks.length; i++) {
+            string memory kid = googlePks[i].kid;
+            bytes memory n = Base64.decode(googlePks[i].nBase64);
+            bytes memory e = Base64.decode(googlePks[i].eBase64);
+
+            IDPOracle.Pk memory pk = IDPOracle.Pk({n: n, e: e});
+            idpOracle.setPk(kid, pk);
+            console2.log("Registered PK for kid", kid);
+        }
 
         vm.stopBroadcast();
     }

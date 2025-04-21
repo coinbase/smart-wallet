@@ -1,10 +1,5 @@
 import { NextRequest } from "next/server";
-import { keccak256, toBytes } from "viem";
-import {
-  ISS_BUFFER_LENGTH,
-  AUD_BUFFER_LENGTH,
-  SUB_BUFFER_LENGTH,
-} from "../../circuit";
+import { keccak256, toBytes, toHex } from "viem";
 
 const SEED = "secret-seed";
 
@@ -21,38 +16,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate field lengths
-    if (iss.length > ISS_BUFFER_LENGTH) {
-      return new Response(
-        JSON.stringify({
-          error: `iss length exceeds maximum of ${ISS_BUFFER_LENGTH} bytes`,
-        }),
-        { status: 400 }
-      );
-    }
-    if (aud.length > AUD_BUFFER_LENGTH) {
-      return new Response(
-        JSON.stringify({
-          error: `aud length exceeds maximum of ${AUD_BUFFER_LENGTH} bytes`,
-        }),
-        { status: 400 }
-      );
-    }
-    if (sub.length > SUB_BUFFER_LENGTH) {
-      return new Response(
-        JSON.stringify({
-          error: `sub length exceeds maximum of ${SUB_BUFFER_LENGTH} bytes`,
-        }),
-        { status: 400 }
-      );
-    }
-
     // Create a deterministic salt by hashing the concatenated values
     const concatenated = `${SEED}:${iss}:${aud}:${sub}`;
     const saltBytes = toBytes(concatenated);
-    const salt = keccak256(saltBytes);
+    const salt = keccak256(saltBytes, "bytes");
+    const salt31Bytes = toHex(salt.slice(1));
 
-    return new Response(JSON.stringify({ salt }), {
+    return new Response(JSON.stringify({ salt: salt31Bytes }), {
       status: 200,
       headers: {
         "Content-Type": "application/json",

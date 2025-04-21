@@ -28,11 +28,6 @@ func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 }
 
 func main() {
-	// Load the circuit and proving key on startup
-	if err := handlers.LoadCircuitAndProvingKey(); err != nil {
-		log.Fatalf("Failed to load circuit and proving key: %v", err)
-	}
-
 	// Define the /proof endpoint with CORS middleware
 	http.HandleFunc("/proof", corsMiddleware(handlers.HandleProofRequest))
 

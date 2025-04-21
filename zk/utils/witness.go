@@ -62,7 +62,7 @@ func EphPubKeyToElements(ephPubKey []byte) (ephPublicKeyAsElements []*big.Int, e
 		ephPublicKeyAsElements[i] = big.NewInt(0)
 	}
 
-	elements, err := BytesTo31BytesElements(ephPubKey)
+	elements, err := BytesToElements(ephPubKey, circuits.ElementSize)
 	if err != nil {
 		err = fmt.Errorf("failed to convert ephemeral public key to 31-byte elements: %w", err)
 		return
@@ -115,15 +115,21 @@ func GenerateWitness[RSAFieldParams emulated.FieldParams](
 		return nil, nil, fmt.Errorf("failed to generate witness: %w", err)
 	}
 
+	fmt.Println("witnessIdpPubKeyN", witnessIdpPubKeyN.Limbs)
+	fmt.Println("witnessEphPubKey", witnessEphPubKey)
+	fmt.Println("witnessZkAddr", witnessZkAddr)
+
 	assignment = &circuits.ZkLoginCircuit[RSAFieldParams]{
 		// Public inputs.
-		IdpPubKeyN:    witnessIdpPubKeyN,
-		EphPubKey:     witnessEphPubKey,
+		IdpPubKeyN: witnessIdpPubKeyN,
+		EphPubKey:  witnessEphPubKey,
+		ZkAddr:     witnessZkAddr,
+
+		// Private non-sensitive inputs.
 		JwtHeaderJson: witnessJwtHeaderJson,
 		KidValue:      witnessKidValue,
-		ZkAddr:        witnessZkAddr,
 
-		// Private inputs.
+		// Private sensitive inputs.
 		JwtPayloadJson: witnessJwtPayloadJson,
 		IssValue:       witnessIssValue,
 		AudValue:       witnessAudValue,

@@ -1,7 +1,7 @@
 export type Keypair = {
   privateKey: `0x${string}`;
   address: `0x${string}`;
-  jwtRnd: string;
+  jwtRnd: `0x${string}`;
 };
 
 export const setNonceToLocalStorage = (nonce: string) => {

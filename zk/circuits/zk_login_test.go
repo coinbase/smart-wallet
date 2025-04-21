@@ -23,16 +23,17 @@ import (
 func TestZkLoginV2(t *testing.T) {
 	assert := test.NewAssert(t)
 
-	_, _, ephAddress := generateKeypair()
-	idpPubKeyNBase64 := "vUiHFY8O45dBoYLGipsgaVOk7rGpim6CK1iPG2zSt3sO9-09S9dB5nQdIelGye-mouQXaW5U7H8lZnv5wLJ8VSzquaSh3zJkbDq-Wvgas6U-FJaMy35kiExr5gUKUGPAIjI2sLASDbFD0vT_jxtg0ZRknwkexz_gZadZQ-iFEO7unjpE_zQnx8LhN-3a8dRf2B45BLY5J9aQJi4Csa_NHzl9Ym4uStYraSgwW93VYJwDJ3wKTvwejPvlW3n0hUifvkMke3RTqnSDIbP2xjtNmj12wdd-VUw47-cor5lMn7LG400G7lmI8rUSEHIzC7UyzEW7y15_uzuqvIkFVTLXlQ"
-	jwtHeaderJson := `{"alg":"RS256","kid":"c37da75c9fbe18c2ce9125b9aa1f300dcb31e8d9","typ":"JWT"}`
-	jwtPayloadJson := `{"iss":"https://accounts.google.com","azp":"875735819865-ictb0rltgphgvhrgm125n5ch366tq8pv.apps.googleusercontent.com","aud":"875735819865-ictb0rltgphgvhrgm125n5ch366tq8pv.apps.googleusercontent.com","sub":"113282815992720230663","at_hash":"jV2oDvBCBKV1y_7_8roqTA","nonce":"LTtll2v68lOJtOU04536biInGt7NpYkkGeIklY6SNdU","iat":1745087371,"exp":1745090971}`
-	jwtSignatureBase64 := "nfSMXjM5v5UR8SrqrKCMxIQ6_Jw_K35rpqwAlQVrw_2xstGzUD0YIeJlXXDRD6zVVcVXh0YkHa4GfzfKYhSdqlOawWXpGIjyEfurcI0KlDTY50xxU5GP239-09ZAJDlzKG-r5mmRNThN6Ue9wnhN-sRyio2AVCtTuJVbU9RrM8NnstKwtxe-0Ak0aifu7ZsNHORbbgK6_eNnd30RLCNdOQn0pf_g9d9gQjVcI35z8h3c8-1rvLJRp02epIG-ewQHcjUCRDXZ9LOFEswmVg8ulILx_KyLmhIdlYgmbPI3j8OaMPN1MNwXTF-VuCcOCOnj6z8rS-bwZ5UZBDDSlpqJIw"
-	jwtRndHex := "0x2a"
-	userSaltHex := "0x1092"
+	// Info taken from running the zk-demo app.
+	ephPubKeyHex := "0x0cbE8d89B0ED8e575f029F856D6c818b02926ac0"
+	idpPubKeyNBase64 := "jb7Wtq9aDMpiXvHGCB5nrfAS2UutDEkSbK16aDtDhbYJhDWhd7vqWhFbnP0C_XkSxsqWJoku69y49EzgabEiUMf0q3X5N0pNvV64krviH2m9uLnyGP5GMdwZpjTXARK9usGgYZGuWhjfgTTvooKDUdqVQYvbrmXlblkM6xjbA8GnShSaOZ4AtMJCjWnaN_UaMD_vAXvOYj4SaefDMSlSoiI46yipFdggfoIV8RDg1jeffyre_8DwOWsGz7b2yQrL7grhYCvoiPrybKmViXqu-17LTIgBw6TDk8EzKdKzm33_LvxU7AKs3XWW_NvZ4WCPwp4gr7uw6RAkdDX_ZAn0TQ"
+	jwtHeaderJson := `{"alg":"RS256","kid":"23f7a3583796f97129e5418f9b2136fcc0a96462","typ":"JWT"}`
+	jwtPayloadJson := `{"iss":"https://accounts.google.com","azp":"875735819865-ictb0rltgphgvhrgm125n5ch366tq8pv.apps.googleusercontent.com","aud":"875735819865-ictb0rltgphgvhrgm125n5ch366tq8pv.apps.googleusercontent.com","sub":"113282815992720230663","at_hash":"Z5sFXDjIjrLAVFHeVZzcZA","nonce":"HBTIKWFNIabRB1inoG1jsfrXHam0OMkTfJ2eOPXK4II","iat":1745225957,"exp":1745229557}`
+	jwtSignatureBase64 := "Dq3WcN5BITPpIqJxItEsSmiTTo81I6UfNB-9mbXAXLNhsMCcqOI54PtMXVEzIT6hh87yEpyJ4qhj-Fixxxma7_XFaKiwBrqwYIqyymdMhSapwkWXK4NLQO0NnP-e_BPtSDilUS1D_AJa7cZC93Pc0-cACa8pJIZPiwmygqmkwmHxZrWN23cjhZkwA3zorJ2ZzyRjgpOQOk9nX9kXs9A3FP096uWPjh2ICfNrVG8uEbo6FA_COBBfRR5Rql8ZkR80lUTaGAaHaHTS2ELd0c26qYRrvfBAGMMnn6Xij-TCp_jYhwDGBfIAmCtSuunN9xmbk2dRRI7DgXuHRH4XxSf1IA"
+	jwtRndHex := "0xde75dbbf8c5bb88b0f30e821576202b065c33525a4f34528019f4e89ec0920"
+	userSaltHex := "0xcec61e0368523a044fc7b3138b65869aa4c58694f1fb4dd273873d87d24986"
 
 	assignment, _, err := utils.GenerateWitness[rsa.Mod1e2048](
-		ephAddress.Hex(),
+		ephPubKeyHex,
 		idpPubKeyNBase64,
 		jwtHeaderJson,
 		jwtPayloadJson,

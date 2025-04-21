@@ -13,13 +13,13 @@ import (
 )
 
 const (
-	elementSize        = 31
+	ElementSize        = 31
 	MaxEphPubKeyBytes  = 64
-	MaxEphPubKeyChunks = (MaxEphPubKeyBytes + elementSize - 1) / elementSize
+	MaxEphPubKeyChunks = (MaxEphPubKeyBytes + ElementSize - 1) / ElementSize
 )
 
 type ZkLoginCircuit[RSAField emulated.FieldParams] struct {
-	// Semi-public inputs.
+	// Public inputs.
 	IdpPubKeyN emulated.Element[RSAField]            `gnark:",public"`
 	EphPubKey  [MaxEphPubKeyChunks]frontend.Variable `gnark:",public"`
 	ZkAddr     frontend.Variable                     `gnark:",public"`
