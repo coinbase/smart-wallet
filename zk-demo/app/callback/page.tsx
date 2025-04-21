@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import {
   getNonceFromLocalStorage,
-  removeNonceFromLocalStorage,
   setJwtToLocalStorage,
 } from "../local-storage";
 

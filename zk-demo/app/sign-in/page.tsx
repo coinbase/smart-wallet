@@ -27,12 +27,8 @@ export default function SignInPage() {
       const account = privateKeyToAccount(privateKey);
       const address = account.address;
 
-      console.log("OK1");
-
       // Generate a random 31-byte nonce
       const jwtRnd = toHex(randomBytes(31));
-
-      console.log("OK2");
 
       const newKeypair: Keypair = {
         privateKey,
@@ -40,8 +36,6 @@ export default function SignInPage() {
         jwtRnd,
       };
       addKeypairToLocalStorage(newKeypair);
-
-      console.log("OK3");
 
       // Convert the Ethereum address to the base64Url-encoded nonce
       let nonce: string;
@@ -53,16 +47,13 @@ export default function SignInPage() {
         setLoading(false);
         return;
       }
-      console.log("OK4");
 
       // Set the nonce to localstorage for the OIDC callback.
       setNonceToLocalStorage(nonce);
 
       // Google OAuth configuration
       const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-      const redirectUri =
-        process.env.NEXT_PUBLIC_REDIRECT_URI ||
-        window.location.origin + "/callback";
+      const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/callback`;
       const scope = "openid"; // Only request minimal claims: sub, iss, aud
 
       if (!clientId) {

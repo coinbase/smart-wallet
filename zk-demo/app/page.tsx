@@ -28,11 +28,13 @@ import {
   ZK_LOGIN_ABI,
 } from "./blockchain/abi";
 import {
-  clearLocalStorage,
+  clearOAuthLocalStorage,
   getJwtFromLocalStorage,
   getKeypairsFromLocalStorage,
   Keypair,
   removeJwtFromLocalStorage,
+  getWalletNonceFromLocalStorage,
+  setWalletNonceToLocalStorage,
 } from "./local-storage";
 import { getNonce, getZkAddress, getProof } from "./api/go-backend";
 import { getGoogleIDPKey } from "./api/idp";
@@ -73,8 +75,19 @@ export default function Home() {
   const [ephemeralKeypair, setEphemeralKeypair] = useState<Keypair | undefined>(
     undefined
   );
-  const [walletNonce, setWalletNonce] = useState<number>(0);
-  const [inputNonce, setInputNonce] = useState<string>("0");
+
+  const [walletNonce, setWalletNonce] = useState<string>("");
+  const [inputNonce, setInputNonce] = useState<string>("");
+
+  useEffect(() => {
+    const initialWalletNonce =
+      getWalletNonceFromLocalStorage() ??
+      Math.floor(Math.random() * 1000).toString();
+
+    setWalletNonce(initialWalletNonce);
+    setInputNonce(initialWalletNonce);
+  }, []);
+
   const { address: walletAddress } = useAccount();
 
   const [jwtInfoExpanded, setJwtInfoExpanded] = useState(false);
@@ -195,6 +208,8 @@ export default function Home() {
     isPending: isRecoverAccountPending,
   } = useWriteContract();
 
+  const [isGeneratingProof, setIsGeneratingProof] = useState(false);
+
   const isEphemeralKeypairAlreadyOwner = useMemo(() => {
     if (!ephemeralKeypair) return false;
     return owners.some((owner) =>
@@ -250,7 +265,7 @@ export default function Home() {
         console.error("Error checking authentication:", err);
 
         // Clear local storage on error and retry signing in.
-        clearLocalStorage();
+        clearOAuthLocalStorage();
         router.push("/sign-in");
       }
     };
@@ -418,6 +433,8 @@ export default function Home() {
     )
       return;
 
+    setIsGeneratingProof(true);
+
     const kid = oauthState.jwt.header["kid"] as string;
     let idpPubKeyNBase64: string | undefined;
     try {
@@ -447,6 +464,8 @@ export default function Home() {
         userSaltHex
       );
       const parsedProof = parseProof(proof);
+
+      setIsGeneratingProof(false);
 
       writeContractRecoverAccount({
         address: NETWORK_CONFIG.baseSepolia.ZK_LOGIN_ADDRESS,
@@ -529,15 +548,15 @@ export default function Home() {
   };
 
   const generateRandomNonce = () => {
-    // Generate a random number between 0 and 1000
-    const randomNonce = Math.floor(Math.random() * 1000);
-    setInputNonce(randomNonce.toString());
+    const randomNonce = Math.floor(Math.random() * 1000).toString();
+    setInputNonce(randomNonce);
   };
 
   const applyNonceChange = () => {
     const parsedNonce = parseInt(inputNonce);
     if (!isNaN(parsedNonce) && parsedNonce >= 0) {
-      setWalletNonce(parsedNonce);
+      setWalletNonce(inputNonce);
+      setWalletNonceToLocalStorage(inputNonce);
     }
   };
 
@@ -835,10 +854,14 @@ export default function Home() {
                             <>
                               <button
                                 onClick={addEphemeralOwner}
-                                disabled={isRecoverAccountPending}
+                                disabled={
+                                  isGeneratingProof || isRecoverAccountPending
+                                }
                                 className="px-3 py-1.5 bg-orange-700/80 hover:bg-orange-700 text-white rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                               >
-                                {isRecoverAccountPending
+                                {isGeneratingProof
+                                  ? "Proving..."
+                                  : isRecoverAccountPending
                                   ? "Adding..."
                                   : "Add Ephemeral Owner"}
                               </button>

@@ -9,9 +9,9 @@ export const NETWORK_CONFIG = {
   },
   baseSepolia: {
     ZK_LOGIN_ADDRESS:
-      "0xF277768ea4fdEEbd984B1855450BecE6746ef355" as `0x${string}`,
+      "0x783A8d5b9711514816df863C9DBE805df2ea39eC" as `0x${string}`,
     COINBASE_SMART_WALLET_FACTORY_ADDRESS:
-      "0xB1fc4Ce66a94e06CC264cF8096181106fbE433f4" as `0x${string}`,
+      "0x94Dafde631E810D9616527657a71eBAC2B6BD74A" as `0x${string}`,
     GOOGLE_IDP_ADDRESS:
       "0x25f7fD8f50D522b266764cD3b230EDaA8CbB9f75" as `0x${string}`,
   },

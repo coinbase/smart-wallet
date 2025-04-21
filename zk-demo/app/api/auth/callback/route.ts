@@ -14,8 +14,7 @@ export async function POST(request: NextRequest) {
     // Google OAuth configuration
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    const redirectUri =
-      process.env.REDIRECT_URI || "http://localhost:3000/callback";
+    const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/callback`;
 
     if (!clientId || !clientSecret) {
       return NextResponse.json(

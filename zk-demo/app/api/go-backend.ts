@@ -1,3 +1,5 @@
+const BASE_URL = "https://0480fdb14c62.ngrok.app";
+
 export const getNonce = async (addr: `0x${string}`, jwtRnd: `0x${string}`) => {
   try {
     // Prepare the request payload
@@ -7,7 +9,7 @@ export const getNonce = async (addr: `0x${string}`, jwtRnd: `0x${string}`) => {
     };
 
     // Make the API call to the /nonce endpoint
-    const response = await fetch("http://localhost:8080/nonce", {
+    const response = await fetch(`${BASE_URL}/nonce`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -46,7 +48,7 @@ export const getZkAddress = async (
     };
 
     // Make the API call to the /zk-addr endpoint
-    const response = await fetch("http://localhost:8080/zk-addr", {
+    const response = await fetch(`${BASE_URL}/zk-addr`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -93,7 +95,7 @@ export const getProof = async (
     };
 
     // Make the API call to the /proof endpoint
-    const response = await fetch("http://localhost:8080/proof", {
+    const response = await fetch(`${BASE_URL}/proof`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

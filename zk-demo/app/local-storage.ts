@@ -38,12 +38,20 @@ export const getJwtFromLocalStorage = () => {
 };
 
 export const removeJwtFromLocalStorage = () => {
-  return localStorage.getItem("jwt");
+  return localStorage.removeItem("jwt");
 };
 
-export const clearLocalStorage = () => {
+export const clearOAuthLocalStorage = () => {
   localStorage.removeItem("nonce");
   localStorage.removeItem("keypairs");
   localStorage.removeItem("jwt_rnd");
   localStorage.removeItem("jwt");
+};
+
+export const setWalletNonceToLocalStorage = (nonce: string) => {
+  localStorage.setItem("wallet_nonce", nonce);
+};
+
+export const getWalletNonceFromLocalStorage = () => {
+  return localStorage.getItem("wallet_nonce");
 };
