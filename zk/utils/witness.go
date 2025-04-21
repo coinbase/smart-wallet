@@ -115,10 +115,6 @@ func GenerateWitness[RSAFieldParams emulated.FieldParams](
 		return nil, nil, fmt.Errorf("failed to generate witness: %w", err)
 	}
 
-	fmt.Println("witnessIdpPubKeyN", witnessIdpPubKeyN.Limbs)
-	fmt.Println("witnessEphPubKey", witnessEphPubKey)
-	fmt.Println("witnessZkAddr", witnessZkAddr)
-
 	assignment = &circuits.ZkLoginCircuit[RSAFieldParams]{
 		// Public inputs.
 		IdpPubKeyN: witnessIdpPubKeyN,

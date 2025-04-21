@@ -27,8 +27,12 @@ export default function SignInPage() {
       const account = privateKeyToAccount(privateKey);
       const address = account.address;
 
+      console.log("OK1");
+
       // Generate a random 31-byte nonce
       const jwtRnd = toHex(randomBytes(31));
+
+      console.log("OK2");
 
       const newKeypair: Keypair = {
         privateKey,
@@ -36,6 +40,8 @@ export default function SignInPage() {
         jwtRnd,
       };
       addKeypairToLocalStorage(newKeypair);
+
+      console.log("OK3");
 
       // Convert the Ethereum address to the base64Url-encoded nonce
       let nonce: string;
@@ -47,6 +53,7 @@ export default function SignInPage() {
         setLoading(false);
         return;
       }
+      console.log("OK4");
 
       // Set the nonce to localstorage for the OIDC callback.
       setNonceToLocalStorage(nonce);
@@ -88,14 +95,8 @@ export default function SignInPage() {
         <h1 className="text-3xl font-bold mb-6 text-center">Sign In</h1>
 
         <div className="mb-6">
-          <p className="text-gray-300 mb-2">Welcome to the zklogin demo.</p>
           <p className="text-gray-300">
             Sign in with your Google account to continue.
-          </p>
-          <p className="text-gray-400 text-sm mt-4">
-            This will generate an Ethereum address that will be used for zklogin
-            verification. The private key will be securely stored in your
-            browser.
           </p>
         </div>
 

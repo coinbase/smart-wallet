@@ -73,6 +73,8 @@ export default function Home() {
   const [ephemeralKeypair, setEphemeralKeypair] = useState<Keypair | undefined>(
     undefined
   );
+  const [walletNonce, setWalletNonce] = useState<number>(0);
+  const [inputNonce, setInputNonce] = useState<string>("0");
   const { address: walletAddress } = useAccount();
 
   const [jwtInfoExpanded, setJwtInfoExpanded] = useState(false);
@@ -84,10 +86,10 @@ export default function Home() {
 
   // Derive the account address by calling the factory contract
   const { data: account, isLoading: isLoadingAccount } = useReadContract({
-    address: NETWORK_CONFIG.anvil.COINBASE_SMART_WALLET_FACTORY_ADDRESS,
+    address: NETWORK_CONFIG.baseSepolia.COINBASE_SMART_WALLET_FACTORY_ADDRESS,
     abi: COINBASE_SMART_WALLET_FACTORY_ABI,
     functionName: "getAddress",
-    args: [[initialOwnerEncoded], BigInt(0)],
+    args: [[initialOwnerEncoded], BigInt(walletNonce)],
     query: {
       enabled: !oauthState.loading,
     },
@@ -116,10 +118,10 @@ export default function Home() {
 
   const deployAccount = () => {
     writeContractCreateAccount({
-      address: NETWORK_CONFIG.anvil.COINBASE_SMART_WALLET_FACTORY_ADDRESS,
+      address: NETWORK_CONFIG.baseSepolia.COINBASE_SMART_WALLET_FACTORY_ADDRESS,
       abi: COINBASE_SMART_WALLET_FACTORY_ABI,
       functionName: "createAccount",
-      args: [[initialOwnerEncoded], BigInt(0)],
+      args: [[initialOwnerEncoded], BigInt(walletNonce)],
     });
   };
 
@@ -151,6 +153,7 @@ export default function Home() {
     useReadContracts({
       contracts: ownerAtIndexQueries,
       query: {
+        refetchInterval: 1000,
         enabled: ownerAtIndexQueries.length > 0,
       },
     });
@@ -158,7 +161,7 @@ export default function Home() {
   // Check if the wallet has registered its zkAddress
   const { data: registeredZkAddr, isLoading: isLoadingZkAddr } =
     useReadContract({
-      address: NETWORK_CONFIG.anvil.ZK_LOGIN_ADDRESS,
+      address: NETWORK_CONFIG.baseSepolia.ZK_LOGIN_ADDRESS,
       abi: ZK_LOGIN_ABI,
       functionName: "zkAddrs",
       args: [account as `0x${string}`, zkAddressHex as `0x${string}`],
@@ -187,7 +190,17 @@ export default function Home() {
   } = useWriteContract();
 
   // Prepare contract write for enabling recovery
-  const { writeContract: writeContractRecoverAccount } = useWriteContract();
+  const {
+    writeContract: writeContractRecoverAccount,
+    isPending: isRecoverAccountPending,
+  } = useWriteContract();
+
+  const isEphemeralKeypairAlreadyOwner = useMemo(() => {
+    if (!ephemeralKeypair) return false;
+    return owners.some((owner) =>
+      isAddressEqual(owner.address, ephemeralKeypair.address)
+    );
+  }, [owners, ephemeralKeypair]);
 
   // Set the oauth state
   useEffect(() => {
@@ -323,7 +336,7 @@ export default function Home() {
           address: owner,
           index,
           type:
-            owner === NETWORK_CONFIG.anvil.ZK_LOGIN_ADDRESS
+            owner === NETWORK_CONFIG.baseSepolia.ZK_LOGIN_ADDRESS
               ? "zklogin"
               : owner === "0x0000000000000000000000000000000000000000"
               ? "removed"
@@ -348,7 +361,7 @@ export default function Home() {
     const addOwnerAddressCall = encodeFunctionData({
       abi: COINBASE_SMART_WALLET_ABI,
       functionName: "addOwnerAddress",
-      args: [NETWORK_CONFIG.anvil.ZK_LOGIN_ADDRESS],
+      args: [NETWORK_CONFIG.baseSepolia.ZK_LOGIN_ADDRESS],
     });
 
     const setZkAddrCall = encodeFunctionData({
@@ -369,7 +382,7 @@ export default function Home() {
             data: addOwnerAddressCall,
           },
           {
-            target: NETWORK_CONFIG.anvil.ZK_LOGIN_ADDRESS,
+            target: NETWORK_CONFIG.baseSepolia.ZK_LOGIN_ADDRESS,
             value: BigInt(0),
             data: setZkAddrCall,
           },
@@ -436,13 +449,13 @@ export default function Home() {
       const parsedProof = parseProof(proof);
 
       writeContractRecoverAccount({
-        address: NETWORK_CONFIG.anvil.ZK_LOGIN_ADDRESS,
+        address: NETWORK_CONFIG.baseSepolia.ZK_LOGIN_ADDRESS,
         abi: ZK_LOGIN_ABI,
         functionName: "recoverAccount",
         args: [
           account, // account
           zkAddressHex, // zkAddr
-          NETWORK_CONFIG.anvil.GOOGLE_IDP_ADDRESS, // idp
+          NETWORK_CONFIG.baseSepolia.GOOGLE_IDP_ADDRESS, // idp
           kid, // kid
           ephemeralKeypair.address, // ephPubKey
           {
@@ -513,6 +526,19 @@ export default function Home() {
       commitments,
       commitmentPok,
     };
+  };
+
+  const generateRandomNonce = () => {
+    // Generate a random number between 0 and 1000
+    const randomNonce = Math.floor(Math.random() * 1000);
+    setInputNonce(randomNonce.toString());
+  };
+
+  const applyNonceChange = () => {
+    const parsedNonce = parseInt(inputNonce);
+    if (!isNaN(parsedNonce) && parsedNonce >= 0) {
+      setWalletNonce(parsedNonce);
+    }
   };
 
   if (oauthState.loading) {
@@ -649,7 +675,7 @@ export default function Home() {
             )}
           </div>
 
-          {/* Smart Wallet State box - Full width */}
+          {/* Account State box - Full width */}
           <div className="bg-gray-800 rounded-xl shadow-lg border border-gray-700 overflow-hidden">
             <button
               onClick={() => setWalletStateExpanded(!walletStateExpanded)}
@@ -657,7 +683,7 @@ export default function Home() {
                 walletStateExpanded ? "rounded-t-xl" : "rounded-xl"
               }`}
             >
-              <h2 className="text-xl font-semibold">Smart Wallet State</h2>
+              <h2 className="text-xl font-semibold">Account State</h2>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 className={`h-5 w-5 transform transition-transform ${
@@ -704,27 +730,81 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* Smart Wallet Address or Deploy Button */}
+                  {/* Account Address or Deploy Button */}
                   <div>
-                    <h3 className="text-sm font-medium text-gray-400 mb-2">
-                      Smart Wallet
-                    </h3>
-                    {isLoadingAccount || isLoadingBytecode ? (
-                      <p className="text-gray-400">
-                        Checking smart wallet status...
-                      </p>
-                    ) : isAccountDeployed ? (
-                      <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-lg overflow-hidden border border-gray-700 shadow-lg">
-                        <div className="p-4 bg-gray-900/50">
-                          <pre className="overflow-x-auto break-all">
-                            <code className="text-gray-200 font-mono text-sm">
-                              {account}
-                            </code>
-                          </pre>
+                    <div className="space-y-4">
+                      {/* Nonce Section */}
+                      <div>
+                        <h4 className="text-sm font-medium text-gray-400 mb-2">
+                          Nonce
+                        </h4>
+                        <div className="flex items-center space-x-2">
+                          <div className="flex items-center bg-gray-700 border border-gray-600 rounded overflow-hidden">
+                            <input
+                              type="text"
+                              value={inputNonce}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                // Only allow digits
+                                if (/^\d*$/.test(value)) {
+                                  setInputNonce(value);
+                                }
+                              }}
+                              className="w-20 px-2 py-1 bg-gray-700 text-white text-sm border-none focus:outline-none"
+                            />
+                            <button
+                              onClick={applyNonceChange}
+                              className="px-2 py-1 bg-gray-600 hover:bg-gray-500 text-gray-200 hover:text-white text-sm border-l border-gray-600"
+                              title="Apply nonce"
+                            >
+                              Apply
+                            </button>
+                          </div>
+                          <button
+                            onClick={generateRandomNonce}
+                            className="p-1.5 bg-gray-700 hover:bg-blue-600 text-gray-200 hover:text-white rounded border border-gray-600 hover:border-blue-500"
+                            title="Generate random nonce"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                        <div className="mt-1 text-xs text-gray-400">
+                          Current nonce: {walletNonce}
                         </div>
                       </div>
-                    ) : (
-                      <div>
+
+                      <h3 className="text-sm font-medium text-gray-400 mb-2">
+                        Account
+                      </h3>
+
+                      {isLoadingAccount || isLoadingBytecode ? (
+                        <p className="text-gray-400">
+                          Checking account status...
+                        </p>
+                      ) : isAccountDeployed ? (
+                        <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-lg overflow-hidden border border-gray-700 shadow-lg">
+                          <div className="p-4 bg-gray-900/50">
+                            <pre className="overflow-x-auto break-all">
+                              <code className="text-gray-200 font-mono text-sm">
+                                {account}
+                              </code>
+                            </pre>
+                          </div>
+                        </div>
+                      ) : (
                         <button
                           onClick={deployAccount}
                           disabled={isAccountDeploymentPending}
@@ -732,10 +812,10 @@ export default function Home() {
                         >
                           {isAccountDeploymentPending
                             ? "Deploying..."
-                            : "Deploy Smart Wallet"}
+                            : "Deploy Account"}
                         </button>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
 
                   {/* Google Recovery Protection - Only shown if wallet is deployed */}
@@ -750,21 +830,51 @@ export default function Home() {
                         </p>
                       ) : hasGoogleRecovery ? (
                         <div className="flex items-center space-x-4">
-                          <button
-                            onClick={addEphemeralOwner}
-                            className="px-3 py-1.5 bg-orange-700/80 hover:bg-orange-700 text-white rounded-md text-sm"
-                          >
-                            Add Ephemeral Owner
-                          </button>
-                          {ephemeralKeypair && (
-                            <div className="text-sm text-gray-300">
-                              <span className="font-medium">
-                                Ephemeral Key:
-                              </span>{" "}
-                              <span className="font-mono">
+                          {!isEphemeralKeypairAlreadyOwner &&
+                          ephemeralKeypair ? (
+                            <>
+                              <button
+                                onClick={addEphemeralOwner}
+                                disabled={isRecoverAccountPending}
+                                className="px-3 py-1.5 bg-orange-700/80 hover:bg-orange-700 text-white rounded-md text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {isRecoverAccountPending
+                                  ? "Adding..."
+                                  : "Add Ephemeral Owner"}
+                              </button>
+                              <div className="text-sm text-gray-300">
+                                <span className="font-medium">
+                                  Ephemeral Key:
+                                </span>{" "}
+                                <span className="font-mono">
+                                  {ephemeralKeypair.address}
+                                </span>
+                              </div>
+                            </>
+                          ) : ephemeralKeypair ? (
+                            <div className="text-sm text-green-400 flex items-center flex-wrap">
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-5 w-5 mr-2 shrink-0"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                              <span className="mr-2">Ephemeral Owner</span>
+                              <span className="bg-gray-900 px-2 py-1 rounded font-mono text-gray-200">
                                 {ephemeralKeypair.address}
                               </span>
+                              <span className="ml-2">added to the account</span>
                             </div>
+                          ) : (
+                            <p className="text-sm text-gray-400">
+                              No ephemeral keypair available
+                            </p>
                           )}
                         </div>
                       ) : (
