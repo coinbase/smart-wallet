@@ -14,6 +14,16 @@ contract CoinbaseSmartWalletFactory {
     /// @notice Address of the ERC-4337 implementation used as implementation for new accounts.
     address public immutable implementation;
 
+    /// @notice Emitted when a new account is created.
+    ///
+    /// @param account The address of the created account.
+    /// @param owners Array of initial owners.
+    /// @param nonce The nonce of the created account.
+    event AccountCreated(address indexed account, bytes[] owners, uint256 nonce);
+
+    /// @notice Thrown when trying to construct with a implementation that is not deployed.
+    error ImplementationUndeployed();
+
     /// @notice Thrown when trying to create a new `CoinbaseSmartWallet` account without any owner.
     error OwnerRequired();
 
@@ -22,6 +32,7 @@ contract CoinbaseSmartWalletFactory {
     ///
     /// @param implementation_ The address of the CoinbaseSmartWallet implementation which new accounts will proxy to.
     constructor(address implementation_) payable {
+        if (implementation_.code.length == 0) revert ImplementationUndeployed();
         implementation = implementation_;
     }
 
@@ -52,6 +63,7 @@ contract CoinbaseSmartWalletFactory {
         account = CoinbaseSmartWallet(payable(accountAddress));
 
         if (!alreadyDeployed) {
+            emit AccountCreated(address(account), owners, nonce);
             account.initialize(owners);
         }
     }
