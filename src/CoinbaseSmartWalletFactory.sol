@@ -21,7 +21,7 @@ contract CoinbaseSmartWalletFactory {
     /// @param nonce The nonce of the created account.
     event AccountCreated(address indexed account, bytes[] owners, uint256 nonce);
 
-    /// @notice Thrown when trying to construct with a implementation that is not deployed.
+    /// @notice Thrown when trying to construct with an implementation that is not deployed.
     error ImplementationUndeployed();
 
     /// @notice Thrown when trying to create a new `CoinbaseSmartWallet` account without any owner.

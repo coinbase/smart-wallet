@@ -97,4 +97,42 @@ contract TestValidateUserOp is SmartWalletTestBase {
         );
         account.validateUserOp(userOp, "", 0);
     }
+
+    function test_reverts_whenUpgradeToImplementationWithNoCode(address emptyImplementation) public {
+        vm.assume(emptyImplementation.code.length == 0);
+
+        // Create a UserOperation that calls executeWithoutChainIdValidation with an upgrade call
+        bytes[] memory calls = new bytes[](1);
+        calls[0] = abi.encodeWithSelector(UUPSUpgradeable.upgradeToAndCall.selector, emptyImplementation, "");
+
+        UserOperation memory userOp;
+        userOp.nonce = account.REPLAYABLE_NONCE_KEY() << 64;
+        userOp.callData = abi.encodeWithSelector(CoinbaseSmartWallet.executeWithoutChainIdValidation.selector, calls);
+        userOp.signature =
+            abi.encode(CoinbaseSmartWallet.SignatureWrapper(0, abi.encodePacked(bytes32(0), bytes32(0), uint8(27))));
+
+        vm.startPrank(account.entryPoint());
+        vm.expectRevert(abi.encodeWithSelector(CoinbaseSmartWallet.InvalidImplementation.selector, emptyImplementation));
+        account.validateUserOp(userOp, "", 0);
+    }
+
+    function test_succeeds_whenUpgradeToImplementationWithCode() public {
+        // Deploy a mock implementation that has code
+        MockCoinbaseSmartWallet mockImpl = new MockCoinbaseSmartWallet();
+        address validImplementation = address(mockImpl);
+
+        // Create a UserOperation that calls executeWithoutChainIdValidation with an upgrade call
+        bytes[] memory calls = new bytes[](1);
+        calls[0] = abi.encodeWithSelector(UUPSUpgradeable.upgradeToAndCall.selector, validImplementation, "");
+
+        UserOperation memory userOp;
+        userOp.nonce = account.REPLAYABLE_NONCE_KEY() << 64;
+        userOp.callData = abi.encodeWithSelector(CoinbaseSmartWallet.executeWithoutChainIdValidation.selector, calls);
+        userOp.signature =
+            abi.encode(CoinbaseSmartWallet.SignatureWrapper(0, abi.encodePacked(bytes32(0), bytes32(0), uint8(27))));
+
+        vm.startPrank(account.entryPoint());
+        // Should revert with signature error (1) rather than InvalidImplementation
+        assertEq(account.validateUserOp(userOp, "", 0), 1);
+    }
 }
