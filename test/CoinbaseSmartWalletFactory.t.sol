@@ -19,7 +19,21 @@ contract CoinbaseSmartWalletFactoryTest is Test {
         owners.push(abi.encode(address(2)));
     }
 
+    function test_constructor_revertsIfImplementationIsNotDeployed(address implementation) public {
+        vm.assume(implementation.code.length == 0);
+        vm.expectRevert(CoinbaseSmartWalletFactory.ImplementationUndeployed.selector);
+        new CoinbaseSmartWalletFactory(implementation);
+    }
+
     function test_constructor_setsImplementation(address implementation) public {
+        // avoid precompiles in fuzz runs
+        vm.assume(uint160(implementation) > 100);
+
+        // set bytecode if not already set
+        if (implementation.code.length == 0) {
+            vm.etch(implementation, address(account).code);
+        }
+
         factory = new CoinbaseSmartWalletFactory(implementation);
         assertEq(factory.implementation(), implementation);
     }
@@ -30,6 +44,13 @@ contract CoinbaseSmartWalletFactoryTest is Test {
         CoinbaseSmartWallet a = factory.createAccount{value: 1e18}(owners, 0);
         assert(a.isOwnerAddress(address(1)));
         assert(a.isOwnerAddress(address(2)));
+    }
+
+    function test_createAccount_emitsAccountCreatedEvent(uint256 nonce) public {
+        address expectedAddress = factory.getAddress(owners, nonce);
+        vm.expectEmit(true, true, true, true);
+        emit CoinbaseSmartWalletFactory.AccountCreated(expectedAddress, owners, nonce);
+        factory.createAccount(owners, nonce);
     }
 
     function test_revertsIfNoOwners() public {
