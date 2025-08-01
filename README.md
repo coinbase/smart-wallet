@@ -101,7 +101,7 @@ RPC_URL=
 # Optional Etherscan API key for contract verification
 ETHERSCAN_API_KEY=
 ```
-See [here](https://book.getfoundry.sh/reference/cast/cast-wallet-import) for more details on `cast wallet`.
+See [here](https://getfoundry.sh/cast/reference/wallet/import/) for more details on `cast wallet`.
 
 Then run 
 ```
