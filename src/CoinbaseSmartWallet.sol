@@ -69,6 +69,11 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
     /// @param key The invalid `PackedUserOperation.nonce` key.
     error InvalidNonceKey(uint256 key);
 
+    /// @notice Thrown when an upgrade is attempted to an implementation that does not exist.
+    ///
+    /// @param implementation The address of the implementation that has no code.
+    error InvalidImplementation(address implementation);
+
     /// @notice Reverts if the caller is not the EntryPoint.
     modifier onlyEntryPoint() virtual {
         if (msg.sender != entryPoint()) {
@@ -162,6 +167,22 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
             userOpHash = getUserOpHashWithoutChainId(userOp);
             if (key != REPLAYABLE_NONCE_KEY) {
                 revert InvalidNonceKey(key);
+            }
+
+            // Check for upgrade calls in the batch and validate implementation has code
+            bytes[] memory calls = abi.decode(userOp.callData[4:], (bytes[]));
+            for (uint256 i; i < calls.length; i++) {
+                bytes memory callData = calls[i];
+                bytes4 selector = bytes4(callData);
+
+                if (selector == UUPSUpgradeable.upgradeToAndCall.selector) {
+                    address newImplementation;
+                    assembly {
+                        // Skip reading the first 32 bytes (length prefix) + 4 bytes (function selector)
+                        newImplementation := mload(add(callData, 36))
+                    }
+                    if (newImplementation.code.length == 0) revert InvalidImplementation(newImplementation);
+                }
             }
         } else {
             if (key == REPLAYABLE_NONCE_KEY) {
