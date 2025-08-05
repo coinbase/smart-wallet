@@ -105,7 +105,7 @@ contract TestValidateUserOp is SmartWalletTestBase {
         bytes[] memory calls = new bytes[](1);
         calls[0] = abi.encodeWithSelector(UUPSUpgradeable.upgradeToAndCall.selector, emptyImplementation, "");
 
-        UserOperation memory userOp;
+        PackedUserOperation memory userOp;
         userOp.nonce = account.REPLAYABLE_NONCE_KEY() << 64;
         userOp.callData = abi.encodeWithSelector(CoinbaseSmartWallet.executeWithoutChainIdValidation.selector, calls);
         userOp.signature =
@@ -125,7 +125,7 @@ contract TestValidateUserOp is SmartWalletTestBase {
         bytes[] memory calls = new bytes[](1);
         calls[0] = abi.encodeWithSelector(UUPSUpgradeable.upgradeToAndCall.selector, validImplementation, "");
 
-        UserOperation memory userOp;
+        PackedUserOperation memory userOp;
         userOp.nonce = account.REPLAYABLE_NONCE_KEY() << 64;
         userOp.callData = abi.encodeWithSelector(CoinbaseSmartWallet.executeWithoutChainIdValidation.selector, calls);
         userOp.signature =
