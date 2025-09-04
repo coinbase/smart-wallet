@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.23;
+pragma solidity ^0.8.4;
 
 import {console2} from "forge-std/Test.sol";
 import {SmartWalletTestBase} from "../CoinbaseSmartWallet/SmartWalletTestBase.sol";
@@ -17,11 +17,11 @@ contract ValidateUserOpTest is SmartWalletTestBase {
         super.setUp();
         vm.etch(account.entryPoint(), address(new MockEntryPoint()).code);
         
-        // Deploy factory
         CoinbaseSmartWallet implementation = new CoinbaseSmartWallet();
         factory = new CoinbaseSmartWalletFactory(address(implementation));
     }
     
+    // Standard K1 (ECDSA) signature validation
     function test_k1() public {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, TEST_HASH);
         UserOperation memory op;
@@ -33,8 +33,8 @@ contract ValidateUserOpTest is SmartWalletTestBase {
         console2.log("test_k1 gas:", gasUsed);
     }
     
+    // R1 (passkey) validation with simulated EIP-7212 precompile
     function test_r1_7212() public {
-        // Simulate EIP-7212 precompile support
         bytes[] memory owners = new bytes[](1);
         owners[0] = passkeyOwner;
         CoinbaseSmartWallet passkeyAccount = factory.createAccount(owners, 1);
@@ -43,8 +43,8 @@ contract ValidateUserOpTest is SmartWalletTestBase {
         UserOperation memory op;
         op.signature = abi.encode(CoinbaseSmartWallet.SignatureWrapper(0, abi.encode(auth)));
         
-        // Mock 7212 precompile exists
-        vm.etch(address(0x0100), hex"60FF"); // Simple return true
+        // Mock 7212 precompile at 0x0100
+        vm.etch(address(0x0100), hex"60FF");
         
         vm.startSnapshotGas("validation_r1_7212");
         MockEntryPoint(account.entryPoint()).validateUserOp(address(passkeyAccount), op, TEST_HASH, 0);
@@ -52,8 +52,8 @@ contract ValidateUserOpTest is SmartWalletTestBase {
         console2.log("test_r1_7212 gas:", gasUsed);
     }
     
+    // R1 validation using FCL library (current implementation)
     function test_r1_FCL() public {
-        // Without 7212 precompile - uses FCL library
         bytes[] memory owners = new bytes[](1);
         owners[0] = passkeyOwner;
         CoinbaseSmartWallet passkeyAccount = factory.createAccount(owners, 1);
@@ -68,6 +68,7 @@ contract ValidateUserOpTest is SmartWalletTestBase {
         console2.log("test_r1_FCL gas:", gasUsed);
     }
     
+    // K1 validation with cross-chain replayable nonce
     function test_k1_replayable() public {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, TEST_HASH);
         UserOperation memory op;
@@ -81,6 +82,7 @@ contract ValidateUserOpTest is SmartWalletTestBase {
         console2.log("test_k1_replayable gas:", gasUsed);
     }
     
+    // R1 validation with 7212 precompile and cross-chain replayable nonce
     function test_r1_7212_replayable() public {
         bytes[] memory owners = new bytes[](1);
         owners[0] = passkeyOwner;
@@ -92,7 +94,7 @@ contract ValidateUserOpTest is SmartWalletTestBase {
         op.callData = abi.encodeCall(CoinbaseSmartWallet.executeWithoutChainIdValidation, (new bytes[](1)));
         op.signature = abi.encode(CoinbaseSmartWallet.SignatureWrapper(0, abi.encode(auth)));
         
-        vm.etch(address(0x0100), hex"60FF"); // Mock 7212
+        vm.etch(address(0x0100), hex"60FF");
         
         vm.startSnapshotGas("validation_r1_7212_replayable");
         MockEntryPoint(account.entryPoint()).validateUserOp(address(passkeyAccount), op, TEST_HASH, 0);
@@ -100,6 +102,7 @@ contract ValidateUserOpTest is SmartWalletTestBase {
         console2.log("test_r1_7212_replayable gas:", gasUsed);
     }
     
+    // R1 validation with FCL and cross-chain replayable nonce
     function test_r1_FCL_replayable() public {
         bytes[] memory owners = new bytes[](1);
         owners[0] = passkeyOwner;
