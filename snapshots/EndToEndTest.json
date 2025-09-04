@@ -1,0 +1,11 @@
+{
+  "e2e_create_contentcoin_4337": "176243",
+  "e2e_create_contentcoin_eoa": "45103",
+  "e2e_swap_eth_contentcoin_4337": "231229",
+  "e2e_swap_eth_usdc_4337": "182871",
+  "e2e_swap_eth_usdc_eoa": "51665",
+  "e2e_transfer_erc20_4337": "159402",
+  "e2e_transfer_erc20_eoa": "50910",
+  "e2e_transfer_native_4337": "159635",
+  "e2e_transfer_native_eoa": "17652"
+}
