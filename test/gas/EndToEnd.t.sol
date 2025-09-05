@@ -62,7 +62,7 @@ contract EndToEndTest is SmartWalletTestBase {
         console2.log("Gas overhead (4337/EOA):", (gas4337 * 100) / gasEOA, "%");
     }
     
-    // ERC20 transfer comparison showing overhead for token operations
+    // ERC20 transfer comparison between ERC-4337 and EOA
     function test_transfer_erc20() public {
         userOpCalldata = abi.encodeCall(
             CoinbaseSmartWallet.execute,
@@ -86,104 +86,6 @@ contract EndToEndTest is SmartWalletTestBase {
         usdc.transfer(address(0x5678), 100e6);
         uint256 gasEOA = vm.stopSnapshotGas();
         console2.log("test_transfer_erc20 EOA gas:", gasEOA);
-        console2.log("Gas overhead (4337/EOA):", (gas4337 * 100) / gasEOA, "%");
-    }
-    
-    // Simple swap simulation - single contract interaction with ETH value
-    function test_swap_eth_usdc_uniV4() public {
-        userOpCalldata = abi.encodeCall(
-            CoinbaseSmartWallet.execute,
-            (address(target), 0.1 ether, abi.encodeCall(target.setData, ("swap_eth_usdc")))
-        );
-        UserOperation memory op = _getUserOpWithSignature();
-        
-        bytes memory handleOpsCalldata = abi.encodeCall(entryPoint.handleOps, (_makeOpsArray(op), payable(bundler)));
-        console2.log("test_swap_eth_usdc_uniV4 ERC-4337 calldata size:", handleOpsCalldata.length);
-        
-        vm.startSnapshotGas("e2e_swap_eth_usdc_4337");
-        _sendUserOperation(op);
-        uint256 gas4337 = vm.stopSnapshotGas();
-        console2.log("test_swap_eth_usdc_uniV4 ERC-4337 gas:", gas4337);
-        
-        bytes memory eoaCalldata = abi.encodeCall(target.setData, ("swap_eth_usdc"));
-        console2.log("test_swap_eth_usdc_uniV4 EOA calldata size:", eoaCalldata.length);
-        
-        vm.prank(eoaUser);
-        vm.startSnapshotGas("e2e_swap_eth_usdc_eoa");
-        target.setData{value: 0.1 ether}("swap_eth_usdc");
-        uint256 gasEOA = vm.stopSnapshotGas();
-        console2.log("test_swap_eth_usdc_uniV4 EOA gas:", gasEOA);
-        console2.log("Gas overhead (4337/EOA):", (gas4337 * 100) / gasEOA, "%");
-    }
-    
-    // Multi-hop swap demonstrating batch execution advantages
-    function test_swap_eth_contentcoin_uniV4() public {
-        CoinbaseSmartWallet.Call[] memory calls = new CoinbaseSmartWallet.Call[](4);
-        
-        calls[0] = CoinbaseSmartWallet.Call({
-            target: address(target),
-            value: 0.1 ether,
-            data: abi.encodeCall(target.setData, ("swap_eth_usdc"))
-        });
-        
-        calls[1] = CoinbaseSmartWallet.Call({
-            target: address(usdc),
-            value: 0,
-            data: abi.encodeCall(usdc.approve, (address(target), 100e6))
-        });
-        
-        calls[2] = CoinbaseSmartWallet.Call({
-            target: address(target),
-            value: 0,
-            data: abi.encodeCall(target.setData, ("swap_usdc_zora"))
-        });
-        
-        calls[3] = CoinbaseSmartWallet.Call({
-            target: address(target),
-            value: 0,
-            data: abi.encodeCall(target.setData, ("swap_zora_contentcoin"))
-        });
-        
-        userOpCalldata = abi.encodeCall(CoinbaseSmartWallet.executeBatch, (calls));
-        UserOperation memory op = _getUserOpWithSignature();
-        
-        bytes memory handleOpsCalldata = abi.encodeCall(entryPoint.handleOps, (_makeOpsArray(op), payable(bundler)));
-        console2.log("test_swap_eth_contentcoin_uniV4 ERC-4337 calldata size:", handleOpsCalldata.length);
-        
-        vm.startSnapshotGas("e2e_swap_eth_contentcoin_4337");
-        _sendUserOperation(op);
-        uint256 gas4337 = vm.stopSnapshotGas();
-        console2.log("test_swap_eth_contentcoin_uniV4 ERC-4337 gas:", gas4337);
-        
-        // EOA would require 4 separate transactions
-        console2.log("test_swap_eth_contentcoin_uniV4 EOA calldata size: N/A (4 separate txs)");
-        console2.log("test_swap_eth_contentcoin_uniV4 EOA gas: N/A (4 separate txs required)");
-    }
-    
-    // Contract creation simulation to measure deployment overhead
-    function test_create_contentcoin() public {
-        userOpCalldata = abi.encodeCall(
-            CoinbaseSmartWallet.execute,
-            (address(target), 0, abi.encodeCall(target.setData, ("create_contentcoin_MyCoin")))
-        );
-        UserOperation memory op = _getUserOpWithSignature();
-        
-        bytes memory handleOpsCalldata = abi.encodeCall(entryPoint.handleOps, (_makeOpsArray(op), payable(bundler)));
-        console2.log("test_create_contentcoin ERC-4337 calldata size:", handleOpsCalldata.length);
-        
-        vm.startSnapshotGas("e2e_create_contentcoin_4337");
-        _sendUserOperation(op);
-        uint256 gas4337 = vm.stopSnapshotGas();
-        console2.log("test_create_contentcoin ERC-4337 gas:", gas4337);
-        
-        bytes memory eoaCalldata = abi.encodeCall(target.setData, ("create_contentcoin_MyCoin"));
-        console2.log("test_create_contentcoin EOA calldata size:", eoaCalldata.length);
-        
-        vm.prank(eoaUser);
-        vm.startSnapshotGas("e2e_create_contentcoin_eoa");
-        target.setData("create_contentcoin_MyCoin");
-        uint256 gasEOA = vm.stopSnapshotGas();
-        console2.log("test_create_contentcoin EOA gas:", gasEOA);
         console2.log("Gas overhead (4337/EOA):", (gas4337 * 100) / gasEOA, "%");
     }
     
