@@ -41,16 +41,20 @@ contract EndToEndTest is SmartWalletTestBase {
     
     // Native ETH transfer comparison between ERC-4337 and EOA
     function test_transfer_native() public {
+        // Dust recipient to control for gas increase for first non-zero balance
+        vm.deal(address(0x1234), 1 wei);
+        usdc.mint(eoaUser, 1 wei);
+
         userOpCalldata = abi.encodeCall(CoinbaseSmartWallet.execute, (address(0x1234), 1 ether, ""));
         UserOperation memory op = _getUserOpWithSignature();
         
         bytes memory handleOpsCalldata = abi.encodeCall(entryPoint.handleOps, (_makeOpsArray(op), payable(bundler)));
-        console2.log("test_transfer_native ERC-4337 calldata size:", handleOpsCalldata.length);
+        console2.log("test_transfer_native Base Account calldata size:", handleOpsCalldata.length);
         
-        vm.startSnapshotGas("e2e_transfer_native_4337");
+        vm.startSnapshotGas("e2e_transfer_native_baseAccount");
         _sendUserOperation(op);
         uint256 gas4337 = vm.stopSnapshotGas();
-        console2.log("test_transfer_native ERC-4337 gas:", gas4337);
+        console2.log("test_transfer_native Base Account gas:", gas4337);
         
         console2.log("test_transfer_native EOA calldata size:", uint256(0));
         
@@ -59,11 +63,15 @@ contract EndToEndTest is SmartWalletTestBase {
         payable(address(0x1234)).transfer(1 ether);
         uint256 gasEOA = vm.stopSnapshotGas();
         console2.log("test_transfer_native EOA gas:", gasEOA);
-        console2.log("Gas overhead (4337/EOA):", (gas4337 * 100) / gasEOA, "%");
+        console2.log("Gas overhead (4337 Base Account / EOA):", (gas4337 * 100) / gasEOA, "%");
     }
     
     // ERC20 transfer comparison between ERC-4337 and EOA
     function test_transfer_erc20() public {
+        // Dust recipient to control for gas increase for first non-zero balance
+        vm.deal(address(0x5678), 1 wei);
+        usdc.mint(eoaUser, 1 wei);
+
         userOpCalldata = abi.encodeCall(
             CoinbaseSmartWallet.execute,
             (address(usdc), 0, abi.encodeCall(usdc.transfer, (address(0x5678), 100e6)))
@@ -71,12 +79,12 @@ contract EndToEndTest is SmartWalletTestBase {
         UserOperation memory op = _getUserOpWithSignature();
         
         bytes memory handleOpsCalldata = abi.encodeCall(entryPoint.handleOps, (_makeOpsArray(op), payable(bundler)));
-        console2.log("test_transfer_erc20 ERC-4337 calldata size:", handleOpsCalldata.length);
+        console2.log("test_transfer_erc20 Base Account calldata size:", handleOpsCalldata.length);
         
-        vm.startSnapshotGas("e2e_transfer_erc20_4337");
+        vm.startSnapshotGas("e2e_transfer_erc20_baseAccount");
         _sendUserOperation(op);
         uint256 gas4337 = vm.stopSnapshotGas();
-        console2.log("test_transfer_erc20 ERC-4337 gas:", gas4337);
+        console2.log("test_transfer_erc20 Base Account gas:", gas4337);
         
         bytes memory eoaCalldata = abi.encodeCall(usdc.transfer, (address(0x5678), 100e6));
         console2.log("test_transfer_erc20 EOA calldata size:", eoaCalldata.length);
@@ -86,7 +94,7 @@ contract EndToEndTest is SmartWalletTestBase {
         usdc.transfer(address(0x5678), 100e6);
         uint256 gasEOA = vm.stopSnapshotGas();
         console2.log("test_transfer_erc20 EOA gas:", gasEOA);
-        console2.log("Gas overhead (4337/EOA):", (gas4337 * 100) / gasEOA, "%");
+        console2.log("Gas overhead (4337 Base Account / EOA):", (gas4337 * 100) / gasEOA, "%");
     }
     
     function _makeOpsArray(UserOperation memory op) internal pure returns (UserOperation[] memory) {
