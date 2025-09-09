@@ -1,0 +1,32 @@
+{
+  "lib/account-abstraction": {
+    "rev": "abff2aca61a8f0934e533d0d352978055fddbd96"
+  },
+  "lib/forge-std": {
+    "tag": {
+      "name": "v1.10.0",
+      "rev": "8bbcf6e3f8f62f419e5429a0bd89331c85c37824"
+    }
+  },
+  "lib/openzeppelin-contracts": {
+    "rev": "5705e8208bc92cd82c7bcdfeac8dbc7377767d96"
+  },
+  "lib/p256-verifier": {
+    "rev": "29475ae300ec95d98d5c7cc34c094846f0aa2dcd"
+  },
+  "lib/safe-singleton-deployer-sol": {
+    "rev": "cf2b89c33fed536c4dd6fef2fb84f39053068868"
+  },
+  "lib/solady": {
+    "rev": "c4c96607cb3aa3807b14c81ae2015bcba061f8fc"
+  },
+  "lib/v4-core": {
+    "tag": {
+      "name": "v4.0.0",
+      "rev": "e50237c43811bd9b526eff40f26772152a42daba"
+    }
+  },
+  "lib/webauthn-sol": {
+    "rev": "619f20ab0f074fef41066ee4ab24849a913263b2"
+  }
+}
