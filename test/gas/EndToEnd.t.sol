@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {MockERC20} from "../../lib/solady/test/utils/mocks/MockERC20.sol";
+import {console2} from "forge-std/Test.sol";
+import {UserOperation} from "account-abstraction/interfaces/UserOperation.sol";
+
 import {CoinbaseSmartWallet} from "../../src/CoinbaseSmartWallet.sol";
 import {CoinbaseSmartWalletFactory} from "../../src/CoinbaseSmartWalletFactory.sol";
-import {SmartWalletTestBase} from "../CoinbaseSmartWallet/SmartWalletTestBase.sol";
+import {MockERC20} from "../../lib/solady/test/utils/mocks/MockERC20.sol";
 
-import {Static} from "../CoinbaseSmartWallet/Static.sol";
 import {MockTarget} from "../mocks/MockTarget.sol";
-import {UserOperation} from "account-abstraction/interfaces/UserOperation.sol";
-import {console2} from "forge-std/Test.sol";
+import {SmartWalletTestBase} from "../CoinbaseSmartWallet/SmartWalletTestBase.sol";
+import {Static} from "../CoinbaseSmartWallet/Static.sol";
 
 /// @title EndToEndTest
 /// @notice Gas comparison tests between ERC-4337 Base Account and EOA transactions
