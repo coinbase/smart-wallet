@@ -1,0 +1,11 @@
+@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/
+FreshCryptoLib/=lib/webauthn-sol/lib/FreshCryptoLib/solidity/src/
+account-abstraction/=lib/account-abstraction/contracts/
+ds-test/=lib/forge-std/lib/ds-test/src/
+erc4626-tests/=lib/openzeppelin-contracts/lib/erc4626-tests/
+forge-std/=lib/forge-std/src/
+openzeppelin-contracts/=lib/openzeppelin-contracts/
+p256-verifier/=lib/p256-verifier/
+safe-singleton-deployer-sol/=lib/safe-singleton-deployer-sol/
+solady/=lib/solady/src/
+webauthn-sol/=lib/webauthn-sol/src/
