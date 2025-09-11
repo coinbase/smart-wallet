@@ -3,7 +3,10 @@
     "rev": "abff2aca61a8f0934e533d0d352978055fddbd96"
   },
   "lib/forge-std": {
-    "rev": "1fd874f0efdb711cb6807c4f4a000ed2805dc809"
+    "tag": {
+      "name": "v1.10.0",
+      "rev": "8bbcf6e3f8f62f419e5429a0bd89331c85c37824"
+    }
   },
   "lib/openzeppelin-contracts": {
     "rev": "5705e8208bc92cd82c7bcdfeac8dbc7377767d96"
