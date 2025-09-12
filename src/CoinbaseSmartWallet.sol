@@ -317,6 +317,12 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
     /// @param signature ABI encoded `SignatureWrapper`.
     function _isValidSignature(bytes32 hash, bytes calldata signature) internal view virtual override returns (bool) {
         SignatureWrapper memory sigWrapper = abi.decode(signature, (SignatureWrapper));
+        
+        // Ensure owner index is within the valid range
+        if (sigWrapper.ownerIndex >= nextOwnerIndex()) {
+            return false;
+        }
+        
         bytes memory ownerBytes = ownerAtIndex(sigWrapper.ownerIndex);
 
         if (ownerBytes.length == 32) {
