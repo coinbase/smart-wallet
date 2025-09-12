@@ -20,6 +20,12 @@
   "lib/solady": {
     "rev": "5ea5d9f57ed6d24a27d00934f4a3448def931415"
   },
+  "lib/v4-core": {
+    "tag": {
+      "name": "v4.0.0",
+      "rev": "e50237c43811bd9b526eff40f26772152a42daba"
+    }
+  },
   "lib/webauthn-sol": {
     "rev": "619f20ab0f074fef41066ee4ab24849a913263b2"
   }
