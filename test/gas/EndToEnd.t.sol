@@ -266,7 +266,7 @@ contract EndToEndTest is SmartWalletTestBase {
 
         // Initialize pool with 1:1000000 price ratio (accounting for USDC 6 decimals vs WETH 18 decimals)
         // sqrtPriceX96 = sqrt(10^12) * 2^96 for USDC/WETH decimal adjustment
-        uint160 sqrtPriceX96 = 79228162514264337593543950336 * 1e6;
+        uint160 sqrtPriceX96 = SQRT_PRICE_1_1 * 1e6;
         poolManager.initialize(poolKey, sqrtPriceX96);
 
         // Approve liquidity router to add initial liquidity
