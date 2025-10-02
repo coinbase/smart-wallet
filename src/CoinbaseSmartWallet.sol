@@ -199,7 +199,7 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
     /// @notice Executes `calls` on this account (i.e. self call).
     ///
     /// @dev Can only be called by the Entrypoint.
-    /// @dev Reverts if the given call is not authorized to skip the chain ID validtion.
+    /// @dev Reverts if the given call is not authorized to skip the chain ID validation.
     /// @dev `validateUserOp()` will recompute the `userOpHash` without the chain ID before validating
     ///      it if the `UserOperation.calldata` is calling this function. This allows certain UserOperations
     ///      to be replayed for all accounts sharing the same address across chains. E.g. This may be

@@ -6,7 +6,7 @@ pragma solidity ^0.8.4;
 /// @notice Abstract ERC-1271 implementation (based on Solady's) with guards to handle the same
 ///         signer being used on multiple accounts.
 ///
-/// @dev To prevent the same signature from being validated on different accounts owned by the samer signer,
+/// @dev To prevent the same signature from being validated on different accounts owned by the same signer,
 ///      we introduce an anti cross-account-replay layer: the original hash is input into a new EIP-712 compliant
 ///      hash. The domain separator of this outer hash contains the chain id and address of this contract, so that
 ///      it cannot be used on two accounts (see `replaySafeHash()` for the implementation details).
@@ -75,7 +75,7 @@ abstract contract ERC1271 {
         return 0xffffffff;
     }
 
-    /// @notice Wrapper around `_eip712Hash()` to produce a replay-safe hash fron the given `hash`.
+    /// @notice Wrapper around `_eip712Hash()` to produce a replay-safe hash from the given `hash`.
     ///
     /// @dev The returned EIP-712 compliant replay-safe hash is the result of:
     ///      keccak256(
