@@ -3,7 +3,8 @@ pragma solidity 0.8.23;
 
 import {IAccount} from "account-abstraction/interfaces/IAccount.sol";
 
-import {UserOperation, UserOperationLib} from "account-abstraction/interfaces/UserOperation.sol";
+import {UserOperationLib} from "account-abstraction/core/UserOperationLib.sol";
+import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
 import {Receiver} from "solady/accounts/Receiver.sol";
 import {SignatureCheckerLib} from "solady/utils/SignatureCheckerLib.sol";
 import {UUPSUpgradeable} from "solady/utils/UUPSUpgradeable.sol";
@@ -40,11 +41,12 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
         bytes data;
     }
 
-    /// @notice Reserved nonce key (upper 192 bits of `UserOperation.nonce`) for cross-chain replayable
+    /// @notice Reserved nonce key (upper 192 bits of `PackedUserOperation.nonce`) for cross-chain replayable
     ///         transactions.
     ///
-    /// @dev MUST BE the `UserOperation.nonce` key when `UserOperation.calldata` is calling
-    ///      `executeWithoutChainIdValidation`and MUST NOT BE `UserOperation.nonce` key when `UserOperation.calldata` is
+    /// @dev MUST BE the `PackedUserOperation.nonce` key when `PackedUserOperation.calldata` is calling
+    ///      `executeWithoutChainIdValidation`and MUST NOT BE `PackedUserOperation.nonce` key when
+    ///      `PackedUserOperation.calldata` is
     ///      NOT calling `executeWithoutChainIdValidation`.
     ///
     /// @dev Helps enforce sequential sequencing of replayable transactions.
@@ -59,12 +61,12 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
     /// @param selector The selector of the call.
     error SelectorNotAllowed(bytes4 selector);
 
-    /// @notice Thrown in validateUserOp if the key of `UserOperation.nonce` does not match the calldata.
+    /// @notice Thrown in validateUserOp if the key of `PackedUserOperation.nonce` does not match the calldata.
     ///
     /// @dev Calls to `this.executeWithoutChainIdValidation` MUST use `REPLAYABLE_NONCE_KEY` and
     ///      calls NOT to `this.executeWithoutChainIdValidation` MUST NOT use `REPLAYABLE_NONCE_KEY`.
     ///
-    /// @param key The invalid `UserOperation.nonce` key.
+    /// @param key The invalid `PackedUserOperation.nonce` key.
     error InvalidNonceKey(uint256 key);
 
     /// @notice Thrown when an upgrade is attempted to an implementation that does not exist.
@@ -135,23 +137,24 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
     /// @inheritdoc IAccount
     ///
     /// @notice ERC-4337 `validateUserOp` method. The EntryPoint will
-    ///         call `UserOperation.sender.call(UserOperation.callData)` only if this validation call returns
-    ///         successfully.
+    ///         call `PackedUserOperation.sender.call(PackedUserOperation.callData)` only if this validation call
+    ///         returns successfully.
     ///
     /// @dev Signature failure should be reported by returning 1 (see: `this._isValidSignature`). This
     ///      allows making a "simulation call" without a valid signature. Other failures (e.g. invalid signature format)
     ///      should still revert to signal failure.
-    /// @dev Reverts if the `UserOperation.nonce` key is invalid for `UserOperation.calldata`.
+    /// @dev Reverts if the `PackedUserOperation.nonce` key is invalid for `PackedUserOperation.callData`.
     /// @dev Reverts if the signature format is incorrect or invalid for owner type.
     ///
-    /// @param userOp              The `UserOperation` to validate.
-    /// @param userOpHash          The `UserOperation` hash, as computed by `EntryPoint.getUserOpHash(UserOperation)`.
+    /// @param userOp              The `PackedUserOperation` to validate.
+    /// @param userOpHash          The `PackedUserOperation` hash, as computed by
+    ///                            `EntryPoint.getUserOpHash(PackedUserOperation)`.
     /// @param missingAccountFunds The missing account funds that must be deposited on the Entrypoint.
     ///
     /// @return validationData The encoded `ValidationData` structure:
     ///                        `(uint256(validAfter) << (160 + 48)) | (uint256(validUntil) << 160) | (success ? 0 : 1)`
     ///                        where `validUntil` is 0 (indefinite) and `validAfter` is 0.
-    function validateUserOp(UserOperation calldata userOp, bytes32 userOpHash, uint256 missingAccountFunds)
+    function validateUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash, uint256 missingAccountFunds)
         external
         virtual
         onlyEntryPoint
@@ -201,7 +204,7 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
     /// @dev Can only be called by the Entrypoint.
     /// @dev Reverts if the given call is not authorized to skip the chain ID validtion.
     /// @dev `validateUserOp()` will recompute the `userOpHash` without the chain ID before validating
-    ///      it if the `UserOperation.calldata` is calling this function. This allows certain UserOperations
+    ///      it if the `PackedUserOperation.callData` is calling this function. This allows certain UserOperations
     ///      to be replayed for all accounts sharing the same address across chains. E.g. This may be
     ///      useful for syncing owner changes.
     ///
@@ -249,18 +252,18 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
     ///
     /// @return The address of the EntryPoint v0.6
     function entryPoint() public view virtual returns (address) {
-        return 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789;
+        return 0x0000000071727De22E5E9d8BAf0edAc6f37da032;
     }
 
-    /// @notice Computes the hash of the `UserOperation` in the same way as EntryPoint v0.6, but
+    /// @notice Computes the hash of the `PackedUserOperation` in the same way as EntryPoint v0.7, but
     ///         leaves out the chain ID.
     ///
     /// @dev This allows accounts to sign a hash that can be used on many chains.
     ///
-    /// @param userOp The `UserOperation` to compute the hash for.
+    /// @param userOp The `PackedUserOperation` to compute the hash for.
     ///
-    /// @return The `UserOperation` hash, which does not depend on chain ID.
-    function getUserOpHashWithoutChainId(UserOperation calldata userOp) public view virtual returns (bytes32) {
+    /// @return The `PackedUserOperation` hash, which does not depend on chain ID.
+    function getUserOpHashWithoutChainId(PackedUserOperation calldata userOp) public view virtual returns (bytes32) {
         return keccak256(abi.encode(UserOperationLib.hash(userOp), entryPoint()));
     }
 

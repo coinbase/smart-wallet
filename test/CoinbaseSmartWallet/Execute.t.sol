@@ -12,7 +12,7 @@ contract TestExecuteWithoutChainIdValidation is SmartWalletTestBase {
 
     function test_revertsWithReservedNonce() public {
         userOpNonce = account.REPLAYABLE_NONCE_KEY() << 64;
-        UserOperation memory userOp = _getUserOpWithSignature();
+        PackedUserOperation memory userOp = _getUserOpWithSignature();
         vm.expectRevert();
         _sendUserOperation(userOp);
     }
