@@ -83,6 +83,7 @@ Factory and implementation are deployed via [Safe Singleton Factory](https://git
 | Version   | Factory Address                        |
 |-----------|-----------------------------------------|
 | 1 | [0x0BA5ED0c6AA8c49038F819E587E2633c4A9F428a](https://basescan.org/address/0x0BA5ED0c6AA8c49038F819E587E2633c4A9F428a) |
+| 1.1 | [0xBA5ED110eFDBa3D005bfC882d75358ACBbB85842](https://basescan.org/address/0xBA5ED110eFDBa3D005bfC882d75358ACBbB85842) |
 
 
 ## Developing 
