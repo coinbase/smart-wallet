@@ -82,6 +82,7 @@ Today, allowed are
 Factory and implementation are deployed via [Safe Singleton Factory](https://github.com/safe-global/safe-singleton-factory), which today will give the same address across 248 chains. See "Deploying" below for instructions on how to deploy to new chains. 
 | Version   | Factory Address                        |
 |-----------|-----------------------------------------|
+| 1.1 | [0xBA5ED110eFDBa3D005bfC882d75358ACBbB85842](https://basescan.org/address/0xBA5ED110eFDBa3D005bfC882d75358ACBbB85842) |
 | 1 | [0x0BA5ED0c6AA8c49038F819E587E2633c4A9F428a](https://basescan.org/address/0x0BA5ED0c6AA8c49038F819E587E2633c4A9F428a) |
 
 
