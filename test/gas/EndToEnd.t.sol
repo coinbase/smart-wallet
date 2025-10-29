@@ -1,16 +1,23 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {console2} from "forge-std/Test.sol";
-import {UserOperation} from "account-abstraction/interfaces/UserOperation.sol";
-
-import {CoinbaseSmartWallet} from "../../src/CoinbaseSmartWallet.sol";
-import {CoinbaseSmartWalletFactory} from "../../src/CoinbaseSmartWalletFactory.sol";
-import {MockERC20} from "../../lib/solady/test/utils/mocks/MockERC20.sol";
-
-import {MockTarget} from "../mocks/MockTarget.sol";
 import {SmartWalletTestBase} from "../CoinbaseSmartWallet/SmartWalletTestBase.sol";
 import {Static} from "../CoinbaseSmartWallet/Static.sol";
+import {MockTarget} from "../mocks/MockTarget.sol";
+import {MockERC20} from "../../lib/solady/test/utils/mocks/MockERC20.sol";
+import {CoinbaseSmartWallet} from "../../src/CoinbaseSmartWallet.sol";
+import {CoinbaseSmartWalletFactory} from "../../src/CoinbaseSmartWalletFactory.sol";
+import {UserOperation} from "account-abstraction/interfaces/UserOperation.sol";
+import {console2} from "forge-std/Test.sol";
+import {PoolManager} from "v4-core/PoolManager.sol";
+import {IHooks} from "v4-core/interfaces/IHooks.sol";
+import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
+import {TickMath} from "v4-core/libraries/TickMath.sol";
+import {PoolModifyLiquidityTest} from "v4-core/test/PoolModifyLiquidityTest.sol";
+import {PoolSwapTest} from "v4-core/test/PoolSwapTest.sol";
+import {BalanceDelta} from "v4-core/types/BalanceDelta.sol";
+import {Currency, CurrencyLibrary} from "v4-core/types/Currency.sol";
+import {PoolKey} from "v4-core/types/PoolKey.sol";
 
 /// @title EndToEndTest
 /// @notice Gas comparison tests between ERC-4337 Base Account and EOA transactions
@@ -18,10 +25,24 @@ import {Static} from "../CoinbaseSmartWallet/Static.sol";
 /// Tests ran using `FOUNDRY_PROFILE=deploy` to simulate real-world gas costs
 /// forge-config: default.isolate = true
 contract EndToEndTest is SmartWalletTestBase {
+    using CurrencyLibrary for Currency;
+
     address eoaUser = address(0xe0a);
+
     MockERC20 usdc;
+    MockERC20 weth;
     MockTarget target;
     CoinbaseSmartWalletFactory factory;
+
+    // Uniswap v4 contracts
+    IPoolManager poolManager;
+    PoolSwapTest swapRouter;
+    PoolModifyLiquidityTest modifyLiquidityRouter;
+    PoolKey poolKey;
+
+    uint160 constant SQRT_PRICE_1_1 = 79228162514264337593543950336; // sqrt(1) * 2^96
+    uint160 constant MIN_PRICE_LIMIT = TickMath.MIN_SQRT_PRICE + 1;
+    uint160 constant MAX_PRICE_LIMIT = TickMath.MAX_SQRT_PRICE - 1;
 
     function setUp() public override {
         // Deploy EntryPoint at canonical address
@@ -43,10 +64,24 @@ contract EndToEndTest is SmartWalletTestBase {
 
         // Deploy and mint USDC tokens
         usdc = new MockERC20("USD Coin", "USDC", 6);
+        weth = new MockERC20("Wrapped Ether", "WETH", 18);
+
         usdc.mint(address(account), 10000e6);
         usdc.mint(eoaUser, 10000e6);
+        weth.mint(address(account), 100e18);
+        weth.mint(eoaUser, 100e18);
+
+        // For liquidity provision
+        usdc.mint(address(this), 1000000e6);
+        weth.mint(address(this), 1000e18);
 
         target = new MockTarget();
+
+        poolManager = new PoolManager(address(this));
+        swapRouter = new PoolSwapTest(poolManager);
+        modifyLiquidityRouter = new PoolModifyLiquidityTest(poolManager);
+
+        setupUniswapV4Pool();
     }
     
     // Native ETH Transfer - Base Account
@@ -125,6 +160,71 @@ contract EndToEndTest is SmartWalletTestBase {
         console2.log("test_transfer_erc20 EOA gas:", gasUsed);
     }
 
+    // Uniswap v4 Swap - Base Account
+    function test_swap_baseAccount() public {
+        // Approve swap router to spend tokens
+        vm.prank(address(account));
+        usdc.approve(address(swapRouter), type(uint256).max);
+
+        // Configure swap parameters: swap 1000 USDC for WETH
+        IPoolManager.SwapParams memory params = IPoolManager.SwapParams({
+            zeroForOne: true,
+            amountSpecified: -1000e6, // Exact input: 1000 USDC
+            sqrtPriceLimitX96: MIN_PRICE_LIMIT
+        });
+        
+        // Prepare swap calldata
+        bytes memory swapCalldata = abi.encodeCall(
+            PoolSwapTest.swap,
+            (poolKey, params, PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}), "")
+        );
+
+        // Wrap swap call in UserOperation
+        userOpCalldata = abi.encodeCall(
+            CoinbaseSmartWallet.execute,
+            (address(swapRouter), 0, swapCalldata)
+        );
+        UserOperation memory op = _getUserOpWithSignature();
+
+        // Measure calldata size
+        bytes memory handleOpsCalldata = abi.encodeCall(entryPoint.handleOps, (_makeOpsArray(op), payable(bundler)));
+        console2.log("test_swap Base Account calldata size:", handleOpsCalldata.length);
+
+        // Execute and measure gas
+        vm.startSnapshotGas("e2e_swap_baseAccount");
+        _sendUserOperation(op);
+        uint256 gasUsed = vm.stopSnapshotGas();
+        console2.log("test_swap Base Account gas:", gasUsed);
+    }
+
+    // Uniswap v4 Swap - EOA
+    function test_swap_eoa() public {
+        // Approve swap router to spend tokens
+        vm.prank(eoaUser);
+        usdc.approve(address(swapRouter), type(uint256).max);
+
+        // Configure swap parameters: swap 1000 USDC for WETH
+        IPoolManager.SwapParams memory params = IPoolManager.SwapParams({
+            zeroForOne: true,
+            amountSpecified: -1000e6, // Exact input: 1000 USDC
+            sqrtPriceLimitX96: MIN_PRICE_LIMIT
+        });
+
+        // Measure calldata size
+        bytes memory swapCalldata = abi.encodeCall(
+            PoolSwapTest.swap,
+            (poolKey, params, PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}), "")
+        );
+        console2.log("test_swap EOA calldata size:", swapCalldata.length);
+
+        // Execute and measure gas
+        vm.prank(eoaUser);
+        vm.startSnapshotGas("e2e_swap_eoa");
+        swapRouter.swap(poolKey, params, PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}), "");
+        uint256 gasUsed = vm.stopSnapshotGas();
+        console2.log("test_swap EOA gas:", gasUsed);
+    }
+
     // Helper Functions
     // Creates an array containing a single UserOperation
     function _makeOpsArray(UserOperation memory op) internal pure returns (UserOperation[] memory) {
@@ -139,5 +239,52 @@ contract EndToEndTest is SmartWalletTestBase {
         bytes32 toSign = entryPoint.getUserOpHash(userOp);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, toSign);
         signature = abi.encode(CoinbaseSmartWallet.SignatureWrapper(0, abi.encodePacked(r, s, v)));
+    }
+
+    // Sets up a Uniswap v4 USDC/WETH pool for swap testing
+    function setupUniswapV4Pool() internal {
+        Currency currency0;
+        Currency currency1;
+
+        // Ensure consistent token ordering (lower address first)
+        if (address(usdc) < address(weth)) {
+            currency0 = Currency.wrap(address(usdc));
+            currency1 = Currency.wrap(address(weth));
+        } else {
+            currency0 = Currency.wrap(address(weth));
+            currency1 = Currency.wrap(address(usdc));
+        }
+
+        // Configure pool parameters
+        poolKey = PoolKey({
+            currency0: currency0,
+            currency1: currency1,
+            fee: 3000,            // 0.3% fee tier
+            tickSpacing: 60,      // Standard spacing for 0.3% pools
+            hooks: IHooks(address(0))  // No hooks
+        });
+
+        // Initialize pool with 1:1000000 price ratio (accounting for USDC 6 decimals vs WETH 18 decimals)
+        // sqrtPriceX96 = sqrt(10^12) * 2^96 for USDC/WETH decimal adjustment
+        uint160 sqrtPriceX96 = SQRT_PRICE_1_1 * 1e6;
+        poolManager.initialize(poolKey, sqrtPriceX96);
+
+        // Approve liquidity router to add initial liquidity
+        usdc.approve(address(modifyLiquidityRouter), type(uint256).max);
+        weth.approve(address(modifyLiquidityRouter), type(uint256).max);
+
+        // Add liquidity to the pool across a wide price range
+        IPoolManager.ModifyLiquidityParams memory params = IPoolManager.ModifyLiquidityParams({
+            tickLower: -887220,      // Min tick for full range
+            tickUpper: 887220,       // Max tick for full range
+            liquidityDelta: 1000e6,  // Amount of liquidity to add
+            salt: 0
+        });
+
+        modifyLiquidityRouter.modifyLiquidity(poolKey, params, "");
+
+        // Additional approvals for pool manager (may be needed for certain operations)
+        usdc.approve(address(poolManager), type(uint256).max);
+        weth.approve(address(poolManager), type(uint256).max);
     }
 }
