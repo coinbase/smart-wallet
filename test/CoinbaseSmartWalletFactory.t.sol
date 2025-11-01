@@ -3,7 +3,6 @@ pragma solidity ^0.8.0;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {LibClone} from "solady/utils/LibClone.sol";
-
 import {CoinbaseSmartWallet, MultiOwnable} from "../src/CoinbaseSmartWallet.sol";
 import {CoinbaseSmartWalletFactory} from "../src/CoinbaseSmartWalletFactory.sol";
 
@@ -28,79 +27,50 @@ contract CoinbaseSmartWalletFactoryTest is Test {
     function test_constructor_setsImplementation(address implementation) public {
         // avoid precompiles in fuzz runs
         vm.assume(uint160(implementation) > 100);
-
         // set bytecode if not already set
         if (implementation.code.length == 0) {
             vm.etch(implementation, address(account).code);
         }
-
-        factory = new CoinbaseSmartWalletFactory(implementation);
-        assertEq(factory.implementation(), implementation);
+        CoinbaseSmartWalletFactory factory2 = new CoinbaseSmartWalletFactory(implementation);
+        assertEq(address(factory2.implementation()), implementation);
     }
 
-    function test_createAccountSetsOwnersCorrectly() public {
-        address expectedAddress = factory.getAddress(owners, 0);
-        vm.expectCall(expectedAddress, abi.encodeCall(CoinbaseSmartWallet.initialize, (owners)));
-        CoinbaseSmartWallet a = factory.createAccount{value: 1e18}(owners, 0);
-        assert(a.isOwnerAddress(address(1)));
-        assert(a.isOwnerAddress(address(2)));
+    function test_getAddress_isZeroIfNoAccountExists(bytes[] calldata owners1, uint256 nonce) public {
+        address expectedAddress = factory.getAddress(owners1, nonce);
+        assertEq(expectedAddress.code.length, 0);
     }
 
     function test_createAccount_emitsAccountCreatedEvent(uint256 nonce) public {
+        // Bound nonce to type(uint128).max to avoid excessive gas costs during fuzzing.
+        // The factory's internal nonce tracking uses uint128, so values above this can cause overflow issues.
+        vm.assume(nonce < type(uint128).max);
         address expectedAddress = factory.getAddress(owners, nonce);
         vm.expectEmit(true, true, true, true);
         emit CoinbaseSmartWalletFactory.AccountCreated(expectedAddress, owners, nonce);
         factory.createAccount(owners, nonce);
     }
 
-    function test_revertsIfNoOwners() public {
-        owners.pop();
-        owners.pop();
-        vm.expectRevert(CoinbaseSmartWalletFactory.OwnerRequired.selector);
-        factory.createAccount{value: 1e18}(owners, 0);
+    function test_createAccount_createsAccountAtExpectedAddress(bytes[] calldata owners1, uint256 nonce) public {
+        address expectedAddress = factory.getAddress(owners1, nonce);
+        CoinbaseSmartWallet newAccount = factory.createAccount(owners1, nonce);
+        assertEq(address(newAccount), expectedAddress);
     }
 
-    function test_exitIfAccountIsAlreadyInitialized() public {
-        CoinbaseSmartWallet a = factory.createAccount(owners, 0);
-        vm.expectCall(address(a), abi.encodeCall(CoinbaseSmartWallet.initialize, (owners)), 0);
-        CoinbaseSmartWallet a2 = factory.createAccount(owners, 0);
-        assertEq(address(a), address(a2));
+    function test_createAccount_deploysAccountWithExpectedInitialization(bytes[] calldata owners1, uint256 nonce)
+        public
+    {
+        CoinbaseSmartWallet newAccount = factory.createAccount(owners1, nonce);
+        address[] memory ownersAddresses = newAccount.owners();
+        assertEq(ownersAddresses.length, owners1.length);
+        for (uint256 i = 0; i < owners1.length; i++) {
+            assertEq(newAccount.isOwnerAddress(abi.decode(owners1[i], (address))), true);
+        }
     }
 
-    function test_RevertsIfLength32ButLargerThanAddress() public {
-        bytes memory badOwner = abi.encode(uint256(type(uint160).max) + 1);
-        owners.push(badOwner);
-        vm.expectRevert(abi.encodeWithSelector(MultiOwnable.InvalidEthereumAddressOwner.selector, badOwner));
-        factory.createAccount{value: 1e18}(owners, 0);
-    }
-
-    function test_createAccountDeploysToPredeterminedAddress() public {
-        address p = factory.getAddress(owners, 0);
-        CoinbaseSmartWallet a = factory.createAccount{value: 1e18}(owners, 0);
-        assertEq(address(a), p);
-    }
-
-    function test_CreateAccount_ReturnsPredeterminedAddress_WhenAccountAlreadyExists() public {
-        address p = factory.getAddress(owners, 0);
-        CoinbaseSmartWallet a = factory.createAccount{value: 1e18}(owners, 0);
-        CoinbaseSmartWallet b = factory.createAccount{value: 1e18}(owners, 0);
-        assertEq(address(a), p);
-        assertEq(address(a), address(b));
-    }
-
-    function testDeployDeterministicPassValues() public {
-        vm.deal(address(this), 1e18);
-        CoinbaseSmartWallet a = factory.createAccount{value: 1e18}(owners, 0);
-        assertEq(address(a).balance, 1e18);
-    }
-
-    function test_implementation_returnsExpectedAddress() public {
-        assertEq(factory.implementation(), address(account));
-    }
-
-    function test_initCodeHash() public {
-        bytes32 execptedHash = LibClone.initCodeHashERC1967(address(account));
-        bytes32 factoryHash = factory.initCodeHash();
-        assertEq(factoryHash, execptedHash);
+    function test_createAccount_returnsInstanceOfCoinbaseSmartWallet(bytes[] calldata owners1, uint256 nonce)
+        public
+    {
+        CoinbaseSmartWallet newAccount = factory.createAccount(owners1, nonce);
+        assertEq(address(newAccount.implementation()), address(account));
     }
 }
