@@ -1,11 +1,15 @@
-@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/
+@ensdomains/=lib/v4-core/node_modules/@ensdomains/
+@openzeppelin/=lib/v4-core/lib/openzeppelin-contracts/
 FreshCryptoLib/=lib/webauthn-sol/lib/FreshCryptoLib/solidity/src/
 account-abstraction/=lib/account-abstraction/contracts/
-ds-test/=lib/p256-verifier/lib/forge-std/lib/ds-test/src/
+ds-test/=lib/v4-core/lib/forge-std/lib/ds-test/src/
 erc4626-tests/=lib/openzeppelin-contracts/lib/erc4626-tests/
 forge-std/=lib/forge-std/src/
+hardhat/=lib/v4-core/node_modules/hardhat/
 openzeppelin-contracts/=lib/openzeppelin-contracts/
 p256-verifier/=lib/p256-verifier/
 safe-singleton-deployer-sol/=lib/safe-singleton-deployer-sol/
 solady/=lib/solady/src/
+solmate/=lib/v4-core/lib/solmate/
+v4-core/=lib/v4-core/src/
 webauthn-sol/=lib/webauthn-sol/src/

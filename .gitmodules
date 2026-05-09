@@ -19,3 +19,6 @@
 [submodule "lib/safe-singleton-deployer-sol"]
 	path = lib/safe-singleton-deployer-sol
 	url = https://github.com/wilsoncusack/safe-singleton-deployer-sol
+[submodule "lib/v4-core"]
+	path = lib/v4-core
+	url = https://github.com/Uniswap/v4-core
