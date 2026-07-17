@@ -95,6 +95,11 @@ Factory and implementation are deployed via [Safe Singleton Factory](https://git
 
 
 ## Developing 
+This repo pins a specific Foundry version so builds are byte-reproducible and deterministic deployments land on the canonical factory/implementation addresses. CI installs `v1.5.1` (see `.github/workflows/`); match it locally with:
+```bash
+foundryup --install 1.5.1
+```
+
 After cloning the repo, run the tests using Forge, from [Foundry](https://github.com/foundry-rs/foundry?tab=readme-ov-file)
 ```bash
 forge test
