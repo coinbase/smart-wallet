@@ -99,8 +99,8 @@ contract CoinbaseSmartWalletFactoryTest is Test {
     }
 
     function test_initCodeHash() public {
-        bytes32 execptedHash = LibClone.initCodeHashERC1967(address(account));
+        bytes32 executedHash = LibClone.initCodeHashERC1967(address(account));
         bytes32 factoryHash = factory.initCodeHash();
-        assertEq(factoryHash, execptedHash);
+        assertEq(factoryHash, executedHash);
     }
 }

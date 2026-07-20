@@ -9,7 +9,7 @@ struct MultiOwnableStorage {
     uint256 nextOwnerIndex;
     /// @dev Tracks number of owners that have been removed.
     uint256 removedOwnersCount;
-    /// @dev Maps index to owner bytes, used to idenfitied owners via a uint256 index.
+    /// @dev Maps index to owner bytes, used to identified owners via a uint256 index.
     ///
     ///      Some uses—-such as signature validation for secp256r1 public key owners—-
     ///      requires the caller to assert the public key of the caller. To economize calldata,

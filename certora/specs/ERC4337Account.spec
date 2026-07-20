@@ -34,7 +34,7 @@ function isValidSignatureNowCVL(uint256 time, address signer, bytes32 hash, byte
 
 
 // STATUS - verified
-// After initialise has been called, nextOwnerIndex > 0
+// After initialize has been called, nextOwnerIndex > 0
 rule afterInitialize(env e) {
     bytes[] owners;
 
@@ -228,7 +228,7 @@ rule ethBalanceDecreaseByMissingAccountFunds(env e){
     
     uint256 ethBalance_ = nativeBalances[currentContract];
 
-    assert ethBalance_ + missingAccountFunds <= to_mathint(_ethBalance),"eth balance of account should go down by atleast missingAccountFunds";
+    assert ethBalance_ + missingAccountFunds <= to_mathint(_ethBalance),"eth balance of account should go down by at least missingAccountFunds";
 }
 
 
@@ -244,7 +244,7 @@ rule addNewOwnerCheck(env e, method f) filtered {
     bytes ownerAtIndexAnotherBefore = ownerAtIndex(anotherIndex);
     uint256 nextOwnerIndexBefore = nextOwnerIndex();
 
-    require index != anotherIndex;                              // make sure indexes are different to check taht only the latest one was changed
+    require index != anotherIndex;                              // make sure indexes are different to check that only the latest one was changed
     require anotherIndex < nextOwnerIndex();                    // make sure anotherIndex exists, so it should be unchanged
     require isOwnerBytes(ownerAtIndex(anotherIndex));           // set a correlation between ownerAtIndex and isOwnerBytes 
     require index == nextOwnerIndex();                          // checking "only the latest index was changed"                

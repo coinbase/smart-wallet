@@ -178,7 +178,7 @@ contract TestIsValidSignature is SmartWalletTestBase {
         bytes memory signature = abi.encodePacked(r, s, v);
         bytes32 invalidAddress = bytes32(uint256(type(uint160).max) + 1);
         bytes32 slot_ownerAtIndex =
-            bytes32(uint256(0x97e2c6aad4ce5d562ebfaa00db6b9e0fb66ea5d8162ed5b243f51a2e03086f00) + 2); // MUTLI_OWNABLE_STORAGE_LOCATION
+            bytes32(uint256(0x97e2c6aad4ce5d562ebfaa00db6b9e0fb66ea5d8162ed5b243f51a2e03086f00) + 2); // MULTI_OWNABLE_STORAGE_LOCATION
             // + 2
         bytes32 slot_ownerAtIndex_zeroIndex =
             bytes32(uint256(keccak256(abi.encodePacked(keccak256(abi.encode(0, slot_ownerAtIndex))))));
