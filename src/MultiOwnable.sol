@@ -9,7 +9,7 @@ struct MultiOwnableStorage {
     uint256 nextOwnerIndex;
     /// @dev Tracks number of owners that have been removed.
     uint256 removedOwnersCount;
-    /// @dev Maps index to owner bytes, used to idenfitied owners via a uint256 index.
+    /// @dev Maps index to owner bytes, used to identified owners via a uint256 index.
     ///
     ///      Some uses—-such as signature validation for secp256r1 public key owners—-
     ///      requires the caller to assert the public key of the caller. To economize calldata,
@@ -35,7 +35,7 @@ contract MultiOwnable {
     ///      Computed from
     ///      keccak256(abi.encode(uint256(keccak256("coinbase.storage.MultiOwnable")) - 1)) & ~bytes32(uint256(0xff))
     ///      Follows ERC-7201 (see https://eips.ethereum.org/EIPS/eip-7201).
-    bytes32 private constant MUTLI_OWNABLE_STORAGE_LOCATION =
+    bytes32 private constant MULTI_OWNABLE_STORAGE_LOCATION =
         0x97e2c6aad4ce5d562ebfaa00db6b9e0fb66ea5d8162ed5b243f51a2e03086f00;
 
     /// @notice Thrown when the `msg.sender` is not an owner and is trying to call a privileged function.
@@ -267,7 +267,7 @@ contract MultiOwnable {
 
     /// @notice Checks if the sender is an owner of this contract or the contract itself.
     ///
-    /// @dev Revert if the sender is not an owner fo the contract itself.
+    /// @dev Revert if the sender is not an owner of the contract itself.
     function _checkOwner() internal view virtual {
         if (isOwnerAddress(msg.sender) || (msg.sender == address(this))) {
             return;
