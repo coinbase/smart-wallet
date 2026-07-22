@@ -110,7 +110,7 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
         }
     }
 
-    constructor() {
+    constructor(address storageContract, bytes32 expectedCodeHash) MultiOwnable(storageContract, expectedCodeHash) {
         // Implementation should not be initializable (does not affect proxies which use their own storage).
         bytes[] memory owners = new bytes[](1);
         owners[0] = abi.encode(address(0));
