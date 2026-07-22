@@ -144,8 +144,8 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
     /// @dev Reverts if the `UserOperation.nonce` key is invalid for `UserOperation.calldata`.
     /// @dev Reverts if the signature format is incorrect or invalid for owner type.
     ///
-    /// @param userOp              The `UserOperation` to validate.
-    /// @param userOpHash          The `UserOperation` hash, as computed by `EntryPoint.getUserOpHash(UserOperation)`.
+    /// @param userOp The `UserOperation` to validate.
+    /// @param userOpHash The `UserOperation` hash, as computed by `EntryPoint.getUserOpHash(UserOperation)`.
     /// @param missingAccountFunds The missing account funds that must be deposited on the Entrypoint.
     ///
     /// @return validationData The encoded `ValidationData` structure:
@@ -223,8 +223,8 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
     /// @dev Can only be called by the Entrypoint or an owner of this account (including itself).
     ///
     /// @param target The address to call.
-    /// @param value  The value to send with the call.
-    /// @param data   The data of the call.
+    /// @param value The value to send with the call.
+    /// @param data The data of the call.
     function execute(address target, uint256 value, bytes calldata data)
         external
         payable
@@ -296,10 +296,9 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
     /// @dev Reverts if the call reverted.
     /// @dev Implementation taken from
     /// https://github.com/alchemyplatform/light-account/blob/43f625afdda544d5e5af9c370c9f4be0943e4e90/src/common/BaseLightAccount.sol#L125
-    ///
     /// @param target The target call address.
-    /// @param value  The call value to user.
-    /// @param data   The raw call data.
+    /// @param value The call value to user.
+    /// @param data The raw call data.
     function _call(address target, uint256 value, bytes memory data) internal {
         (bool success, bytes memory result) = target.call{value: value}(data);
         if (!success) {
@@ -339,7 +338,7 @@ contract CoinbaseSmartWallet is ERC1271, IAccount, MultiOwnable, UUPSUpgradeable
 
             WebAuthn.WebAuthnAuth memory auth = abi.decode(sigWrapper.signatureData, (WebAuthn.WebAuthnAuth));
 
-            return WebAuthn.verify({challenge: abi.encode(hash), requireUV: false, webAuthnAuth: auth, x: x, y: y});
+            return WebAuthn.verifySim(abi.encode(hash), false, auth, x, y);
         }
 
         revert InvalidOwnerBytesLength(ownerBytes);

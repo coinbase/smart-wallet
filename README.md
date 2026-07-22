@@ -1,4 +1,43 @@
 # Smart Wallet
+ 
+## Branch note: Simulation bytecode for accurate Verification Gas Limit (VGL) estimation (not for merge)
+
+- **Purpose**: Provide simulation-only wallet bytecode that mimics the onchain “valid signature” verification path, so bundlers can estimate Verification Gas Limit (VGL) accurately without manual buffers.
+- **Why**: Gas estimation in simulation usually uses invalid passkey signatures against the production wallet bytecode. Invalid signatures trigger different execution paths than real valid signatures onchain (e.g., falling back to FCL instead of using RIP-7212), leading to large deviations in measured gas. This branch supplies bytecode that fakes the “valid signature” path by hard-coding a known‑valid P‑256 vector inside the verifier, ensuring simulation follows the same path as real execution and yields sufficiently accurate VGL for bundler overrides.
+- **Scope**: Simulation-only. Not intended for deployment. This branch will not be merged.
+
+### What changed (high level)
+- `CoinbaseSmartWallet._isValidSignature` calls `WebAuthn.verifySim`, whose internal signature check uses a fixed valid vector to exercise the RIP-7212 precompile path when available (and FCL fallback otherwise). This produces gas that matches real executions when a valid passkey signature is used onchain.
+
+### Build settings used for bytecode (must match deploy settings)
+- Foundry profile: `deploy`
+  - `optimizer = true`
+  - `optimizer_runs = 999999`
+  - `via_ir = true`
+  - `evm_version = "prague"`
+  - `solc_version = "0.8.23"`
+
+Build and extract the deployed/runtime bytecode:
+
+```bash
+FOUNDRY_PROFILE=deploy forge build
+FOUNDRY_PROFILE=deploy forge inspect src/CoinbaseSmartWallet.sol:CoinbaseSmartWallet deployedBytecode \
+  > snapshots/SimulationOverrides/CoinbaseSmartWallet.runtime.hex
+```
+
+- **Output artifact location**: `snapshots/SimulationOverrides/CoinbaseSmartWallet.runtime.hex` (hex-encoded runtime bytecode, prefixed with `0x`).
+
+### Using this in a bundler (simulation overrides)
+During `eth_estimateUserOperationGas` for passkey flows:
+- Override `CoinbaseSmartWallet` implementation address(es) with the bytecode from `snapshots/SimulationOverrides/CoinbaseSmartWallet.runtime.hex`.
+- Provide a dummy signature so calldata and control flow match production, but let `verifySim` ensure the signature path succeeds.
+
+### Notes
+- On RIP-7212 chains, simulation follows the precompile success path. On non-7212 chains, it follows FCL. This mirrors real execution and stabilizes VGL estimation across chains.
+- WebAuthn library commit pinned in this branch: `amiecorso/webauthn-sol@6ac7461cbb768d77d9798e6160cd05d70dee7586`.
+
+
+# Smart Wallet
 
 This repository contains code for a new, [ERC-4337](https://eips.ethereum.org/EIPS/eip-4337) compliant smart contract wallet from Coinbase. 
 

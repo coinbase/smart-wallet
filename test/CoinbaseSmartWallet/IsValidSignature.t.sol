@@ -5,6 +5,8 @@ import "./SmartWalletTestBase.sol";
 import "webauthn-sol/../test/Utils.sol";
 
 contract TestIsValidSignature is SmartWalletTestBase {
+    bytes4 constant EIP1271_MAGICVALUE = 0x1626ba7e;
+    bytes4 constant EIP1271_FAILVALUE = 0xffffffff;
     function testValidateSignatureWithPasskeySigner() public {
         bytes32 hash = 0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5;
         bytes32 challenge = account.replaySafeHash(hash);
@@ -30,7 +32,7 @@ contract TestIsValidSignature is SmartWalletTestBase {
 
         // check a valid signature
         bytes4 ret = account.isValidSignature(hash, sig);
-        assertEq(ret, bytes4(0x1626ba7e));
+        assertEq(ret, EIP1271_MAGICVALUE);
     }
 
     function testSmartWalletSigner() public {
@@ -86,7 +88,7 @@ contract TestIsValidSignature is SmartWalletTestBase {
         account.isValidSignature(hash, sig);
     }
 
-    function testValidateSignatureWithPasskeySignerFailsWithWrongBadSignature() public {
+    function testValidateSignatureWithPasskeySignerInvalidSigNowSucceedsWithVerifySim() public {
         bytes32 hash = 0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5;
         bytes32 challenge = account.replaySafeHash(hash);
         WebAuthnInfo memory webAuthn = Utils.getWebAuthnStruct(challenge);
@@ -110,9 +112,37 @@ contract TestIsValidSignature is SmartWalletTestBase {
             })
         );
 
-        // check a valid signature
+        // With verifySim in use, signature contents are ignored for the final check.
+        // Even though r is intentionally wrong, this should still return MAGICVALUE.
         bytes4 ret = account.isValidSignature(hash, sig);
-        assertEq(ret, bytes4(0xffffffff));
+        assertEq(ret, EIP1271_MAGICVALUE);
+    }
+
+    function testInvalidPasskeySignatureStillSucceedsWithVerifySim() public {
+        bytes32 hash = 0x15fa6f8c855db1dccbb8a42eef3a7b83f11d29758e84aed37312527165d5eec5;
+        bytes32 challenge = account.replaySafeHash(hash);
+        WebAuthnInfo memory webAuthn = Utils.getWebAuthnStruct(challenge);
+
+        // Construct a clearly invalid signature vector (zeroed r,s after normalization edge avoided).
+        // Even with invalid r,s, verifySim should return MAGICVALUE.
+        bytes memory sig = abi.encode(
+            CoinbaseSmartWallet.SignatureWrapper({
+                ownerIndex: 1,
+                signatureData: abi.encode(
+                    WebAuthn.WebAuthnAuth({
+                        authenticatorData: webAuthn.authenticatorData,
+                        clientDataJSON: webAuthn.clientDataJSON,
+                        typeIndex: 1,
+                        challengeIndex: 23,
+                        r: uint256(0),
+                        s: uint256(0)
+                    })
+                )
+            })
+        );
+
+        bytes4 ret = account.isValidSignature(hash, sig);
+        assertEq(ret, EIP1271_MAGICVALUE);
     }
 
     function testValidateSignatureWithEOASigner() public {

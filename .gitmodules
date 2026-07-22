@@ -15,7 +15,9 @@
 	url = https://github.com/openzeppelin/openzeppelin-contracts
 [submodule "lib/webauthn-sol"]
 	path = lib/webauthn-sol
-	url = https://github.com/base-org/webauthn-sol
+	url = https://github.com/amiecorso/webauthn-sol
 [submodule "lib/safe-singleton-deployer-sol"]
 	path = lib/safe-singleton-deployer-sol
 	url = https://github.com/wilsoncusack/safe-singleton-deployer-sol
+[submodule "webauthn-sol"]
+	url = https://github.com/amiecorso/webauthn-sol
