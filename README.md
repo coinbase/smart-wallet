@@ -1,5 +1,12 @@
 # Smart Wallet
 
+-----BEGIN ETHEREUM SIGNED MESSAGE-----
+0xsarawut.base.eth
+-----BEGIN SIGNATURE-----
+0x001d3F1ef827552Ae1114027BD3ECF1f086bA0F9
+0x05ef7a6d10854f9a6c5e99a6f5be3c7e2bfeaa515801746efb2df24f0d7222fd72de3421b51dd1317976b6b34047a4965572f17d56d0bced0ea5af250d0e02eb1c
+-----END ETHEREUM SIGNED MESSAGE-----
+
 This repository contains code for a new, [ERC-4337](https://eips.ethereum.org/EIPS/eip-4337) compliant smart contract wallet from Coinbase. 
 
 It supports 
