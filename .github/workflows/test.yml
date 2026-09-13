@@ -47,7 +47,7 @@ jobs:
       name: Run Coverage Reporting
       runs-on: ubuntu-latest
       steps:
-        - uses: actions/checkout@v3
+        - uses: actions/checkout@v4
           with:
             submodules: recursive
 
@@ -73,7 +73,7 @@ jobs:
             lcov --remove ./lcov.info -o ./lcov-filtered.info 'test/*' 'script/*' 'src/utils/*' 
 
         - name: Submit coverage to Coveralls
-          uses: coverallsapp/github-action@master
+          uses: coverallsapp/github-action@v2
           with:
             github-token: ${{ secrets.GITHUB_TOKEN }}
             path-to-lcov: ./lcov-filtered.info
