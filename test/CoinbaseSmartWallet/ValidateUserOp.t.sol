@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "webauthn-sol/../test/Utils.sol";
+import {FCL_ecdsa} from "FreshCryptoLib/FCL_ecdsa.sol";
 
 import {MockEntryPoint} from "../mocks/MockEntryPoint.sol";
 import "./SmartWalletTestBase.sol";
@@ -76,6 +77,85 @@ contract TestValidateUserOp is SmartWalletTestBase {
         // Success returns 0.
         userOp.signature = sig;
         assertEq(ep.validateUserOp(address(account), userOp, t.userOpHash, t.missingAccountFunds), 0);
+    }
+
+    function test_returnsOne_whenPasskeySignedDifferentHash() public {
+        bytes32 userOpHash = keccak256("123");
+        bytes memory sig = _passkeySignature(keccak256("456"));
+
+        vm.etch(account.entryPoint(), address(new MockEntryPoint()).code);
+        MockEntryPoint ep = MockEntryPoint(payable(account.entryPoint()));
+
+        UserOperation memory userOp;
+        userOp.signature = sig;
+        assertEq(ep.validateUserOp(address(account), userOp, userOpHash, 0), 1);
+    }
+
+    function test_succeedsWithPasskeySigner_onReplayableUserOp() public {
+        UserOperation memory userOp;
+        userOp.sender = address(account);
+        userOp.nonce = account.REPLAYABLE_NONCE_KEY() << 64;
+        userOp.callData = abi.encodeWithSelector(CoinbaseSmartWallet.executeWithoutChainIdValidation.selector);
+        // The passkey signs the chain-agnostic hash, not the hash the EntryPoint passes in.
+        userOp.signature = _passkeySignature(account.getUserOpHashWithoutChainId(userOp));
+
+        vm.etch(account.entryPoint(), address(new MockEntryPoint()).code);
+        MockEntryPoint ep = MockEntryPoint(payable(account.entryPoint()));
+
+        assertEq(ep.validateUserOp(address(account), userOp, keccak256("ignored for replayable ops"), 0), 0);
+
+        // The same signature is still valid after switching chains.
+        vm.chainId(block.chainid + 1);
+        assertEq(ep.validateUserOp(address(account), userOp, keccak256("ignored for replayable ops"), 0), 0);
+    }
+
+    function test_reverts_whenPasskeyOwnerRemoved() public {
+        bytes32 userOpHash = keccak256("123");
+        bytes memory sig = _passkeySignature(userOpHash);
+
+        vm.prank(signer);
+        account.removeOwnerAtIndex(1, passkeyOwner);
+
+        vm.etch(account.entryPoint(), address(new MockEntryPoint()).code);
+        MockEntryPoint ep = MockEntryPoint(payable(account.entryPoint()));
+
+        UserOperation memory userOp;
+        userOp.signature = sig;
+        vm.expectRevert(abi.encodeWithSelector(MultiOwnable.InvalidOwnerBytesLength.selector, ""));
+        ep.validateUserOp(address(account), userOp, userOpHash, 0);
+    }
+
+    // Foundry won't etch over the P-256 precompile at 0x100, so check the Solidity fallback
+    // that WebAuthn uses on chains without it directly.
+    function test_fallbackVerifierAcceptsPasskeySignature() public view {
+        WebAuthnInfo memory webAuthn = Utils.getWebAuthnStruct(keccak256("123"));
+        (bytes32 r, bytes32 s) = vm.signP256(passkeyPrivateKey, webAuthn.messageHash);
+        s = bytes32(Utils.normalizeS(uint256(s)));
+        (uint256 x, uint256 y) = abi.decode(passkeyOwner, (uint256, uint256));
+
+        assertTrue(FCL_ecdsa.ecdsa_verify(webAuthn.messageHash, uint256(r), uint256(s), x, y));
+        assertFalse(FCL_ecdsa.ecdsa_verify(keccak256("456"), uint256(r), uint256(s), x, y));
+    }
+
+    function _passkeySignature(bytes32 hash) internal view returns (bytes memory) {
+        WebAuthnInfo memory webAuthn = Utils.getWebAuthnStruct(hash);
+        (bytes32 r, bytes32 s) = vm.signP256(passkeyPrivateKey, webAuthn.messageHash);
+        s = bytes32(Utils.normalizeS(uint256(s)));
+        return abi.encode(
+            CoinbaseSmartWallet.SignatureWrapper({
+                ownerIndex: 1,
+                signatureData: abi.encode(
+                    WebAuthn.WebAuthnAuth({
+                        authenticatorData: webAuthn.authenticatorData,
+                        clientDataJSON: webAuthn.clientDataJSON,
+                        typeIndex: 1,
+                        challengeIndex: 23,
+                        r: uint256(r),
+                        s: uint256(s)
+                    })
+                )
+            })
+        );
     }
 
     function test_reverts_whenSelectorInvalidForReplayableNonceKey() public {
