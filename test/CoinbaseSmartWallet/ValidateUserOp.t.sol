@@ -95,7 +95,9 @@ contract TestValidateUserOp is SmartWalletTestBase {
         UserOperation memory userOp;
         userOp.sender = address(account);
         userOp.nonce = account.REPLAYABLE_NONCE_KEY() << 64;
-        userOp.callData = abi.encodeWithSelector(CoinbaseSmartWallet.executeWithoutChainIdValidation.selector);
+        // validateUserOp decodes the calls to check upgrade targets, so they must be ABI-encoded.
+        userOp.callData =
+            abi.encodeWithSelector(CoinbaseSmartWallet.executeWithoutChainIdValidation.selector, new bytes[](0));
         // The passkey signs the chain-agnostic hash, not the hash the EntryPoint passes in.
         userOp.signature = _passkeySignature(account.getUserOpHashWithoutChainId(userOp));
 
