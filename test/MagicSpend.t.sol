@@ -3,6 +3,7 @@ pragma solidity ^0.8.23;
 
 import {Test} from "forge-std/Test.sol";
 import {Ownable} from "solady/auth/Ownable.sol";
+import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 
 import {MagicSpend} from "../src/MagicSpend.sol";
 
@@ -20,15 +21,11 @@ contract MagicSpendTest is Test {
     }
 
     function _makeRequest(uint256 amount, uint256 nonce, uint48 expiry, address asset)
-        internal view returns (MagicSpend.WithdrawRequest memory req)
+        internal
+        view
+        returns (MagicSpend.WithdrawRequest memory req)
     {
-        req = MagicSpend.WithdrawRequest({
-            signature: "",
-            asset: asset,
-            amount: amount,
-            nonce: nonce,
-            expiry: expiry
-        });
+        req = MagicSpend.WithdrawRequest({signature: "", asset: asset, amount: amount, nonce: nonce, expiry: expiry});
         bytes32 hash = magicSpend.getHash(user, req);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerKey, hash);
         req.signature = abi.encodePacked(r, s, v);
@@ -151,6 +148,135 @@ contract MagicSpendTest is Test {
         magicSpend.withdraw(req);
         assertEq(token.balanceOf(user), 40);
         assertEq(token.balanceOf(address(magicSpend)), 60);
+    }
+}
+
+contract MagicSpendExtraTest is Test {
+    MagicSpend magicSpend;
+    uint256 ownerKey = 0xA11CE;
+    address owner;
+    address user = address(0x1234);
+    address ep;
+
+    function setUp() public {
+        owner = vm.addr(ownerKey);
+        vm.prank(owner);
+        magicSpend = new MagicSpend();
+        vm.deal(address(magicSpend), 10 ether);
+        ep = magicSpend.entryPoint();
+    }
+
+    function _signedRequest(address account, uint256 amount, uint256 nonce, address asset)
+        internal
+        view
+        returns (MagicSpend.WithdrawRequest memory req)
+    {
+        req = MagicSpend.WithdrawRequest({
+            signature: "", asset: asset, amount: amount, nonce: nonce, expiry: uint48(block.timestamp + 1 hours)
+        });
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerKey, magicSpend.getHash(account, req));
+        req.signature = abi.encodePacked(r, s, v);
+    }
+
+    function test_withdraw_emitsWithdrawalEvent() public {
+        MagicSpend.WithdrawRequest memory req = _signedRequest(user, 1 ether, 11, address(0));
+        vm.expectEmit(true, true, false, true, address(magicSpend));
+        emit MagicSpend.MagicSpendWithdrawal(user, address(0), 1 ether, 11);
+        vm.prank(user);
+        magicSpend.withdraw(req);
+    }
+
+    function test_withdraw_revertsWhenRedeemedByDifferentAccount() public {
+        MagicSpend.WithdrawRequest memory req = _signedRequest(user, 1 ether, 1, address(0));
+        vm.prank(address(0xBEEF));
+        vm.expectRevert(MagicSpend.InvalidSignature.selector);
+        magicSpend.withdraw(req);
+    }
+
+    function test_withdraw_revertsOnDifferentChainId() public {
+        MagicSpend.WithdrawRequest memory req = _signedRequest(user, 1 ether, 1, address(0));
+        vm.chainId(block.chainid + 1);
+        vm.prank(user);
+        vm.expectRevert(MagicSpend.InvalidSignature.selector);
+        magicSpend.withdraw(req);
+    }
+
+    function test_withdraw_revertsWhenContractUnderfunded() public {
+        MagicSpend.WithdrawRequest memory req = _signedRequest(user, 11 ether, 12, address(0));
+        vm.prank(user);
+        vm.expectRevert(SafeTransferLib.ETHTransferFailed.selector);
+        magicSpend.withdraw(req);
+        assertFalse(magicSpend.nonceUsed(user, 12), "nonce burned by failed transfer");
+    }
+
+    function test_ownerWithdraw_ERC20() public {
+        MockERC20 token = new MockERC20();
+        token.mint(address(magicSpend), 100);
+        vm.prank(owner);
+        magicSpend.ownerWithdraw(address(token), user, 30);
+        assertEq(token.balanceOf(user), 30);
+        assertEq(token.balanceOf(address(magicSpend)), 70);
+    }
+
+    function test_entryPointWithdraw_revertsZeroAddress() public {
+        vm.prank(owner);
+        vm.expectRevert(MagicSpend.InvalidAddress.selector);
+        magicSpend.entryPointWithdraw(payable(address(0)), 1 ether);
+    }
+
+    function test_entryPointWithdrawStake_revertsZeroAddress() public {
+        vm.prank(owner);
+        vm.expectRevert(MagicSpend.InvalidAddress.selector);
+        magicSpend.entryPointWithdrawStake(payable(address(0)));
+    }
+
+    // The tests below etch a recording fake over the EntryPoint address, so they check that
+    // MagicSpend forwards the right calls, not the real EntryPoint's behavior.
+    function test_entryPointWithdraw_forwardsToEntryPoint() public {
+        vm.etch(ep, address(new FakeEntryPoint()).code);
+        vm.prank(owner);
+        magicSpend.entryPointWithdraw(payable(user), 3 ether);
+        assertEq(FakeEntryPoint(payable(ep)).lastWithdrawTo(), user);
+        assertEq(FakeEntryPoint(payable(ep)).lastWithdrawAmount(), 3 ether);
+    }
+
+    function test_entryPointUnlockStake_forwardsToEntryPoint() public {
+        vm.etch(ep, address(new FakeEntryPoint()).code);
+        vm.prank(owner);
+        magicSpend.entryPointUnlockStake();
+        assertTrue(FakeEntryPoint(payable(ep)).unlocked());
+    }
+
+    function test_entryPointWithdrawStake_forwardsToEntryPoint() public {
+        vm.etch(ep, address(new FakeEntryPoint()).code);
+        vm.startPrank(owner);
+        magicSpend.entryPointUnlockStake();
+        magicSpend.entryPointWithdrawStake(payable(user));
+        vm.stopPrank();
+        assertEq(FakeEntryPoint(payable(ep)).lastStakeWithdrawTo(), user);
+    }
+}
+
+contract FakeEntryPoint {
+    bool public unlocked;
+    address public lastWithdrawTo;
+    uint256 public lastWithdrawAmount;
+    address public lastStakeWithdrawTo;
+
+    receive() external payable {}
+
+    function withdrawTo(address payable to, uint256 amount) external {
+        lastWithdrawTo = to;
+        lastWithdrawAmount = amount;
+    }
+
+    function unlockStake() external {
+        unlocked = true;
+    }
+
+    function withdrawStake(address payable to) external {
+        require(unlocked, "stake not unlocked");
+        lastStakeWithdrawTo = to;
     }
 }
 

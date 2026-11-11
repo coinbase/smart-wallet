@@ -2,9 +2,9 @@
 pragma solidity ^0.8.23;
 
 import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
+import {Ownable} from "solady/auth/Ownable.sol";
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 import {SignatureCheckerLib} from "solady/utils/SignatureCheckerLib.sol";
-import {Ownable} from "solady/auth/Ownable.sol";
 
 contract MagicSpend is Ownable {
     constructor() {
@@ -69,7 +69,9 @@ contract MagicSpend is Ownable {
     }
 
     function isValidWithdrawSignature(address account, WithdrawRequest memory withdrawRequest)
-        public view returns (bool)
+        public
+        view
+        returns (bool)
     {
         return SignatureCheckerLib.isValidSignatureNow(
             owner(), getHash(account, withdrawRequest), withdrawRequest.signature
@@ -79,9 +81,13 @@ contract MagicSpend is Ownable {
     function getHash(address account, WithdrawRequest memory withdrawRequest) public view returns (bytes32) {
         return SignatureCheckerLib.toEthSignedMessageHash(
             abi.encode(
-                address(this), account, block.chainid,
-                withdrawRequest.asset, withdrawRequest.amount,
-                withdrawRequest.nonce, withdrawRequest.expiry
+                address(this),
+                account,
+                block.chainid,
+                withdrawRequest.asset,
+                withdrawRequest.amount,
+                withdrawRequest.nonce,
+                withdrawRequest.expiry
             )
         );
     }
