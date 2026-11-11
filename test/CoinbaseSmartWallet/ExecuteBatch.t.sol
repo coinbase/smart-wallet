@@ -6,7 +6,7 @@ import "solady/../test/utils/TestPlus.sol";
 import {MockTarget} from "../mocks/MockTarget.sol";
 import "./SmartWalletTestBase.sol";
 
-contract TestExecuteWithoutChainIdValidation is SmartWalletTestBase, TestPlus {
+contract TestExecuteBatch is SmartWalletTestBase, TestPlus {
     function testExecuteBatch() public {
         vm.deal(address(account), 1 ether);
         vm.prank(signer);
